@@ -21,7 +21,7 @@ interface OpenFoodFactsApi {
         @Query("fields") fields: String = FIELDS,
     ): SearchResponseDto
 
-    // Used by the barcode-scanner stretch goal later.
+    // Used by the barcode scanner (FoodRepository.byBarcode).
     @GET("api/v2/product/{barcode}")
     suspend fun productByBarcode(
         @Path("barcode") barcode: String,

@@ -12,6 +12,7 @@ import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.RecipeDao
 import com.nutricart.app.data.local.dao.ShoppingDao
+import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
 import dagger.Module
 import dagger.Provides
@@ -200,6 +201,23 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+/** v5 -> v6: adds water tracking. */
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `water_entry` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `epochDay` INTEGER NOT NULL,
+                `ml` INTEGER NOT NULL,
+                `loggedAtEpochMillis` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_water_entry_epochDay` ON `water_entry` (`epochDay`)")
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -209,7 +227,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "nutricart.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
             .fallbackToDestructiveMigration(dropAllTables = true)
@@ -238,4 +256,7 @@ object DatabaseModule {
 
     @Provides
     fun provideShoppingDao(db: AppDatabase): ShoppingDao = db.shoppingDao()
+
+    @Provides
+    fun provideWaterDao(db: AppDatabase): WaterDao = db.waterDao()
 }

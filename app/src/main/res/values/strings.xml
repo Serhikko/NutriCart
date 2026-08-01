@@ -154,6 +154,10 @@
     <string name="search_action">Search</string>
     <string name="no_results">Nothing found. Try a different name.</string>
     <string name="search_min_chars">Type at least 2 characters</string>
+    <string name="scan_barcode">Scan a barcode</string>
+    <string name="barcode_not_found">Product not found for this barcode.</string>
+    <string name="barcode_offline">You\'re offline and this product isn\'t cached yet — try again with internet.</string>
+    <string name="barcode_scan_failed">Scanner unavailable — try again in a moment.</string>
     <string name="offline_results_note">Offline — showing previously loaded products only.</string>
     <string name="kcal_per_100g">%1$d kcal / 100 g</string>
     <string name="grams_mode">Grams</string>
@@ -168,6 +172,14 @@
     <string name="dashboard_title">Today</string>
     <string name="dashboard_target">Daily target</string>
     <string name="dashboard_current_weight">Current weight</string>
+    <string name="water_label">Water</string>
+    <string name="ml_unit">ml</string>
+    <string name="water_add_250" translatable="false">+250</string>
+    <string name="water_add_500" translatable="false">+500</string>
+    <string name="water_undo">Undo</string>
+    <string name="weight_card_title">Weight</string>
+    <string name="weight_trend_value">%1$+.1f kg/week</string>
+    <string name="weight_chart_hint">Log a few more weigh-ins — the chart appears from two different days.</string>
     <string name="weight_kg_value">%1$.1f kg</string>
     <string name="dashboard_placeholder_note">All v1 features are in. Enjoy!</string>
     <string name="steps_label">Steps</string>

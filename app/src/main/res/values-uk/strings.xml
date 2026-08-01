@@ -151,6 +151,10 @@
     <string name="search_action">Шукати</string>
     <string name="no_results">Нічого не знайдено. Спробуй іншу назву.</string>
     <string name="search_min_chars">Введи щонайменше 2 символи</string>
+    <string name="scan_barcode">Сканувати штрихкод</string>
+    <string name="barcode_not_found">Продукт із цим штрихкодом не знайдено.</string>
+    <string name="barcode_offline">Немає інтернету, а цього продукту ще немає в кеші — спробуй з мережею.</string>
+    <string name="barcode_scan_failed">Сканер недоступний — спробуй ще раз за мить.</string>
     <string name="offline_results_note">Офлайн — показані лише раніше завантажені продукти.</string>
     <string name="kcal_per_100g">%1$d ккал / 100 г</string>
     <string name="grams_mode">Грами</string>
@@ -165,6 +169,12 @@
     <string name="dashboard_title">Сьогодні</string>
     <string name="dashboard_target">Добова ціль</string>
     <string name="dashboard_current_weight">Поточна вага</string>
+    <string name="water_label">Вода</string>
+    <string name="ml_unit">мл</string>
+    <string name="water_undo">Скасувати</string>
+    <string name="weight_card_title">Вага</string>
+    <string name="weight_trend_value">%1$+.1f кг/тижд.</string>
+    <string name="weight_chart_hint">Додай ще кілька вимірів — графік з\'являється з двох різних днів.</string>
     <string name="weight_kg_value">%1$.1f кг</string>
     <string name="dashboard_placeholder_note">Усі функції v1 на місці. Смачного!</string>
     <string name="steps_label">Кроки</string>

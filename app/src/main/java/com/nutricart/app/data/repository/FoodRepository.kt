@@ -26,6 +26,33 @@ class FoodRepository @Inject constructor(
     private val foodDao: FoodDao,
 ) {
 
+    /**
+     * Barcode lookup, offline-first: the cache answers instantly for products
+     * scanned before; otherwise the OFF barcode endpoint is asked and the
+     * result is cached like any other product.
+     * null = the database genuinely does not know this barcode.
+     * No internet is NOT "unknown" — an IOException propagates to the caller,
+     * which tells the user they are offline instead of lying "not found".
+     */
+    suspend fun byBarcode(barcode: String): FoodProductEntity? {
+        foodDao.byId("off:$barcode")?.let { return it }
+        return try {
+            val product = api.productByBarcode(barcode).product
+                ?.toEntityOrNull(System.currentTimeMillis())
+                ?: return null
+            foodDao.upsertAll(listOf(product))
+            product
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            throw e // offline — the ViewModel shows a dedicated message
+        } catch (e: Exception) {
+            // Server error or unexpected response — log it, treat as unknown.
+            Log.w("FoodRepository", "Barcode lookup failed", e)
+            null
+        }
+    }
+
     suspend fun search(query: String): FoodSearchResult {
         return try {
             val dtos = api.searchByName(query).products

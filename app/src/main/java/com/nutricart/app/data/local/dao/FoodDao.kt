@@ -20,6 +20,9 @@ interface FoodDao {
     )
     suspend fun searchByName(query: String): List<FoodProductEntity>
 
+    @Query("SELECT * FROM food_product WHERE id = :id")
+    suspend fun byId(id: String): FoodProductEntity?
+
     // @Upsert only — see the warning in FoodProductEntity about REPLACE.
     @Upsert
     suspend fun upsertAll(products: List<FoodProductEntity>)

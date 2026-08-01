@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +58,8 @@ import com.nutricart.app.ui.common.AnimatedNumber
 import com.nutricart.app.ui.common.CalorieRing
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.common.MacroBar
+import com.nutricart.app.ui.common.WeightChart
+import java.time.LocalDate
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -182,7 +185,17 @@ fun DashboardScreen(
                     MacroCard(state)
 
                     Spacer(modifier = Modifier.height(16.dp))
+                    WaterCard(
+                        waterMl = state.waterMl,
+                        onAdd = viewModel::addWater,
+                        onUndo = viewModel::undoWater,
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
                     ActivityCard(state)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    WeightCard(state)
 
                     // Numbers look wrong (e.g. watch steps missing)? Let the
                     // user inspect Health Connect's own sources and priorities.
@@ -330,6 +343,111 @@ private fun ActivityCard(state: DashboardUiState) {
                 labelRes = R.string.dashboard_current_weight,
                 value = stringResource(R.string.weight_kg_value, state.weightKg),
             )
+        }
+    }
+}
+
+/** Water: today's total (rolling number) + quick-add and undo buttons. */
+@Composable
+private fun WaterCard(waterMl: Int, onAdd: (Int) -> Unit, onUndo: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.water_label),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    AnimatedNumber(
+                        value = waterMl,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        " " + stringResource(R.string.ml_unit),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(onClick = { onAdd(250) }) {
+                    Text(stringResource(R.string.water_add_250))
+                }
+                FilledTonalButton(onClick = { onAdd(500) }) {
+                    Text(stringResource(R.string.water_add_500))
+                }
+                TextButton(onClick = onUndo, enabled = waterMl > 0) {
+                    Text(stringResource(R.string.water_undo))
+                }
+            }
+        }
+    }
+}
+
+/** Weight: the history chart with a dashed trend line and kg/week slope. */
+@Composable
+private fun WeightCard(state: DashboardUiState) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    stringResource(R.string.weight_card_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                state.weightTrend?.let { trend ->
+                    Text(
+                        stringResource(R.string.weight_trend_value, trend.slopeKgPerWeek),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            if (state.weightPoints.size >= 2) {
+                WeightChart(
+                    points = state.weightPoints,
+                    trend = state.weightTrend,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                val dateFormatter = remember {
+                    DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        LocalDate.ofEpochDay(state.weightPoints.first().first).format(dateFormatter),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        LocalDate.ofEpochDay(state.weightPoints.last().first).format(dateFormatter),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                Text(
+                    stringResource(R.string.weight_chart_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

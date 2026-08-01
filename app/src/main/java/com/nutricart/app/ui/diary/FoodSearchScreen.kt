@@ -23,8 +23,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -33,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -55,13 +59,31 @@ fun FoodSearchScreen(
     viewModel: FoodSearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Entry saved -> back to the diary.
     LaunchedEffect(state.logged) {
         if (state.logged) onDone()
     }
 
+    // One-shot barcode messages -> snackbar.
+    val notFoundMessage = stringResource(R.string.barcode_not_found)
+    val offlineMessage = stringResource(R.string.barcode_offline)
+    val scanFailedMessage = stringResource(R.string.barcode_scan_failed)
+    LaunchedEffect(state.scanMessage) {
+        val message = state.scanMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(
+            when (message) {
+                ScanMessage.PRODUCT_NOT_FOUND -> notFoundMessage
+                ScanMessage.OFFLINE -> offlineMessage
+                ScanMessage.SCANNER_FAILED -> scanFailedMessage
+            }
+        )
+        viewModel.clearScanMessage()
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(mealSlotLabel(viewModel.mealSlot)) },
@@ -102,6 +124,13 @@ fun FoodSearchScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = viewModel::scanBarcode,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.scan_barcode))
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
             if (state.searching) {

@@ -21,6 +21,8 @@ healthConnect = "1.1.0"
 # Food search: Open Food Facts API
 retrofit = "3.0.0"
 kotlinxSerializationJson = "1.11.0"
+# Barcode scanning: Google's ready-made scanner UI (no camera permission needed)
+codeScanner = "16.1.0"
 junit = "4.13.2"
 # Icons were split out of the Compose release train; they keep their own version
 # and are NOT managed by the Compose BOM anymore.
@@ -56,6 +58,7 @@ androidx-health-connect-client = { group = "androidx.health.connect", name = "co
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-converter-kotlinx-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+play-services-code-scanner = { group = "com.google.android.gms", name = "play-services-code-scanner", version.ref = "codeScanner" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

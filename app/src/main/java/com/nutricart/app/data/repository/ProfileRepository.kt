@@ -26,6 +26,9 @@ class ProfileRepository @Inject constructor(
 
     fun observeLatestWeight(): Flow<WeightEntryEntity?> = weightDao.observeLatest()
 
+    /** Full weight history (both sources) — the chart dedupes per day itself. */
+    fun observeWeightHistory(): Flow<List<WeightEntryEntity>> = weightDao.observeAll()
+
     /** Overwrites the single profile row (used by the settings screen). */
     suspend fun updateProfile(profile: UserProfileEntity) {
         profileDao.upsert(profile)

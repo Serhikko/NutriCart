@@ -14,8 +14,8 @@ android {
         applicationId = "com.nutricart.app"
         minSdk = 28
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.6"
+        versionCode = 7
+        versionName = "0.7"
     }
 
     buildTypes {
@@ -78,6 +78,9 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.kotlinx.serialization.json)
+
+    // Barcode scanning (system-provided scanner UI, no camera permission)
+    implementation(libs.play.services.code.scanner)
 
     // Unit tests (pure JVM)
     testImplementation(libs.junit)
