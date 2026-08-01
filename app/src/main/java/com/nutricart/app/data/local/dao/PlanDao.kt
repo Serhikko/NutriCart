@@ -19,6 +19,10 @@ interface PlanDao {
     @Query("SELECT * FROM planned_meal WHERE epochDay = :epochDay AND isLocked = 1")
     suspend fun lockedOnDay(epochDay: Long): List<PlannedMealEntity>
 
+    /** The meals of the user-selected days — input for the shopping list. */
+    @Query("SELECT * FROM planned_meal WHERE epochDay IN (:days)")
+    suspend fun onDays(days: List<Long>): List<PlannedMealEntity>
+
     @Insert
     suspend fun insertAll(meals: List<PlannedMealEntity>)
 

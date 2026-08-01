@@ -8,6 +8,7 @@ import com.nutricart.app.data.local.entity.IngredientEntity
 import com.nutricart.app.data.local.entity.RecipeEntity
 import com.nutricart.app.data.local.entity.RecipeIngredientEntity
 import com.nutricart.app.data.local.entity.RecipeStepEntity
+import com.nutricart.app.domain.model.Aisle
 import com.nutricart.app.domain.model.Allergen
 import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.domain.model.RecipeNutrition
@@ -39,6 +40,15 @@ data class IngredientAmountRow(
     val name: String,
     val grams: Double,
     val gramsPerPiece: Double?,
+)
+
+/** Ingredient usage across recipes — raw material for the shopping list. */
+data class RecipeIngredientAmountRow(
+    val recipeId: Long,
+    val name: String,
+    val aisle: Aisle,
+    val gramsPerPiece: Double?,
+    val grams: Double,
 )
 
 @Dao
@@ -101,4 +111,15 @@ interface RecipeDao {
         """
     )
     suspend fun ingredientsFor(recipeId: Long): List<IngredientAmountRow>
+
+    @Query(
+        """
+        SELECT ri.recipeId AS recipeId, i.name AS name, i.aisle AS aisle,
+               i.gramsPerPiece AS gramsPerPiece, ri.grams AS grams
+        FROM recipe_ingredient ri
+        JOIN ingredient i ON i.id = ri.ingredientId
+        WHERE ri.recipeId IN (:recipeIds)
+        """
+    )
+    suspend fun ingredientAmountsForRecipes(recipeIds: List<Long>): List<RecipeIngredientAmountRow>
 }

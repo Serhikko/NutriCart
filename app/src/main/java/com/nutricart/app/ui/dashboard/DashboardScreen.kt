@@ -32,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -182,6 +183,22 @@ fun DashboardScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
                     ActivityCard(state)
+
+                    // Numbers look wrong (e.g. watch steps missing)? Let the
+                    // user inspect Health Connect's own sources and priorities.
+                    // Only when HC is actually usable — with no HC installed
+                    // this intent would resolve nowhere and crash.
+                    if (state.hcBanner == HcBannerState.NONE) {
+                        TextButton(
+                            onClick = {
+                                context.startActivity(
+                                    Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)
+                                )
+                            },
+                        ) {
+                            Text(stringResource(R.string.hc_open_settings))
+                        }
+                    }
 
                     state.lastSyncEpochMillis?.let { millis ->
                         Spacer(modifier = Modifier.height(12.dp))

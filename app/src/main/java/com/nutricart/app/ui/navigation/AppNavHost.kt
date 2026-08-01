@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -39,11 +40,13 @@ import com.nutricart.app.ui.mealplan.MealPlanScreen
 import com.nutricart.app.ui.mealplan.RecipeDetailScreen
 import com.nutricart.app.ui.onboarding.OnboardingScreen
 import com.nutricart.app.ui.settings.SettingsScreen
+import com.nutricart.app.ui.shopping.ShoppingScreen
 
 /** Route names in one place, so there are no magic strings scattered around. */
 object Routes {
     const val DASHBOARD = "dashboard"
     const val PLAN = "meal_plan"
+    const val SHOPPING = "shopping"
     const val DIARY = "diary"
     const val SETTINGS = "settings"
 
@@ -88,8 +91,8 @@ private fun AppNavHost() {
 
     Scaffold(
         bottomBar = {
-            // The tab bar shows only on the three top-level screens.
-            if (currentRoute in setOf(Routes.DASHBOARD, Routes.PLAN, Routes.DIARY)) {
+            // The tab bar shows only on the four top-level screens.
+            if (currentRoute in TAB_ROUTES) {
                 NavigationBar {
                     NavigationBarItem(
                         selected = currentRoute == Routes.DASHBOARD,
@@ -102,6 +105,12 @@ private fun AppNavHost() {
                         onClick = { navController.navigateToTab(Routes.PLAN) },
                         icon = { Icon(Icons.Filled.DateRange, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_plan)) },
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.SHOPPING,
+                        onClick = { navController.navigateToTab(Routes.SHOPPING) },
+                        icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_shopping)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.DIARY,
@@ -158,6 +167,9 @@ private fun AppNavHost() {
             ) {
                 RecipeDetailScreen(onBack = goBack)
             }
+            composable(Routes.SHOPPING) {
+                ShoppingScreen()
+            }
             composable(Routes.DIARY) {
                 DiaryScreen(
                     onAddFood = { epochDay, slot ->
@@ -191,7 +203,7 @@ private fun NavHostController.navigateToTab(route: String) {
     }
 }
 
-private val TAB_ROUTES = setOf(Routes.DASHBOARD, Routes.PLAN, Routes.DIARY)
+private val TAB_ROUTES = setOf(Routes.DASHBOARD, Routes.PLAN, Routes.SHOPPING, Routes.DIARY)
 
 private fun bothAreTabs(from: String?, to: String?): Boolean =
     from in TAB_ROUTES && to in TAB_ROUTES

@@ -11,6 +11,7 @@ import com.nutricart.app.data.local.dao.FoodLogDao
 import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.RecipeDao
+import com.nutricart.app.data.local.dao.ShoppingDao
 import com.nutricart.app.data.local.dao.WeightDao
 import dagger.Module
 import dagger.Provides
@@ -176,6 +177,29 @@ private val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/** v4 -> v5: adds the materialized shopping list (one current list). */
+private val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `shopping_list_item` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `ingredientName` TEXT NOT NULL,
+                `aisle` TEXT NOT NULL,
+                `totalGrams` REAL NOT NULL,
+                `pieces` INTEGER,
+                `isChecked` INTEGER NOT NULL,
+                `alreadyHave` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_shopping_list_item_ingredientName` " +
+                "ON `shopping_list_item` (`ingredientName`)"
+        )
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -185,7 +209,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "nutricart.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
             .fallbackToDestructiveMigration(dropAllTables = true)
@@ -211,4 +235,7 @@ object DatabaseModule {
 
     @Provides
     fun providePlanDao(db: AppDatabase): PlanDao = db.planDao()
+
+    @Provides
+    fun provideShoppingDao(db: AppDatabase): ShoppingDao = db.shoppingDao()
 }

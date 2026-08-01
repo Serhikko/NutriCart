@@ -9,6 +9,7 @@ import com.nutricart.app.data.local.dao.FoodLogDao
 import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.RecipeDao
+import com.nutricart.app.data.local.dao.ShoppingDao
 import com.nutricart.app.data.local.dao.WeightDao
 import com.nutricart.app.data.local.entity.DailyActivityEntity
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
@@ -18,10 +19,10 @@ import com.nutricart.app.data.local.entity.PlannedMealEntity
 import com.nutricart.app.data.local.entity.RecipeEntity
 import com.nutricart.app.data.local.entity.RecipeIngredientEntity
 import com.nutricart.app.data.local.entity.RecipeStepEntity
+import com.nutricart.app.data.local.entity.ShoppingListItemEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
 
-// The shopping list table is added in the next build step.
 // Every version bump needs a matching Migration in DatabaseModule.
 @Database(
     entities = [
@@ -35,8 +36,9 @@ import com.nutricart.app.data.local.entity.WeightEntryEntity
         RecipeStepEntity::class,
         RecipeIngredientEntity::class,
         PlannedMealEntity::class,
+        ShoppingListItemEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)
@@ -48,4 +50,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun foodLogDao(): FoodLogDao
     abstract fun recipeDao(): RecipeDao
     abstract fun planDao(): PlanDao
+    abstract fun shoppingDao(): ShoppingDao
 }

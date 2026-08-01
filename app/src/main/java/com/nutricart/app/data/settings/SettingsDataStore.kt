@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -26,6 +27,7 @@ class SettingsDataStore @Inject constructor(
     private object Keys {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val LAST_HC_SYNC_EPOCH_MILLIS = longPreferencesKey("last_hc_sync_epoch_millis")
+        val SHOPPING_SELECTED_DAYS = stringPreferencesKey("shopping_selected_days_csv")
     }
 
     val onboardingCompleted: Flow<Boolean> =
@@ -41,5 +43,21 @@ class SettingsDataStore @Inject constructor(
 
     suspend fun setLastHcSyncEpochMillis(value: Long) {
         context.dataStore.edit { prefs -> prefs[Keys.LAST_HC_SYNC_EPOCH_MILLIS] = value }
+    }
+
+    /** Which plan days the last shopping list was built from (epoch days as CSV). */
+    val shoppingSelectedDays: Flow<Set<Long>> =
+        context.dataStore.data.map { prefs ->
+            prefs[Keys.SHOPPING_SELECTED_DAYS]
+                ?.split(",")
+                ?.mapNotNull { it.toLongOrNull() }
+                ?.toSet()
+                ?: emptySet()
+        }
+
+    suspend fun setShoppingSelectedDays(days: Set<Long>) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.SHOPPING_SELECTED_DAYS] = days.joinToString(",")
+        }
     }
 }

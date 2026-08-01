@@ -84,7 +84,31 @@
     <!-- Tabs -->
     <string name="tab_today">Сьогодні</string>
     <string name="tab_plan">План</string>
+    <string name="tab_shopping">Покупки</string>
     <string name="tab_diary">Щоденник</string>
+
+    <!-- Shopping list -->
+    <string name="shopping_title">Список покупок</string>
+    <string name="shopping_generate">Зібрати список</string>
+    <string name="shopping_regenerate">Оновити список</string>
+    <string name="shopping_days_label">Дні плану</string>
+    <string name="shopping_no_plan_hint">Спершу згенеруй план харчування — список покупок збирається з нього.</string>
+    <string name="already_have_action">Вже є</string>
+    <string name="need_it_action">Треба</string>
+    <string name="share_action">Поділитися</string>
+    <string name="copy_action">Скопіювати</string>
+    <string name="copied_toast">Скопійовано.</string>
+    <string name="aisle_produce">Овочі та фрукти</string>
+    <string name="aisle_meat_fish">М\'ясо і риба</string>
+    <string name="aisle_dairy_eggs">Молочне і яйця</string>
+    <string name="aisle_bakery">Випічка і хліб</string>
+    <string name="aisle_grains">Крупи і макарони</string>
+    <string name="aisle_canned">Консерви</string>
+    <string name="aisle_frozen">Заморозка</string>
+    <string name="aisle_spices_oils">Спеції та олії</string>
+    <string name="aisle_snacks">Снеки</string>
+    <string name="aisle_beverages">Напої</string>
+    <string name="aisle_other">Інше</string>
 
     <!-- Meal plan -->
     <string name="plan_title">План харчування</string>
@@ -142,7 +166,7 @@
     <string name="dashboard_target">Добова ціль</string>
     <string name="dashboard_current_weight">Поточна вага</string>
     <string name="weight_kg_value">%1$.1f кг</string>
-    <string name="dashboard_placeholder_note">Список покупок з\'явиться в наступному кроці розробки.</string>
+    <string name="dashboard_placeholder_note">Усі функції v1 на місці. Смачного!</string>
     <string name="steps_label">Кроки</string>
     <string name="calories_out_label">Витрачено калорій</string>
     <string name="exercise_label">Тренування</string>
@@ -162,6 +186,7 @@
     <string name="hc_install">Встановити</string>
     <string name="hc_update">Оновити</string>
     <string name="hc_grant">Надати доступ</string>
+    <string name="hc_open_settings">Перевірити джерела даних у Health Connect</string>
     <string name="hc_no_data_hint">Health Connect підключено, але кроків чи калорій там ще немає. Якщо користуєшся годинником: відкрий його застосунок (напр. Samsung Health → Налаштування → Health Connect) і увімкни передачу даних у Health Connect, потім потягни тут вниз для оновлення.</string>
 
     <!-- Shown by Health Connect when the user asks why we need permissions -->

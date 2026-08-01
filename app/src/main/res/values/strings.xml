@@ -86,7 +86,31 @@
     <!-- Tabs -->
     <string name="tab_today">Today</string>
     <string name="tab_plan">Plan</string>
+    <string name="tab_shopping">Shopping</string>
     <string name="tab_diary">Diary</string>
+
+    <!-- Shopping list -->
+    <string name="shopping_title">Shopping list</string>
+    <string name="shopping_generate">Build the list</string>
+    <string name="shopping_regenerate">Update the list</string>
+    <string name="shopping_days_label">Plan days</string>
+    <string name="shopping_no_plan_hint">Generate a meal plan first — the shopping list is built from it.</string>
+    <string name="already_have_action">Have it</string>
+    <string name="need_it_action">Need it</string>
+    <string name="share_action">Share</string>
+    <string name="copy_action">Copy to clipboard</string>
+    <string name="copied_toast">Copied.</string>
+    <string name="aisle_produce">Fruit &amp; vegetables</string>
+    <string name="aisle_meat_fish">Meat &amp; fish</string>
+    <string name="aisle_dairy_eggs">Dairy &amp; eggs</string>
+    <string name="aisle_bakery">Bakery</string>
+    <string name="aisle_grains">Grains &amp; pasta</string>
+    <string name="aisle_canned">Canned goods</string>
+    <string name="aisle_frozen">Frozen</string>
+    <string name="aisle_spices_oils">Spices &amp; oils</string>
+    <string name="aisle_snacks">Snacks</string>
+    <string name="aisle_beverages">Beverages</string>
+    <string name="aisle_other">Other</string>
 
     <!-- Meal plan -->
     <string name="plan_title">Meal plan</string>
@@ -145,7 +169,7 @@
     <string name="dashboard_target">Daily target</string>
     <string name="dashboard_current_weight">Current weight</string>
     <string name="weight_kg_value">%1$.1f kg</string>
-    <string name="dashboard_placeholder_note">The shopping list arrives in the next build step.</string>
+    <string name="dashboard_placeholder_note">All v1 features are in. Enjoy!</string>
     <string name="steps_label">Steps</string>
     <string name="calories_out_label">Calories out</string>
     <string name="exercise_label">Exercise</string>
@@ -166,6 +190,7 @@
     <string name="hc_install">Install</string>
     <string name="hc_update">Update</string>
     <string name="hc_grant">Allow access</string>
+    <string name="hc_open_settings">Check data sources in Health Connect</string>
     <string name="hc_no_data_hint">Health Connect is connected, but has no steps or calories yet. If you use a watch: open its companion app (e.g. Samsung Health → Settings → Health Connect) and turn on sharing with Health Connect, then pull down here to refresh.</string>
 
     <!-- Shown by Health Connect when the user asks why we need permissions -->
