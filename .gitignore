@@ -1,0 +1,16 @@
+# Gradle / Kotlin build state
+.gradle/
+build/
+.kotlin/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+
+# Machine-specific SDK location — never commit
+local.properties
+
+# Misc
+.DS_Store
+*.log

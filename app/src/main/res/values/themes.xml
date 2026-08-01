@@ -1,0 +1,4 @@
+<resources>
+    <!-- Minimal Activity theme: real theming happens in Compose (ui/theme/Theme.kt). -->
+    <style name="Theme.NutriCart" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

@@ -1,0 +1,79 @@
+<resources>
+    <!-- Common -->
+    <string name="loading">Завантаження…</string>
+    <string name="next">Далі</string>
+    <string name="back">Назад</string>
+    <string name="start">Почати</string>
+    <string name="kcal_value">%1$d ккал</string>
+    <string name="grams_value">%1$d г</string>
+
+    <!-- Onboarding: sex -->
+    <string name="onboarding_title_sex">Про тебе</string>
+    <string name="sex_male">Чоловік</string>
+    <string name="sex_female">Жінка</string>
+
+    <!-- Onboarding: date of birth -->
+    <string name="onboarding_title_birth">Дата народження</string>
+    <string name="birth_hint">Вік потрібен для розрахунку добової потреби в калоріях.</string>
+    <string name="choose_date">Обрати дату</string>
+    <string name="underage_error">NutriCart розрахований на дорослих (18+). Обмеження калорій для неповнолітніх потребує нагляду лікаря, тому користуватися застосунком до 18 років не можна.</string>
+
+    <!-- Onboarding: body -->
+    <string name="onboarding_title_body">Параметри тіла</string>
+    <string name="height_label">Зріст (см)</string>
+    <string name="weight_label">Вага (кг)</string>
+    <string name="invalid_height">Вкажи зріст від 100 до 250 см</string>
+    <string name="invalid_weight">Вкажи вагу від 30 до 300 кг</string>
+
+    <!-- Onboarding: activity -->
+    <string name="onboarding_title_activity">Рівень активності</string>
+    <string name="activity_sedentary">Сидячий</string>
+    <string name="activity_sedentary_desc">Майже без спорту, офісна робота</string>
+    <string name="activity_light">Легкий</string>
+    <string name="activity_light_desc">Легкі тренування 1–3 рази на тиждень</string>
+    <string name="activity_moderate">Помірний</string>
+    <string name="activity_moderate_desc">Тренування 3–5 разів на тиждень</string>
+    <string name="activity_active">Активний</string>
+    <string name="activity_active_desc">Інтенсивні тренування 6–7 разів на тиждень</string>
+    <string name="activity_very_active">Дуже активний</string>
+    <string name="activity_very_active_desc">Фізична робота плюс регулярні тренування</string>
+
+    <!-- Onboarding: goal -->
+    <string name="onboarding_title_goal">Твоя ціль</string>
+    <string name="goal_lose">Схуднути</string>
+    <string name="goal_maintain">Тримати вагу</string>
+    <string name="goal_gain">Набрати вагу</string>
+    <string name="rate_label">Темп (кг на тиждень)</string>
+
+    <!-- Onboarding: diet -->
+    <string name="onboarding_title_diet">Харчові вподобання</string>
+    <string name="vegetarian_label">Вегетаріанство</string>
+    <string name="no_pork_label">Без свинини</string>
+    <string name="allergies_label">Алергії</string>
+    <string name="allergen_gluten">Глютен</string>
+    <string name="allergen_dairy">Молочні продукти</string>
+    <string name="allergen_eggs">Яйця</string>
+    <string name="allergen_nuts">Горіхи</string>
+    <string name="allergen_peanuts">Арахіс</string>
+    <string name="allergen_fish">Риба</string>
+    <string name="allergen_shellfish">Морепродукти</string>
+    <string name="allergen_soy">Соя</string>
+    <string name="snacks_label">Перекусів на день</string>
+
+    <!-- Onboarding: summary -->
+    <string name="onboarding_title_summary">Твій план на день</string>
+    <string name="summary_bmr">BMR (калорії у спокої)</string>
+    <string name="summary_kcal_target">Добова ціль калорій</string>
+    <string name="summary_protein">Білки</string>
+    <string name="summary_fat">Жири</string>
+    <string name="summary_carbs">Вуглеводи</string>
+    <string name="safety_floor_note">Ціль піднято до безпечного мінімуму.</string>
+    <string name="summary_note">Це орієнтовна оцінка, а не медична порада.</string>
+
+    <!-- Dashboard (placeholder for now) -->
+    <string name="dashboard_title">Сьогодні</string>
+    <string name="dashboard_target">Добова ціль</string>
+    <string name="dashboard_current_weight">Поточна вага</string>
+    <string name="weight_kg_value">%1$.1f кг</string>
+    <string name="dashboard_placeholder_note">Кроки, синхронізація з годинником, щоденник їжі та повний дашборд з\'являться в наступних кроках розробки.</string>
+</resources>
