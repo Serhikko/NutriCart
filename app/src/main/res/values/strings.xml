@@ -62,6 +62,10 @@
     <string name="allergen_shellfish">Shellfish</string>
     <string name="allergen_soy">Soy</string>
     <string name="snacks_label">Snacks per day</string>
+    <string name="cooking_label">How often do you cook per week?</string>
+    <string name="cooking_daily">Every day</string>
+    <string name="cooking_every_other">Every other day</string>
+    <string name="cooking_few">2–3 times</string>
 
     <!-- Onboarding: summary -->
     <string name="onboarding_title_summary">Your daily plan</string>
@@ -166,6 +170,8 @@
     <string name="add_action">Add</string>
 
     <!-- Dashboard -->
+    <string name="today_menu_title">Today\'s menu</string>
+    <string name="streak_value">🔥 %1$d-day streak</string>
     <string name="eaten_label">Eaten</string>
     <string name="remaining_label">Remaining</string>
     <string name="macro_pair">%1$d / %2$d g</string>

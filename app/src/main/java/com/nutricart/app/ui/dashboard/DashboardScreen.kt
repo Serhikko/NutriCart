@@ -3,6 +3,7 @@ package com.nutricart.app.ui.dashboard
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -59,6 +60,7 @@ import com.nutricart.app.ui.common.CalorieRing
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.common.MacroBar
 import com.nutricart.app.ui.common.WeightChart
+import com.nutricart.app.ui.diary.mealSlotLabel
 import java.time.LocalDate
 import java.time.Instant
 import java.time.ZoneId
@@ -72,6 +74,7 @@ private const val HEALTH_CONNECT_PLAY_URL =
 @Composable
 fun DashboardScreen(
     onOpenSettings: () -> Unit,
+    onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -180,6 +183,20 @@ fun DashboardScreen(
                     }
 
                     HeroRing(state)
+
+                    if (state.streakDays >= 2) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.streak_value, state.streakDays),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+
+                    if (state.todayMenu.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        TodayMenuCard(menu = state.todayMenu, onOpenRecipe = onOpenRecipe)
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
                     MacroCard(state)
@@ -343,6 +360,47 @@ private fun ActivityCard(state: DashboardUiState) {
                 labelRes = R.string.dashboard_current_weight,
                 value = stringResource(R.string.weight_kg_value, state.weightKg),
             )
+        }
+    }
+}
+
+/** Today's planned meals — one tap away from the recipe. */
+@Composable
+private fun TodayMenuCard(
+    menu: List<TodayMenuItem>,
+    onOpenRecipe: (Long, Double) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                stringResource(R.string.today_menu_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            menu.forEach { item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenRecipe(item.recipeId, item.portionFactor) }
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            mealSlotLabel(item.slot),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(item.name, style = MaterialTheme.typography.bodyLarge)
+                    }
+                    Text(
+                        stringResource(R.string.kcal_value, item.kcal),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

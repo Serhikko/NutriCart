@@ -50,6 +50,7 @@ import com.nutricart.app.ui.common.ErrorCard
 import com.nutricart.app.ui.common.RadioOptionRow
 import com.nutricart.app.ui.common.SwitchRow
 import com.nutricart.app.ui.common.allergenLabel
+import com.nutricart.app.ui.common.cookingSessionsLabel
 import java.time.LocalDate
 
 /**
@@ -117,6 +118,7 @@ fun OnboardingScreen(
                             viewModel::toggleNoPork,
                             viewModel::toggleAllergen,
                             viewModel::selectSnacksPerDay,
+                            viewModel::selectCookingSessions,
                         )
                         OnboardingUiState.STEP_SUMMARY -> SummaryStep(state)
                     }
@@ -277,6 +279,7 @@ private fun DietStep(
     onNoPork: (Boolean) -> Unit,
     onToggleAllergen: (Allergen) -> Unit,
     onSnacks: (Int) -> Unit,
+    onCookingSessions: (Int) -> Unit,
 ) {
     StepTitle(R.string.onboarding_title_diet)
 
@@ -305,6 +308,19 @@ private fun DietStep(
                 selected = state.snacksPerDay == count,
                 onClick = { onSnacks(count) },
                 label = { Text(count.toString()) },
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+    Text(stringResource(R.string.cooking_label), style = MaterialTheme.typography.titleMedium)
+    Spacer(modifier = Modifier.height(8.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ProfileOptions.COOKING_OPTIONS.forEach { sessions ->
+            FilterChip(
+                selected = state.cookingSessionsPerWeek == sessions,
+                onClick = { onCookingSessions(sessions) },
+                label = { Text(cookingSessionsLabel(sessions)) },
             )
         }
     }

@@ -180,6 +180,32 @@ class MealPlanGeneratorTest {
         )
     }
 
+    // ---------- Cooking groups (batch cooking) ----------
+
+    @Test
+    fun `cooking every day makes seven groups of one`() {
+        val days = (0L..6L).map { 20_000L + it }
+        val groups = MealPlanGenerator.buildCookingGroups(days, sessionsPerWeek = 7)
+        assertEquals(7, groups.size)
+        assertTrue(groups.all { it.size == 1 })
+    }
+
+    @Test
+    fun `three cooking sessions split the week into 3 plus 2 plus 2 days`() {
+        val days = (0L..6L).map { 20_000L + it }
+        val groups = MealPlanGenerator.buildCookingGroups(days, sessionsPerWeek = 3)
+        assertEquals(listOf(3, 2, 2), groups.map { it.size })
+        // Groups are contiguous and cover the whole week in order.
+        assertEquals(days, groups.flatten())
+    }
+
+    @Test
+    fun `four cooking sessions split the week into 2 2 2 1`() {
+        val days = (0L..6L).map { 20_000L + it }
+        val groups = MealPlanGenerator.buildCookingGroups(days, sessionsPerWeek = 4)
+        assertEquals(listOf(2, 2, 2, 1), groups.map { it.size })
+    }
+
     // ---------- Diet filter ----------
 
     @Test

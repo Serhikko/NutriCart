@@ -78,6 +78,27 @@ class MealPlanGenerator(private val random: Random) {
          */
         fun roundFactor(factor: Double): Double =
             (factor / 0.05).roundToInt() * 0.05
+
+        /**
+         * Batch cooking: splits the week into [sessionsPerWeek] CONTIGUOUS
+         * groups of (almost) equal size — the user cooks once per group and
+         * eats that menu on every day of the group. Repeating a whole day
+         * keeps it inside the ±5% band automatically, because every day has
+         * the same calorie target. 7 days / 3 sessions -> sizes 3, 2, 2.
+         */
+        fun buildCookingGroups(days: List<Long>, sessionsPerWeek: Int): List<List<Long>> {
+            val sessions = sessionsPerWeek.coerceIn(1, days.size)
+            val baseSize = days.size / sessions
+            val extra = days.size % sessions // the first `extra` groups get one more day
+            val groups = mutableListOf<List<Long>>()
+            var index = 0
+            repeat(sessions) { group ->
+                val size = baseSize + if (group < extra) 1 else 0
+                groups += days.subList(index, index + size)
+                index += size
+            }
+            return groups
+        }
     }
 
     /** Which slot gets which rough share of the day's calories. */

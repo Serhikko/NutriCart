@@ -3,16 +3,23 @@ package com.nutricart.app.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutricart.app.data.health.HealthConnectManager
+import com.nutricart.app.data.local.dao.DayNutritionTotals
+import com.nutricart.app.data.local.entity.DailyActivityEntity
+import com.nutricart.app.data.local.entity.PlannedMealEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
 import com.nutricart.app.data.repository.ActivityRepository
 import com.nutricart.app.data.repository.DiaryRepository
+import com.nutricart.app.data.repository.PlanRepository
 import com.nutricart.app.data.repository.ProfileRepository
 import com.nutricart.app.data.repository.SyncResult
 import com.nutricart.app.data.repository.WaterRepository
 import com.nutricart.app.domain.logic.CalorieCalculator
+import com.nutricart.app.domain.logic.StreakCalculator
 import com.nutricart.app.domain.logic.WeightTrendCalculator
 import com.nutricart.app.domain.model.DailyTargets
+import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.domain.model.RecipeNutrition
 import com.nutricart.app.domain.model.WeightSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,6 +36,15 @@ import kotlin.math.roundToInt
 
 /** Which Health Connect problem (if any) the dashboard should explain. */
 enum class HcBannerState { NONE, NOT_INSTALLED, UPDATE_REQUIRED, NO_PERMISSION }
+
+/** One line of the "today's menu" card (a planned meal, scaled). */
+data class TodayMenuItem(
+    val recipeId: Long,
+    val slot: MealSlot,
+    val name: String,
+    val kcal: Int,
+    val portionFactor: Double,
+)
 
 data class DashboardUiState(
     val loading: Boolean = true,
@@ -50,6 +66,10 @@ data class DashboardUiState(
     /** Per-day weight points (MANUAL wins over watch), oldest first, max 30. */
     val weightPoints: List<Pair<Long, Double>> = emptyList(),
     val weightTrend: WeightTrendCalculator.Trend? = null,
+    /** Days in a row with at least one diary entry. */
+    val streakDays: Int = 0,
+    /** Today's planned meals; empty = no plan for today. */
+    val todayMenu: List<TodayMenuItem> = emptyList(),
     /** Sync works, but Health Connect holds no activity data — probably the
      *  watch app (e.g. Samsung Health) is not connected to Health Connect. */
     val showNoDataHint: Boolean = false,
@@ -66,8 +86,17 @@ class DashboardViewModel @Inject constructor(
     private val activityRepository: ActivityRepository,
     diaryRepository: DiaryRepository,
     private val waterRepository: WaterRepository,
+    planRepository: PlanRepository,
     private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
+
+    // All recipes by id — the today's-menu card needs their names AND kcal
+    // (first access also seeds the recipe tables).
+    private val recipesById = MutableStateFlow<Map<Long, RecipeNutrition>>(emptyMap())
+
+    init {
+        viewModelScope.launch { recipesById.value = planRepository.nutritionById() }
+    }
 
     /** The permission set the screen hands to the system permission dialog. */
     val healthPermissions: Set<String>
@@ -95,15 +124,23 @@ class DashboardViewModel @Inject constructor(
         SyncStatus(banner, isRefreshing, lastSync, failed)
     }
 
+    private data class TodayData(
+        val activity: DailyActivityEntity?,
+        val eaten: DayNutritionTotals,
+        val waterMl: Int,
+        val planMeals: List<PlannedMealEntity>,
+    )
+
     // When the date rolls over, switch to observing the new day's rows —
-    // watch activity, food diary totals and water.
+    // watch activity, food diary totals, water and the planned menu.
     @OptIn(ExperimentalCoroutinesApi::class)
     private val todayData = todayFlow.flatMapLatest { day ->
         combine(
             activityRepository.observeDay(day.toEpochDay()),
             diaryRepository.observeDayTotals(day.toEpochDay()),
             waterRepository.observeDayTotal(day.toEpochDay()),
-        ) { activity, eaten, water -> Triple(activity, eaten, water) }
+            planRepository.observeDay(day.toEpochDay()),
+        ) { activity, eaten, water, planMeals -> TodayData(activity, eaten, water, planMeals) }
     }
 
     // Everything about the user, grouped so the main combine stays small.
@@ -111,20 +148,24 @@ class DashboardViewModel @Inject constructor(
         val profile: UserProfileEntity?,
         val latestWeight: WeightEntryEntity?,
         val history: List<WeightEntryEntity>,
+        val loggedDays: List<Long>,
     )
 
     private val profileData = combine(
         profileRepository.observeProfile(),
         profileRepository.observeLatestWeight(),
         profileRepository.observeWeightHistory(),
-    ) { profile, latest, history -> ProfileData(profile, latest, history) }
+        diaryRepository.observeLoggedDays(),
+    ) { profile, latest, history, loggedDays -> ProfileData(profile, latest, history, loggedDays) }
 
     val uiState: StateFlow<DashboardUiState> = combine(
         todayFlow,
         profileData,
         todayData,
+        recipesById,
         syncStatus,
-    ) { today, pd, (activity, eaten, waterMl), sync ->
+    ) { today, pd, todayValues, recipes, sync ->
+        val (activity, eaten, waterMl, planMeals) = todayValues
         val profile = pd.profile
         val weight = pd.latestWeight
         if (profile == null || weight == null) {
@@ -180,6 +221,23 @@ class DashboardViewModel @Inject constructor(
                 waterMl = waterMl,
                 weightPoints = weightPoints,
                 weightTrend = WeightTrendCalculator.calculate(weightPoints),
+                streakDays = StreakCalculator.calculate(
+                    pd.loggedDays.toSet(),
+                    today.toEpochDay(),
+                ),
+                todayMenu = planMeals
+                    .sortedWith(compareBy({ it.slot.ordinal }, { it.position }))
+                    .mapNotNull { row ->
+                        recipes[row.recipeId]?.let { n ->
+                            TodayMenuItem(
+                                recipeId = row.recipeId,
+                                slot = row.slot,
+                                name = n.name,
+                                kcal = (n.kcal * row.portionFactor).roundToInt(),
+                                portionFactor = row.portionFactor,
+                            )
+                        }
+                    },
                 // A sync HAS run (the day row exists only after one), everything
                 // is set up, yet both core values are absent -> the data source
                 // (watch app) is likely not feeding Health Connect. No

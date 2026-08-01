@@ -36,6 +36,7 @@ data class SettingsUiState(
     val goal: Goal = Goal.MAINTAIN,
     val targetKgPerWeek: Double = 0.0,
     val snacksPerDay: Int = 1,
+    val cookingSessionsPerWeek: Int = ProfileOptions.DEFAULT_COOKING_SESSIONS,
     val isVegetarian: Boolean = false,
     val noPork: Boolean = false,
     val allergies: Set<Allergen> = emptySet(),
@@ -83,6 +84,7 @@ class SettingsViewModel @Inject constructor(
                     goal = profile.goal,
                     targetKgPerWeek = profile.targetKgPerWeek,
                     snacksPerDay = profile.snacksPerDay,
+                    cookingSessionsPerWeek = profile.cookingSessionsPerWeek,
                     isVegetarian = profile.isVegetarian,
                     noPork = profile.noPork,
                     allergies = profile.allergies.toSet(),
@@ -123,6 +125,9 @@ class SettingsViewModel @Inject constructor(
 
     fun selectSnacksPerDay(count: Int) = _uiState.update { it.copy(snacksPerDay = count) }
 
+    fun selectCookingSessions(sessions: Int) =
+        _uiState.update { it.copy(cookingSessionsPerWeek = sessions) }
+
     fun toggleVegetarian(enabled: Boolean) = _uiState.update { it.copy(isVegetarian = enabled) }
 
     fun toggleNoPork(enabled: Boolean) = _uiState.update { it.copy(noPork = enabled) }
@@ -153,6 +158,7 @@ class SettingsViewModel @Inject constructor(
                     goal = state.goal,
                     targetKgPerWeek = state.targetKgPerWeek,
                     snacksPerDay = state.snacksPerDay,
+                    cookingSessionsPerWeek = state.cookingSessionsPerWeek,
                     isVegetarian = state.isVegetarian,
                     noPork = state.noPork,
                     allergies = state.allergies.toList(),

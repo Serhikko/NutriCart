@@ -22,6 +22,9 @@ class DiaryRepository @Inject constructor(
     fun observeDayTotals(epochDay: Long): Flow<DayNutritionTotals> =
         foodLogDao.observeDayTotals(epochDay)
 
+    /** Days with at least one entry — input for the dashboard streak. */
+    fun observeLoggedDays(): Flow<List<Long>> = foodLogDao.observeLoggedDays()
+
     /**
      * Logs [grams] of a product into a meal. The nutrition numbers are computed
      * HERE, once, and stored as a snapshot — the diary never changes later.

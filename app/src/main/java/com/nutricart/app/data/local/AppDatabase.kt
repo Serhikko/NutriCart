@@ -41,7 +41,7 @@ import com.nutricart.app.data.local.entity.WeightEntryEntity
         ShoppingListItemEntity::class,
         WaterEntryEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)

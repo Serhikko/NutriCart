@@ -24,6 +24,9 @@ data class UserProfileEntity(
     val targetKgPerWeek: Double,
     // How many snacks the meal plan should include per day (0..2), chosen in onboarding.
     val snacksPerDay: Int,
+    // Cooking sessions per week (3/4/7): fewer = the plan repeats day-menus
+    // in blocks, so one cooking session covers several days.
+    val cookingSessionsPerWeek: Int,
     val isVegetarian: Boolean,
     val noPork: Boolean,
     // Stored as CSV of enum names via Converters.

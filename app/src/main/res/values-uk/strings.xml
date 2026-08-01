@@ -60,6 +60,10 @@
     <string name="allergen_shellfish">Морепродукти</string>
     <string name="allergen_soy">Соя</string>
     <string name="snacks_label">Перекусів на день</string>
+    <string name="cooking_label">Скільки разів на тиждень готуєш?</string>
+    <string name="cooking_daily">Щодня</string>
+    <string name="cooking_every_other">Через день</string>
+    <string name="cooking_few">2–3 рази</string>
 
     <!-- Onboarding: summary -->
     <string name="onboarding_title_summary">Твій план на день</string>
@@ -163,6 +167,8 @@
     <string name="add_action">Додати</string>
 
     <!-- Dashboard -->
+    <string name="today_menu_title">Меню на сьогодні</string>
+    <string name="streak_value">🔥 Серія: %1$d дн.</string>
     <string name="eaten_label">З\'їдено</string>
     <string name="remaining_label">Залишилось</string>
     <string name="macro_pair">%1$d / %2$d г</string>

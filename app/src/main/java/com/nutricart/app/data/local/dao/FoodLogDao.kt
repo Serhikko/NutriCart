@@ -32,6 +32,10 @@ interface FoodLogDao {
     )
     fun observeDayTotals(epochDay: Long): Flow<DayNutritionTotals>
 
+    /** Which days have at least one entry — feeds the dashboard streak. */
+    @Query("SELECT DISTINCT epochDay FROM food_log_entry")
+    fun observeLoggedDays(): Flow<List<Long>>
+
     @Insert
     suspend fun insert(entry: FoodLogEntryEntity)
 

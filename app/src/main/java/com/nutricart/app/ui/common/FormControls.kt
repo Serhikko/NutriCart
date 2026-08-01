@@ -136,6 +136,16 @@ fun DatePickerField(date: LocalDate?, onDatePicked: (LocalDate) -> Unit) {
     }
 }
 
+/** Maps a cooking-sessions-per-week value (3/4/7) to its translated label. */
+@Composable
+fun cookingSessionsLabel(sessions: Int): String = stringResource(
+    when (sessions) {
+        7 -> R.string.cooking_daily
+        4 -> R.string.cooking_every_other
+        else -> R.string.cooking_few
+    }
+)
+
 /** Maps each allergen enum value to its translated label. */
 @Composable
 fun allergenLabel(allergen: Allergen): String = stringResource(

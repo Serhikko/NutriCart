@@ -149,6 +149,9 @@ private fun AppNavHost() {
             composable(Routes.DASHBOARD) {
                 DashboardScreen(
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onOpenRecipe = { recipeId, portionFactor ->
+                        navController.navigate(Routes.recipe(recipeId, portionFactor))
+                    },
                 )
             }
             composable(Routes.PLAN) {

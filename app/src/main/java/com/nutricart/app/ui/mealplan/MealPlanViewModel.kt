@@ -173,6 +173,7 @@ class MealPlanViewModel @Inject constructor(
                     startEpochDay = weekStart.value,
                     targets = computeTargets(profile, weight.weightKg),
                     snacksPerDay = profile.snacksPerDay,
+                    cookingSessionsPerWeek = profile.cookingSessionsPerWeek,
                     recipes = recipes,
                     generator = MealPlanGenerator(Random.Default),
                 )

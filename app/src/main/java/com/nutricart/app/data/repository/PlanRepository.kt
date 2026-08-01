@@ -12,6 +12,7 @@ import com.nutricart.app.domain.logic.PlannedMealDraft
 import com.nutricart.app.domain.logic.filterRecipesForDiet
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.domain.model.DailyTargets
+import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.domain.model.RecipeNutrition
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -36,6 +37,10 @@ class PlanRepository @Inject constructor(
     fun observeWeek(startEpochDay: Long): Flow<List<PlannedMealEntity>> =
         planDao.observeRange(startEpochDay, startEpochDay + 6)
 
+    /** One day's meals — the dashboard's "today's menu" card. */
+    fun observeDay(epochDay: Long): Flow<List<PlannedMealEntity>> =
+        planDao.observeRange(epochDay, epochDay)
+
     /** ALL recipes by id (unfiltered) — for displaying any planned meal. */
     suspend fun nutritionById(): Map<Long, RecipeNutrition> {
         seeder.ensureSeeded()
@@ -54,15 +59,19 @@ class PlanRepository @Inject constructor(
     }
 
     /**
-     * Generates 7 days starting at [startEpochDay]. All days are generated in
-     * memory FIRST and the database is written only when every day succeeded —
-     * a failure never changes the existing plan (including its locks).
-     * Returns null on success, or the first day's failure reason.
+     * Generates 7 days starting at [startEpochDay], in COOKING GROUPS:
+     * one menu is generated per group and copied to each of its days
+     * (batch cooking — see MealPlanGenerator.buildCookingGroups).
+     * Everything is generated in memory FIRST and the database is written
+     * only when every group succeeded — a failure never changes the existing
+     * plan (including its locks).
+     * Returns null on success, or the first failure reason.
      */
     suspend fun generateWeek(
         startEpochDay: Long,
         targets: DailyTargets,
         snacksPerDay: Int,
+        cookingSessionsPerWeek: Int,
         recipes: List<RecipeNutrition>,
         generator: MealPlanGenerator,
     ): PlanFailureReason? {
@@ -71,40 +80,46 @@ class PlanRepository @Inject constructor(
         val templateKeys = generator.slotTemplate(snacksPerDay)
             .map { it.slot to it.position }
             .toSet()
+        val days = (0..6).map { startEpochDay + it }
+        val groups = MealPlanGenerator.buildCookingGroups(days, cookingSessionsPerWeek)
         val newMeals = mutableListOf<PlannedMealEntity>()
         val staleLockedIds = mutableListOf<Long>()
 
-        for (offset in 0..6) {
-            val day = startEpochDay + offset
-            // Locked meals stay as fixed input — but ONLY if they still pass
-            // the CURRENT diet filter (an allergen added in Settings must never
-            // survive a lock) and still fit the day template (snacksPerDay may
-            // have changed). Rows failing either check are collected and, once
-            // the whole week generated successfully, unlocked so replaceWeek
-            // removes them like any free slot. (Not unlocked earlier: a FAILED
-            // generation must leave the plan and its locks untouched.)
-            val lockedRows = planDao.lockedOnDay(day)
-            val locked = mutableListOf<PlannedMealDraft>()
-            for (row in lockedRows) {
-                val stillValid = row.recipeId in allowedIds &&
-                    (row.slot to row.position) in templateKeys
-                if (stillValid) {
-                    allById[row.recipeId]?.let { nutrition ->
-                        locked += PlannedMealDraft(
+        for (group in groups) {
+            // Locks apply per GROUP: the first still-valid lock of a slot wins
+            // and its dish is eaten on every day of the group. Locks that lost
+            // the race, fail the CURRENT diet filter (an allergen added in
+            // Settings must never survive a lock) or no longer fit the day
+            // template are collected and unlocked only AFTER the whole week
+            // succeeded — a FAILED generation leaves the plan untouched.
+            val winningLocks = mutableMapOf<Pair<MealSlot, Int>, Pair<Long, PlannedMealDraft>>()
+            for (day in group) {
+                for (row in planDao.lockedOnDay(day)) {
+                    val key = row.slot to row.position
+                    val nutrition = allById[row.recipeId]
+                    if (nutrition == null || row.recipeId !in allowedIds ||
+                        key !in templateKeys || key in winningLocks
+                    ) {
+                        staleLockedIds += row.id
+                    } else {
+                        winningLocks[key] = day to PlannedMealDraft(
                             row.slot, row.position, nutrition, row.portionFactor, isLocked = true,
                         )
                     }
-                } else {
-                    staleLockedIds += row.id
                 }
             }
+            val locked = winningLocks.values.map { it.second }
+
             when (val result = generator.generateDay(targets, recipes, snacksPerDay, locked)) {
                 is PlanDayResult.Failure -> return result.reason
                 is PlanDayResult.Success -> {
-                    newMeals += result.meals
-                        .filterNot { it.isLocked } // locked rows already exist in the DB
-                        .map { draft ->
-                            PlannedMealEntity(
+                    // The group's menu is written to EVERY day of the group.
+                    for (day in group) {
+                        for (draft in result.meals) {
+                            val lockOriginDay = winningLocks[draft.slot to draft.position]?.first
+                            // The winning locked row already exists on its own day.
+                            if (draft.isLocked && day == lockOriginDay) continue
+                            newMeals += PlannedMealEntity(
                                 epochDay = day,
                                 slot = draft.slot,
                                 position = draft.position,
@@ -113,11 +128,12 @@ class PlanRepository @Inject constructor(
                                 isLocked = false,
                             )
                         }
+                    }
                 }
             }
         }
 
-        // Every day succeeded — now stale locks may go, then the week is swapped.
+        // Every group succeeded — now stale locks may go, then the week is swapped.
         staleLockedIds.forEach { planDao.setLocked(it, false) }
         planDao.replaceWeek(startEpochDay, startEpochDay + 6, newMeals)
         return null

@@ -50,6 +50,7 @@ import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.common.RadioOptionRow
 import com.nutricart.app.ui.common.SwitchRow
 import com.nutricart.app.ui.common.allergenLabel
+import com.nutricart.app.ui.common.cookingSessionsLabel
 
 /**
  * One scrollable form with the same fields as onboarding, pre-filled from the
@@ -244,6 +245,18 @@ private fun SettingsForm(
                     selected = state.snacksPerDay == count,
                     onClick = { viewModel.selectSnacksPerDay(count) },
                     label = { Text(count.toString()) },
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.cooking_label), style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ProfileOptions.COOKING_OPTIONS.forEach { sessions ->
+                FilterChip(
+                    selected = state.cookingSessionsPerWeek == sessions,
+                    onClick = { viewModel.selectCookingSessions(sessions) },
+                    label = { Text(cookingSessionsLabel(sessions)) },
                 )
             }
         }
