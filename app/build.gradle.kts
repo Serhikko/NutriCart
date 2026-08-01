@@ -13,8 +13,8 @@ android {
         applicationId = "com.nutricart.app"
         minSdk = 28
         targetSdk = 37
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = "0.3"
     }
 
     buildTypes {
@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core) // Settings/ArrowBack icons
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose) // LifecycleResumeEffect
     implementation(libs.androidx.navigation.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
@@ -64,6 +65,12 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose) // new home of hiltViewModel()
+
+    // Health Connect (watch/phone activity data) + hourly background sync
+    implementation(libs.androidx.health.connect.client)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work) // @HiltWorker support
+    ksp(libs.androidx.hilt.compiler)
 
     // Unit tests (pure JVM)
     testImplementation(libs.junit)

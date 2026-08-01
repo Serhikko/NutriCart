@@ -87,5 +87,29 @@
     <string name="dashboard_target">Daily target</string>
     <string name="dashboard_current_weight">Current weight</string>
     <string name="weight_kg_value">%1$.1f kg</string>
-    <string name="dashboard_placeholder_note">Steps, watch sync, food log and the full dashboard arrive in the next build steps.</string>
+    <string name="dashboard_placeholder_note">Food log, meal plan and shopping list arrive in the next build steps.</string>
+    <string name="steps_label">Steps</string>
+    <string name="calories_out_label">Calories out</string>
+    <string name="exercise_label">Exercise</string>
+    <string name="sleep_label">Sleep</string>
+    <string name="heart_rate_label">Avg heart rate</string>
+    <string name="minutes_value">%1$d min</string>
+    <string name="sleep_value">%1$dh %2$02dm</string>
+    <string name="bpm_value">%1$d bpm</string>
+    <string name="target_adjusted_note">Adjusted for today\'s activity from your watch.</string>
+    <string name="last_synced">Last synced: %1$s</string>
+    <string name="sync_failed">Couldn\'t refresh data from Health Connect. Pull down to try again.</string>
+    <string name="no_data_dash" translatable="false">—</string>
+
+    <!-- Health Connect states -->
+    <string name="hc_banner_not_installed">Install Health Connect to sync steps, calories and weight from your watch.</string>
+    <string name="hc_banner_update">Health Connect needs an update to work with NutriCart.</string>
+    <string name="hc_banner_no_permission">Allow NutriCart to read your activity so the daily target follows your real movement.</string>
+    <string name="hc_install">Install</string>
+    <string name="hc_update">Update</string>
+    <string name="hc_grant">Allow access</string>
+
+    <!-- Shown by Health Connect when the user asks why we need permissions -->
+    <string name="privacy_rationale_title">Your health data</string>
+    <string name="privacy_rationale_text">NutriCart reads steps, active calories, heart rate, exercise sessions, sleep and weight from Health Connect to adjust your daily calorie target and to show your daily activity on the dashboard. All data stays on this device — nothing is uploaded anywhere.</string>
 </resources>
