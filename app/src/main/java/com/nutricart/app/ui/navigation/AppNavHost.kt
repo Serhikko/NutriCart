@@ -11,10 +11,12 @@ import com.nutricart.app.MainViewModel
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.dashboard.DashboardScreen
 import com.nutricart.app.ui.onboarding.OnboardingScreen
+import com.nutricart.app.ui.settings.SettingsScreen
 
 /** Route names in one place, so there are no magic strings scattered around. */
 object Routes {
     const val DASHBOARD = "dashboard"
+    const val SETTINGS = "settings"
 }
 
 /**
@@ -39,7 +41,21 @@ private fun AppNavHost() {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
         composable(Routes.DASHBOARD) {
-            DashboardScreen()
+            DashboardScreen(
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+            )
+        }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBack = {
+                    // Guard against a double-tap on Back: after the first pop
+                    // there is nothing behind, and popping the start destination
+                    // would leave a blank screen.
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    }
+                },
+            )
         }
         // Future screens (diary, meal plan, recipes, shopping list) are added here.
     }

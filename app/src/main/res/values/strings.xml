@@ -72,6 +72,16 @@
     <string name="safety_floor_note">Your target was raised to the safe minimum.</string>
     <string name="summary_note">This is an estimate for guidance, not medical advice.</string>
 
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="save">Save</string>
+    <string name="weight_edit_hint">Changing the weight adds a new entry for today to your weight history.</string>
+    <string name="reset_button">Reset the app and start over</string>
+    <string name="reset_confirm_title">Delete all data?</string>
+    <string name="reset_confirm_text">Your profile and weight history will be deleted from this device. This cannot be undone.</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+
     <!-- Dashboard (placeholder for now) -->
     <string name="dashboard_title">Today</string>
     <string name="dashboard_target">Daily target</string>

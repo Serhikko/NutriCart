@@ -16,4 +16,8 @@ interface ProfileDao {
     // Upsert = insert if missing, update in place if the row exists.
     @Upsert
     suspend fun upsert(profile: UserProfileEntity)
+
+    // Used by "reset the app" in settings.
+    @Query("DELETE FROM user_profile")
+    suspend fun deleteAll()
 }

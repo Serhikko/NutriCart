@@ -6,7 +6,9 @@ import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.WeightSource
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,6 +25,37 @@ class ProfileRepository @Inject constructor(
     fun observeProfile(): Flow<UserProfileEntity?> = profileDao.observeProfile()
 
     fun observeLatestWeight(): Flow<WeightEntryEntity?> = weightDao.observeLatest()
+
+    /** Overwrites the single profile row (used by the settings screen). */
+    suspend fun updateProfile(profile: UserProfileEntity) {
+        profileDao.upsert(profile)
+    }
+
+    /** Adds (or replaces) today's manual weight entry — history stays intact. */
+    suspend fun logWeight(weightKg: Double, todayEpochDay: Long) {
+        weightDao.insert(
+            WeightEntryEntity(
+                epochDay = todayEpochDay,
+                weightKg = weightKg,
+                source = WeightSource.MANUAL,
+            )
+        )
+    }
+
+    /**
+     * "Reset the app": wipes all saved data and clears the onboarding flag,
+     * which automatically sends the UI back to the questionnaire.
+     */
+    suspend fun resetAll() {
+        // NonCancellable: once started, the reset must run to completion even if
+        // the calling screen dies mid-way. A half-done reset could leave
+        // "onboarding completed" pointing at an already-empty database.
+        withContext(NonCancellable) {
+            profileDao.deleteAll()
+            weightDao.deleteAll()
+            settings.setOnboardingCompleted(false)
+        }
+    }
 
     /**
      * Saves the whole onboarding result:

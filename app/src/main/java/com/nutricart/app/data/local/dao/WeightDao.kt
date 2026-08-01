@@ -38,4 +38,8 @@ interface WeightDao {
     // delete+insert and would break foreign keys — those tables must use @Upsert.)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: WeightEntryEntity)
+
+    // Used by "reset the app" in settings.
+    @Query("DELETE FROM weight_entry")
+    suspend fun deleteAll()
 }

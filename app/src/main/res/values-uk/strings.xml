@@ -70,6 +70,16 @@
     <string name="safety_floor_note">Ціль піднято до безпечного мінімуму.</string>
     <string name="summary_note">Це орієнтовна оцінка, а не медична порада.</string>
 
+    <!-- Settings -->
+    <string name="settings_title">Налаштування</string>
+    <string name="save">Зберегти</string>
+    <string name="weight_edit_hint">Зміна ваги додає новий запис за сьогодні до історії ваги.</string>
+    <string name="reset_button">Скинути все й почати спочатку</string>
+    <string name="reset_confirm_title">Видалити всі дані?</string>
+    <string name="reset_confirm_text">Профіль та історію ваги буде видалено з цього пристрою. Це незворотно.</string>
+    <string name="cancel">Скасувати</string>
+    <string name="delete">Видалити</string>
+
     <!-- Dashboard (placeholder for now) -->
     <string name="dashboard_title">Сьогодні</string>
     <string name="dashboard_target">Добова ціль</string>

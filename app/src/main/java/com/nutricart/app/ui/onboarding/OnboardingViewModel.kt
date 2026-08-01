@@ -9,6 +9,7 @@ import com.nutricart.app.domain.model.ActivityLevel
 import com.nutricart.app.domain.model.Allergen
 import com.nutricart.app.domain.model.DailyTargets
 import com.nutricart.app.domain.model.Goal
+import com.nutricart.app.domain.model.ProfileOptions
 import com.nutricart.app.domain.model.Sex
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,10 +52,11 @@ data class OnboardingUiState(
 ) {
     /** null = empty or out of the sane range -> the field shows an error. */
     val heightCm: Int?
-        get() = heightCmText.toIntOrNull()?.takeIf { it in 100..250 }
+        get() = heightCmText.toIntOrNull()?.takeIf { it in ProfileOptions.HEIGHT_CM_RANGE }
 
     val weightKg: Double?
-        get() = weightKgText.replace(',', '.').toDoubleOrNull()?.takeIf { it in 30.0..300.0 }
+        get() = weightKgText.replace(',', '.').toDoubleOrNull()
+            ?.takeIf { it in ProfileOptions.WEIGHT_KG_RANGE }
 
     /** Whether the Next button is enabled on the current step. */
     val canGoNext: Boolean
@@ -109,7 +111,7 @@ class OnboardingViewModel @Inject constructor(
         val rate = when {
             goal == Goal.MAINTAIN -> 0.0
             state.targetKgPerWeek > 0.0 -> state.targetKgPerWeek
-            else -> DEFAULT_RATE_KG_PER_WEEK
+            else -> ProfileOptions.DEFAULT_RATE_KG_PER_WEEK
         }
         state.copy(goal = goal, targetKgPerWeek = rate)
     }
@@ -205,11 +207,5 @@ class OnboardingViewModel @Inject constructor(
             targets = CalorieCalculator.macroTargets(target, weightKg),
             raisedToFloor = beforeFloor < CalorieCalculator.safetyFloorKcal(sex),
         )
-    }
-
-    companion object {
-        const val DEFAULT_RATE_KG_PER_WEEK = 0.5
-        val RATE_OPTIONS = listOf(0.25, 0.5, 0.75, 1.0)
-        val SNACK_OPTIONS = listOf(0, 1, 2)
     }
 }

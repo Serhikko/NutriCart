@@ -11,37 +11,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -49,12 +35,14 @@ import com.nutricart.app.R
 import com.nutricart.app.domain.model.ActivityLevel
 import com.nutricart.app.domain.model.Allergen
 import com.nutricart.app.domain.model.Goal
+import com.nutricart.app.domain.model.ProfileOptions
 import com.nutricart.app.domain.model.Sex
-import java.time.Instant
+import com.nutricart.app.ui.common.DatePickerField
+import com.nutricart.app.ui.common.ErrorCard
+import com.nutricart.app.ui.common.RadioOptionRow
+import com.nutricart.app.ui.common.SwitchRow
+import com.nutricart.app.ui.common.allergenLabel
 import java.time.LocalDate
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 /**
  * Seven-step questionnaire. One Composable per step below; the ViewModel holds
@@ -144,53 +132,17 @@ private fun SexStep(state: OnboardingUiState, onSelect: (Sex) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BirthDateStep(state: OnboardingUiState, onDatePicked: (LocalDate) -> Unit) {
-    var showPicker by remember { mutableStateOf(false) }
-
     StepTitle(R.string.onboarding_title_birth)
     Text(stringResource(R.string.birth_hint), style = MaterialTheme.typography.bodyMedium)
     Spacer(modifier = Modifier.height(16.dp))
 
-    val dateFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG) }
-    OutlinedButton(onClick = { showPicker = true }) {
-        Text(state.birthDate?.format(dateFormatter) ?: stringResource(R.string.choose_date))
-    }
+    DatePickerField(date = state.birthDate, onDatePicked = onDatePicked)
 
     if (state.underageBlocked) {
         Spacer(modifier = Modifier.height(16.dp))
         ErrorCard(stringResource(R.string.underage_error))
-    }
-
-    if (showPicker) {
-        // Seed the dialog with the already-chosen date, so reopening it
-        // continues from the previous choice instead of starting empty.
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = state.birthDate
-                ?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
-            yearRange = 1920..LocalDate.now().year,
-        )
-        DatePickerDialog(
-            onDismissRequest = { showPicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val millis = pickerState.selectedDateMillis
-                        if (millis != null) {
-                            // The Material date picker works in UTC, so convert in UTC too —
-                            // otherwise the date can shift by one day in some time zones.
-                            onDatePicked(
-                                Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-                            )
-                        }
-                        showPicker = false
-                    },
-                ) { Text(stringResource(android.R.string.ok)) }
-            },
-        ) {
-            DatePicker(state = pickerState)
-        }
     }
 }
 
@@ -239,27 +191,12 @@ private fun ActivityStep(state: OnboardingUiState, onSelect: (ActivityLevel) -> 
         Triple(ActivityLevel.VERY_ACTIVE, R.string.activity_very_active, R.string.activity_very_active_desc),
     )
     options.forEach { (level, titleRes, descRes) ->
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectable(
-                    selected = state.activityLevel == level,
-                    onClick = { onSelect(level) },
-                    role = Role.RadioButton,
-                )
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RadioButton(selected = state.activityLevel == level, onClick = null)
-            Column(modifier = Modifier.padding(start = 8.dp)) {
-                Text(stringResource(titleRes), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    stringResource(descRes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        RadioOptionRow(
+            titleRes = titleRes,
+            descRes = descRes,
+            selected = state.activityLevel == level,
+            onClick = { onSelect(level) },
+        )
     }
 }
 
@@ -276,24 +213,12 @@ private fun GoalStep(
         Goal.GAIN to R.string.goal_gain,
     )
     options.forEach { (goal, titleRes) ->
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectable(
-                    selected = state.goal == goal,
-                    onClick = { onSelectGoal(goal) },
-                    role = Role.RadioButton,
-                )
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RadioButton(selected = state.goal == goal, onClick = null)
-            Text(
-                stringResource(titleRes),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
+        RadioOptionRow(
+            titleRes = titleRes,
+            descRes = null,
+            selected = state.goal == goal,
+            onClick = { onSelectGoal(goal) },
+        )
     }
 
     // The pace only makes sense when the goal is to lose or gain.
@@ -302,7 +227,7 @@ private fun GoalStep(
         Text(stringResource(R.string.rate_label), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OnboardingViewModel.RATE_OPTIONS.forEach { rate ->
+            ProfileOptions.RATE_OPTIONS.forEach { rate ->
                 FilterChip(
                     selected = state.targetKgPerWeek == rate,
                     onClick = { onSelectRate(rate) },
@@ -344,7 +269,7 @@ private fun DietStep(
     Text(stringResource(R.string.snacks_label), style = MaterialTheme.typography.titleMedium)
     Spacer(modifier = Modifier.height(8.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OnboardingViewModel.SNACK_OPTIONS.forEach { count ->
+        ProfileOptions.SNACK_OPTIONS.forEach { count ->
             FilterChip(
                 selected = state.snacksPerDay == count,
                 onClick = { onSnacks(count) },
@@ -408,26 +333,12 @@ private fun SummaryStep(state: OnboardingUiState) {
     )
 }
 
-// ---------- Small shared pieces ----------
+// ---------- Small local pieces ----------
 
 @Composable
 private fun StepTitle(titleRes: Int) {
     Text(stringResource(titleRes), style = MaterialTheme.typography.headlineSmall)
     Spacer(modifier = Modifier.height(16.dp))
-}
-
-@Composable
-private fun SwitchRow(labelRes: Int, checked: Boolean, onChecked: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(labelRes), style = MaterialTheme.typography.titleMedium)
-        Switch(checked = checked, onCheckedChange = onChecked)
-    }
 }
 
 @Composable
@@ -440,33 +351,3 @@ private fun SummaryRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyLarge)
     }
 }
-
-@Composable
-private fun ErrorCard(text: String) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-        ),
-    ) {
-        Text(
-            text,
-            modifier = Modifier.padding(16.dp),
-            color = MaterialTheme.colorScheme.onErrorContainer,
-        )
-    }
-}
-
-/** Maps each allergen enum value to its translated label. */
-@Composable
-private fun allergenLabel(allergen: Allergen): String = stringResource(
-    when (allergen) {
-        Allergen.GLUTEN -> R.string.allergen_gluten
-        Allergen.DAIRY -> R.string.allergen_dairy
-        Allergen.EGGS -> R.string.allergen_eggs
-        Allergen.NUTS -> R.string.allergen_nuts
-        Allergen.PEANUTS -> R.string.allergen_peanuts
-        Allergen.FISH -> R.string.allergen_fish
-        Allergen.SHELLFISH -> R.string.allergen_shellfish
-        Allergen.SOY -> R.string.allergen_soy
-    }
-)
