@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutricart.app.data.health.HealthConnectManager
 import com.nutricart.app.data.repository.ActivityRepository
+import com.nutricart.app.data.repository.DiaryRepository
 import com.nutricart.app.data.repository.ProfileRepository
 import com.nutricart.app.data.repository.SyncResult
 import com.nutricart.app.domain.logic.CalorieCalculator
@@ -29,6 +30,11 @@ data class DashboardUiState(
     val targets: DailyTargets? = null,
     /** True when today's target already includes MEASURED watch activity. */
     val adjustedByActivity: Boolean = false,
+    val eatenKcal: Int = 0,
+    val remainingKcal: Int = 0,
+    val eatenProteinG: Int = 0,
+    val eatenFatG: Int = 0,
+    val eatenCarbsG: Int = 0,
     val caloriesOut: Int = 0,
     val steps: Int? = null,
     val exerciseMinutes: Int? = null,
@@ -46,6 +52,7 @@ data class DashboardUiState(
 class DashboardViewModel @Inject constructor(
     profileRepository: ProfileRepository,
     private val activityRepository: ActivityRepository,
+    diaryRepository: DiaryRepository,
     healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
 
@@ -74,19 +81,23 @@ class DashboardViewModel @Inject constructor(
         SyncStatus(banner, isRefreshing, lastSync, failed)
     }
 
-    // When the date rolls over, switch to observing the new day's row.
+    // When the date rolls over, switch to observing the new day's rows —
+    // both the watch activity and the food diary totals.
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val todayActivity = todayFlow.flatMapLatest { day ->
-        activityRepository.observeDay(day.toEpochDay())
+    private val todayData = todayFlow.flatMapLatest { day ->
+        combine(
+            activityRepository.observeDay(day.toEpochDay()),
+            diaryRepository.observeDayTotals(day.toEpochDay()),
+        ) { activity, eaten -> activity to eaten }
     }
 
     val uiState: StateFlow<DashboardUiState> = combine(
         todayFlow,
         profileRepository.observeProfile(),
         profileRepository.observeLatestWeight(),
-        todayActivity,
+        todayData,
         syncStatus,
-    ) { today, profile, weight, activity, sync ->
+    ) { today, profile, weight, (activity, eaten), sync ->
         if (profile == null || weight == null) {
             DashboardUiState(
                 loading = true,
@@ -116,11 +127,18 @@ class DashboardViewModel @Inject constructor(
                     profile.activityLevel, profile.goal, profile.targetKgPerWeek,
                 )
             }
+            val targets = CalorieCalculator.macroTargets(targetKcal, weight.weightKg)
+            val eatenKcal = eaten.kcal.roundToInt()
 
             DashboardUiState(
                 loading = false,
-                targets = CalorieCalculator.macroTargets(targetKcal, weight.weightKg),
+                targets = targets,
                 adjustedByActivity = activeKcal != null,
+                eatenKcal = eatenKcal,
+                remainingKcal = targets.kcal - eatenKcal,
+                eatenProteinG = eaten.proteinG.roundToInt(),
+                eatenFatG = eaten.fatG.roundToInt(),
+                eatenCarbsG = eaten.carbsG.roundToInt(),
                 caloriesOut = CalorieCalculator
                     .caloriesOut(bmr, profile.activityLevel, activeKcal)
                     .roundToInt(),

@@ -82,12 +82,44 @@
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
 
-    <!-- Dashboard (placeholder for now) -->
+    <!-- Tabs -->
+    <string name="tab_today">Today</string>
+    <string name="tab_diary">Diary</string>
+
+    <!-- Food diary -->
+    <string name="diary_title">Food diary</string>
+    <string name="meal_breakfast">Breakfast</string>
+    <string name="meal_lunch">Lunch</string>
+    <string name="meal_dinner">Dinner</string>
+    <string name="meal_snack">Snacks</string>
+    <string name="add_food">Add food</string>
+    <string name="previous_day">Previous day</string>
+    <string name="next_day">Next day</string>
+    <string name="day_total">Total</string>
+    <string name="delete_entry">Delete entry</string>
+    <string name="portions_amount">%1$.1f portions</string>
+
+    <!-- Food search -->
+    <string name="search_hint">Search food…</string>
+    <string name="search_action">Search</string>
+    <string name="no_results">Nothing found. Try a different name.</string>
+    <string name="search_min_chars">Type at least 2 characters</string>
+    <string name="offline_results_note">Offline — showing previously loaded products only.</string>
+    <string name="kcal_per_100g">%1$d kcal / 100 g</string>
+    <string name="grams_mode">Grams</string>
+    <string name="portions_mode">Portions</string>
+    <string name="portion_size_note">1 portion = %1$d g</string>
+    <string name="add_action">Add</string>
+
+    <!-- Dashboard -->
+    <string name="eaten_label">Eaten</string>
+    <string name="remaining_label">Remaining</string>
+    <string name="macro_pair">%1$d / %2$d g</string>
     <string name="dashboard_title">Today</string>
     <string name="dashboard_target">Daily target</string>
     <string name="dashboard_current_weight">Current weight</string>
     <string name="weight_kg_value">%1$.1f kg</string>
-    <string name="dashboard_placeholder_note">Food log, meal plan and shopping list arrive in the next build steps.</string>
+    <string name="dashboard_placeholder_note">Meal plan and shopping list arrive in the next build steps.</string>
     <string name="steps_label">Steps</string>
     <string name="calories_out_label">Calories out</string>
     <string name="exercise_label">Exercise</string>

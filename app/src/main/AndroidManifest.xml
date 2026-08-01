@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Food search via the Open Food Facts API. Everything else works offline. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Health Connect: READ-ONLY access; each record type needs its own permission. -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />

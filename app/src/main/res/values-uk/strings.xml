@@ -80,12 +80,44 @@
     <string name="cancel">Скасувати</string>
     <string name="delete">Видалити</string>
 
-    <!-- Dashboard (placeholder for now) -->
+    <!-- Tabs -->
+    <string name="tab_today">Сьогодні</string>
+    <string name="tab_diary">Щоденник</string>
+
+    <!-- Food diary -->
+    <string name="diary_title">Щоденник їжі</string>
+    <string name="meal_breakfast">Сніданок</string>
+    <string name="meal_lunch">Обід</string>
+    <string name="meal_dinner">Вечеря</string>
+    <string name="meal_snack">Перекуси</string>
+    <string name="add_food">Додати їжу</string>
+    <string name="previous_day">Попередній день</string>
+    <string name="next_day">Наступний день</string>
+    <string name="day_total">Разом</string>
+    <string name="delete_entry">Видалити запис</string>
+    <string name="portions_amount">%1$.1f порц.</string>
+
+    <!-- Food search -->
+    <string name="search_hint">Пошук їжі…</string>
+    <string name="search_action">Шукати</string>
+    <string name="no_results">Нічого не знайдено. Спробуй іншу назву.</string>
+    <string name="search_min_chars">Введи щонайменше 2 символи</string>
+    <string name="offline_results_note">Офлайн — показані лише раніше завантажені продукти.</string>
+    <string name="kcal_per_100g">%1$d ккал / 100 г</string>
+    <string name="grams_mode">Грами</string>
+    <string name="portions_mode">Порції</string>
+    <string name="portion_size_note">1 порція = %1$d г</string>
+    <string name="add_action">Додати</string>
+
+    <!-- Dashboard -->
+    <string name="eaten_label">З\'їдено</string>
+    <string name="remaining_label">Залишилось</string>
+    <string name="macro_pair">%1$d / %2$d г</string>
     <string name="dashboard_title">Сьогодні</string>
     <string name="dashboard_target">Добова ціль</string>
     <string name="dashboard_current_weight">Поточна вага</string>
     <string name="weight_kg_value">%1$.1f кг</string>
-    <string name="dashboard_placeholder_note">Щоденник їжі, план харчування та список покупок з\'являться в наступних кроках розробки.</string>
+    <string name="dashboard_placeholder_note">План харчування та список покупок з\'являться в наступних кроках розробки.</string>
     <string name="steps_label">Кроки</string>
     <string name="calories_out_label">Витрачено калорій</string>
     <string name="exercise_label">Тренування</string>

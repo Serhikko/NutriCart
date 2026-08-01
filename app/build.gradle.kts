@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application) // includes built-in Kotlin since AGP 9
     alias(libs.plugins.kotlin.compose)      // Compose compiler ships with Kotlin since 2.0
+    alias(libs.plugins.kotlin.serialization) // @Serializable DTOs for the food API
     alias(libs.plugins.ksp)                 // annotation processing for Room + Hilt
     alias(libs.plugins.hilt)
 }
@@ -13,8 +14,8 @@ android {
         applicationId = "com.nutricart.app"
         minSdk = 28
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.3"
+        versionCode = 4
+        versionName = "0.4"
     }
 
     buildTypes {
@@ -71,6 +72,11 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work) // @HiltWorker support
     ksp(libs.androidx.hilt.compiler)
+
+    // Open Food Facts API (food search); OkHttp comes with Retrofit
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
+    implementation(libs.kotlinx.serialization.json)
 
     // Unit tests (pure JVM)
     testImplementation(libs.junit)

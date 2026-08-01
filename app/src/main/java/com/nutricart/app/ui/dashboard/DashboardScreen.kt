@@ -175,10 +175,19 @@ private fun TargetCard(state: DashboardUiState) {
                     color = MaterialTheme.colorScheme.tertiary,
                 )
             }
+            ValueRow(
+                labelRes = R.string.eaten_label,
+                value = stringResource(R.string.kcal_value, state.eatenKcal),
+            )
+            ValueRow(
+                labelRes = R.string.remaining_label,
+                value = stringResource(R.string.kcal_value, state.remainingKcal),
+            )
             HorizontalDivider()
-            MacroRow(R.string.summary_protein, targets.proteinG)
-            MacroRow(R.string.summary_fat, targets.fatG)
-            MacroRow(R.string.summary_carbs, targets.carbsG)
+            // Each macro: eaten so far / daily target.
+            MacroRow(R.string.summary_protein, state.eatenProteinG, targets.proteinG)
+            MacroRow(R.string.summary_fat, state.eatenFatG, targets.fatG)
+            MacroRow(R.string.summary_carbs, state.eatenCarbsG, targets.carbsG)
             HorizontalDivider()
             ValueRow(
                 labelRes = R.string.calories_out_label,
@@ -264,8 +273,8 @@ private fun HcBannerCard(
 }
 
 @Composable
-private fun MacroRow(labelRes: Int, grams: Int) {
-    ValueRow(labelRes = labelRes, value = stringResource(R.string.grams_value, grams))
+private fun MacroRow(labelRes: Int, eatenG: Int, targetG: Int) {
+    ValueRow(labelRes = labelRes, value = stringResource(R.string.macro_pair, eatenG, targetG))
 }
 
 @Composable

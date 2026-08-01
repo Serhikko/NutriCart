@@ -6,6 +6,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.nutricart.app.data.local.AppDatabase
 import com.nutricart.app.data.local.dao.ActivityDao
+import com.nutricart.app.data.local.dao.FoodDao
+import com.nutricart.app.data.local.dao.FoodLogDao
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.WeightDao
 import dagger.Module
@@ -38,6 +40,55 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+/**
+ * v2 -> v3: adds the food cache and the diary tables.
+ * The SQL must match the entities exactly (including the foreign key and the
+ * two indices), or Room refuses to open the database.
+ */
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `food_product` (
+                `id` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `brand` TEXT,
+                `kcalPer100g` REAL NOT NULL,
+                `proteinPer100g` REAL NOT NULL,
+                `fatPer100g` REAL NOT NULL,
+                `carbsPer100g` REAL NOT NULL,
+                `servingSizeG` REAL,
+                `source` TEXT NOT NULL,
+                `cachedAtEpochMillis` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `food_log_entry` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `epochDay` INTEGER NOT NULL,
+                `meal` TEXT NOT NULL,
+                `productId` TEXT,
+                `name` TEXT NOT NULL,
+                `grams` REAL,
+                `servings` REAL,
+                `kcal` REAL NOT NULL,
+                `proteinG` REAL NOT NULL,
+                `fatG` REAL NOT NULL,
+                `carbsG` REAL NOT NULL,
+                `loggedAtEpochMillis` INTEGER NOT NULL,
+                FOREIGN KEY(`productId`) REFERENCES `food_product`(`id`)
+                    ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_food_log_entry_epochDay` ON `food_log_entry` (`epochDay`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_food_log_entry_productId` ON `food_log_entry` (`productId`)")
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -47,7 +98,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "nutricart.db")
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
             .fallbackToDestructiveMigration(dropAllTables = true)
@@ -61,4 +112,10 @@ object DatabaseModule {
 
     @Provides
     fun provideActivityDao(db: AppDatabase): ActivityDao = db.activityDao()
+
+    @Provides
+    fun provideFoodDao(db: AppDatabase): FoodDao = db.foodDao()
+
+    @Provides
+    fun provideFoodLogDao(db: AppDatabase): FoodLogDao = db.foodLogDao()
 }
