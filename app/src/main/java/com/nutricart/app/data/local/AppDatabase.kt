@@ -6,15 +6,22 @@ import androidx.room.TypeConverters
 import com.nutricart.app.data.local.dao.ActivityDao
 import com.nutricart.app.data.local.dao.FoodDao
 import com.nutricart.app.data.local.dao.FoodLogDao
+import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
+import com.nutricart.app.data.local.dao.RecipeDao
 import com.nutricart.app.data.local.dao.WeightDao
 import com.nutricart.app.data.local.entity.DailyActivityEntity
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
 import com.nutricart.app.data.local.entity.FoodProductEntity
+import com.nutricart.app.data.local.entity.IngredientEntity
+import com.nutricart.app.data.local.entity.PlannedMealEntity
+import com.nutricart.app.data.local.entity.RecipeEntity
+import com.nutricart.app.data.local.entity.RecipeIngredientEntity
+import com.nutricart.app.data.local.entity.RecipeStepEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
 
-// More tables (recipes, meal plan, shopping list) are added in later build steps.
+// The shopping list table is added in the next build step.
 // Every version bump needs a matching Migration in DatabaseModule.
 @Database(
     entities = [
@@ -23,8 +30,13 @@ import com.nutricart.app.data.local.entity.WeightEntryEntity
         DailyActivityEntity::class,
         FoodProductEntity::class,
         FoodLogEntryEntity::class,
+        IngredientEntity::class,
+        RecipeEntity::class,
+        RecipeStepEntity::class,
+        RecipeIngredientEntity::class,
+        PlannedMealEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)
@@ -34,4 +46,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun activityDao(): ActivityDao
     abstract fun foodDao(): FoodDao
     abstract fun foodLogDao(): FoodLogDao
+    abstract fun recipeDao(): RecipeDao
+    abstract fun planDao(): PlanDao
 }

@@ -1,5 +1,6 @@
 package com.nutricart.app.ui.diary
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -176,7 +177,12 @@ private fun MealSection(
 
     if (entries.isNotEmpty()) {
         Card {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+            // animateContentSize: adding/removing an entry resizes smoothly.
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .animateContentSize(),
+            ) {
                 entries.forEach { entry ->
                     EntryRow(entry = entry, onDelete = { onDelete(entry) })
                 }

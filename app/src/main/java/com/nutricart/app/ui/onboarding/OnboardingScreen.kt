@@ -1,5 +1,13 @@
 package com.nutricart.app.ui.onboarding
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -63,32 +71,55 @@ fun OnboardingScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 24.dp, vertical = 16.dp),
         ) {
+            // The bar fills smoothly instead of jumping between steps.
+            val progress by animateFloatAsState(
+                targetValue = (state.step + 1) / OnboardingUiState.STEP_COUNT.toFloat(),
+                animationSpec = tween(400),
+                label = "onboardingProgress",
+            )
             LinearProgressIndicator(
-                progress = { (state.step + 1) / OnboardingUiState.STEP_COUNT.toFloat() },
+                progress = { progress },
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Column(
+            // Steps slide left when going forward and right when going back.
+            AnimatedContent(
+                targetState = state.step,
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 24.dp),
-            ) {
-                when (state.step) {
-                    OnboardingUiState.STEP_SEX -> SexStep(state, viewModel::selectSex)
-                    OnboardingUiState.STEP_BIRTH -> BirthDateStep(state, viewModel::selectBirthDate)
-                    OnboardingUiState.STEP_BODY -> BodyStep(state, viewModel::setHeightText, viewModel::setWeightText)
-                    OnboardingUiState.STEP_ACTIVITY -> ActivityStep(state, viewModel::selectActivityLevel)
-                    OnboardingUiState.STEP_GOAL -> GoalStep(state, viewModel::selectGoal, viewModel::selectRate)
-                    OnboardingUiState.STEP_DIET -> DietStep(
-                        state,
-                        viewModel::toggleVegetarian,
-                        viewModel::toggleNoPork,
-                        viewModel::toggleAllergen,
-                        viewModel::selectSnacksPerDay,
-                    )
-                    OnboardingUiState.STEP_SUMMARY -> SummaryStep(state)
+                    .fillMaxWidth(),
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { -it / 3 } + fadeOut())
+                    } else {
+                        (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { it / 3 } + fadeOut())
+                    }
+                },
+                label = "onboardingStep",
+            ) { step ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 24.dp),
+                ) {
+                    when (step) {
+                        OnboardingUiState.STEP_SEX -> SexStep(state, viewModel::selectSex)
+                        OnboardingUiState.STEP_BIRTH -> BirthDateStep(state, viewModel::selectBirthDate)
+                        OnboardingUiState.STEP_BODY -> BodyStep(state, viewModel::setHeightText, viewModel::setWeightText)
+                        OnboardingUiState.STEP_ACTIVITY -> ActivityStep(state, viewModel::selectActivityLevel)
+                        OnboardingUiState.STEP_GOAL -> GoalStep(state, viewModel::selectGoal, viewModel::selectRate)
+                        OnboardingUiState.STEP_DIET -> DietStep(
+                            state,
+                            viewModel::toggleVegetarian,
+                            viewModel::toggleNoPork,
+                            viewModel::toggleAllergen,
+                            viewModel::selectSnacksPerDay,
+                        )
+                        OnboardingUiState.STEP_SUMMARY -> SummaryStep(state)
+                    }
                 }
             }
 

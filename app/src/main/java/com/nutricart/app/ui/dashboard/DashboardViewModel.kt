@@ -41,6 +41,9 @@ data class DashboardUiState(
     val sleepMinutes: Int? = null,
     val avgHeartRateBpm: Int? = null,
     val weightKg: Double = 0.0,
+    /** Sync works, but Health Connect holds no activity data — probably the
+     *  watch app (e.g. Samsung Health) is not connected to Health Connect. */
+    val showNoDataHint: Boolean = false,
     val hcBanner: HcBannerState = HcBannerState.NONE,
     val refreshing: Boolean = false,
     val lastSyncEpochMillis: Long? = null,
@@ -53,11 +56,12 @@ class DashboardViewModel @Inject constructor(
     profileRepository: ProfileRepository,
     private val activityRepository: ActivityRepository,
     diaryRepository: DiaryRepository,
-    healthConnectManager: HealthConnectManager,
+    private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
 
     /** The permission set the screen hands to the system permission dialog. */
-    val healthPermissions: Set<String> = healthConnectManager.permissions
+    val healthPermissions: Set<String>
+        get() = healthConnectManager.permissionsToRequest()
 
     private val hcBanner = MutableStateFlow(HcBannerState.NONE)
     private val refreshing = MutableStateFlow(false)
@@ -147,6 +151,13 @@ class DashboardViewModel @Inject constructor(
                 sleepMinutes = activity?.sleepMinutes,
                 avgHeartRateBpm = activity?.avgHeartRateBpm,
                 weightKg = weight.weightKg,
+                // A sync HAS run (the day row exists only after one), everything
+                // is set up, yet both core values are absent -> the data source
+                // (watch app) is likely not feeding Health Connect. No
+                // "refreshing" clause: it would collapse and re-expand the hint
+                // card on every resume, jumping the whole layout.
+                showNoDataHint = sync.banner == HcBannerState.NONE &&
+                    activity != null && activity.steps == null && activity.activeKcal == null,
                 hcBanner = sync.banner,
                 refreshing = sync.refreshing,
                 lastSyncEpochMillis = sync.lastSyncEpochMillis,

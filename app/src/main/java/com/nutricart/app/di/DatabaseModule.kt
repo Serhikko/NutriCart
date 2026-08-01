@@ -8,7 +8,9 @@ import com.nutricart.app.data.local.AppDatabase
 import com.nutricart.app.data.local.dao.ActivityDao
 import com.nutricart.app.data.local.dao.FoodDao
 import com.nutricart.app.data.local.dao.FoodLogDao
+import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
+import com.nutricart.app.data.local.dao.RecipeDao
 import com.nutricart.app.data.local.dao.WeightDao
 import dagger.Module
 import dagger.Provides
@@ -89,6 +91,91 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+/**
+ * v3 -> v4: adds the recipe database and the weekly meal plan.
+ * The SQL must match the entities exactly (FKs, indices, NOT NULL), or Room
+ * refuses to open the database on existing installs.
+ */
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `ingredient` (
+                `id` INTEGER NOT NULL,
+                `name` TEXT NOT NULL,
+                `aisle` TEXT NOT NULL,
+                `kcalPer100g` REAL NOT NULL,
+                `proteinPer100g` REAL NOT NULL,
+                `fatPer100g` REAL NOT NULL,
+                `carbsPer100g` REAL NOT NULL,
+                `gramsPerPiece` REAL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `recipe` (
+                `id` INTEGER NOT NULL,
+                `name` TEXT NOT NULL,
+                `cookTimeMin` INTEGER NOT NULL,
+                `isVegetarian` INTEGER NOT NULL,
+                `containsPork` INTEGER NOT NULL,
+                `allergens` TEXT NOT NULL,
+                `suitableSlots` TEXT NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `recipe_step` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `recipeId` INTEGER NOT NULL,
+                `stepNumber` INTEGER NOT NULL,
+                `text` TEXT NOT NULL,
+                FOREIGN KEY(`recipeId`) REFERENCES `recipe`(`id`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recipe_step_recipeId` ON `recipe_step` (`recipeId`)")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `recipe_ingredient` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `recipeId` INTEGER NOT NULL,
+                `ingredientId` INTEGER NOT NULL,
+                `grams` REAL NOT NULL,
+                FOREIGN KEY(`recipeId`) REFERENCES `recipe`(`id`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`ingredientId`) REFERENCES `ingredient`(`id`)
+                    ON UPDATE NO ACTION ON DELETE RESTRICT
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recipe_ingredient_recipeId` ON `recipe_ingredient` (`recipeId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recipe_ingredient_ingredientId` ON `recipe_ingredient` (`ingredientId`)")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `planned_meal` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `epochDay` INTEGER NOT NULL,
+                `slot` TEXT NOT NULL,
+                `position` INTEGER NOT NULL,
+                `recipeId` INTEGER NOT NULL,
+                `portionFactor` REAL NOT NULL,
+                `isLocked` INTEGER NOT NULL,
+                FOREIGN KEY(`recipeId`) REFERENCES `recipe`(`id`)
+                    ON UPDATE NO ACTION ON DELETE RESTRICT
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_planned_meal_epochDay_slot_position` ON `planned_meal` (`epochDay`, `slot`, `position`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_meal_recipeId` ON `planned_meal` (`recipeId`)")
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -98,7 +185,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "nutricart.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
             .fallbackToDestructiveMigration(dropAllTables = true)
@@ -118,4 +205,10 @@ object DatabaseModule {
 
     @Provides
     fun provideFoodLogDao(db: AppDatabase): FoodLogDao = db.foodLogDao()
+
+    @Provides
+    fun provideRecipeDao(db: AppDatabase): RecipeDao = db.recipeDao()
+
+    @Provides
+    fun providePlanDao(db: AppDatabase): PlanDao = db.planDao()
 }

@@ -1,0 +1,790 @@
+{
+  "ingredients": [
+    { "id": 1, "name": "Куряче філе", "aisle": "MEAT_FISH", "kcalPer100g": 110.0, "proteinPer100g": 23.0, "fatPer100g": 1.5, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 2, "name": "Індиче філе", "aisle": "MEAT_FISH", "kcalPer100g": 114.0, "proteinPer100g": 24.0, "fatPer100g": 1.5, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 3, "name": "Свинина (вирізка)", "aisle": "MEAT_FISH", "kcalPer100g": 143.0, "proteinPer100g": 21.0, "fatPer100g": 6.0, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 4, "name": "Фарш яловичий", "aisle": "MEAT_FISH", "kcalPer100g": 250.0, "proteinPer100g": 17.0, "fatPer100g": 20.0, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 5, "name": "Філе лосося", "aisle": "MEAT_FISH", "kcalPer100g": 208.0, "proteinPer100g": 20.0, "fatPer100g": 13.0, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 6, "name": "Філе хека", "aisle": "MEAT_FISH", "kcalPer100g": 86.0, "proteinPer100g": 17.0, "fatPer100g": 1.5, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 7, "name": "Тунець консервований у власному соку", "aisle": "CANNED", "kcalPer100g": 116.0, "proteinPer100g": 26.0, "fatPer100g": 1.0, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 8, "name": "Яйця курячі", "aisle": "DAIRY_EGGS", "kcalPer100g": 155.0, "proteinPer100g": 13.0, "fatPer100g": 11.0, "carbsPer100g": 1.1, "gramsPerPiece": 55.0 },
+    { "id": 9, "name": "Сир кисломолочний 5%", "aisle": "DAIRY_EGGS", "kcalPer100g": 121.0, "proteinPer100g": 17.0, "fatPer100g": 5.0, "carbsPer100g": 3.0, "gramsPerPiece": null },
+    { "id": 10, "name": "Йогурт грецький 2%", "aisle": "DAIRY_EGGS", "kcalPer100g": 73.0, "proteinPer100g": 10.0, "fatPer100g": 2.0, "carbsPer100g": 3.9, "gramsPerPiece": null },
+    { "id": 11, "name": "Кефір 2,5%", "aisle": "DAIRY_EGGS", "kcalPer100g": 53.0, "proteinPer100g": 2.9, "fatPer100g": 2.5, "carbsPer100g": 4.0, "gramsPerPiece": null },
+    { "id": 12, "name": "Молоко 2,5%", "aisle": "DAIRY_EGGS", "kcalPer100g": 52.0, "proteinPer100g": 2.8, "fatPer100g": 2.5, "carbsPer100g": 4.7, "gramsPerPiece": null },
+    { "id": 13, "name": "Сир твердий", "aisle": "DAIRY_EGGS", "kcalPer100g": 350.0, "proteinPer100g": 25.0, "fatPer100g": 27.0, "carbsPer100g": 2.0, "gramsPerPiece": null },
+    { "id": 14, "name": "Сметана 15%", "aisle": "DAIRY_EGGS", "kcalPer100g": 158.0, "proteinPer100g": 2.6, "fatPer100g": 15.0, "carbsPer100g": 3.0, "gramsPerPiece": null },
+    { "id": 15, "name": "Масло вершкове", "aisle": "DAIRY_EGGS", "kcalPer100g": 717.0, "proteinPer100g": 0.8, "fatPer100g": 81.0, "carbsPer100g": 0.6, "gramsPerPiece": null },
+    { "id": 16, "name": "Вівсяні пластівці", "aisle": "GRAINS_PASTA", "kcalPer100g": 370.0, "proteinPer100g": 12.0, "fatPer100g": 7.0, "carbsPer100g": 62.0, "gramsPerPiece": null },
+    { "id": 17, "name": "Гречка", "aisle": "GRAINS_PASTA", "kcalPer100g": 343.0, "proteinPer100g": 13.0, "fatPer100g": 3.4, "carbsPer100g": 68.0, "gramsPerPiece": null },
+    { "id": 18, "name": "Рис", "aisle": "GRAINS_PASTA", "kcalPer100g": 360.0, "proteinPer100g": 7.0, "fatPer100g": 1.0, "carbsPer100g": 79.0, "gramsPerPiece": null },
+    { "id": 19, "name": "Булгур", "aisle": "GRAINS_PASTA", "kcalPer100g": 342.0, "proteinPer100g": 12.0, "fatPer100g": 1.3, "carbsPer100g": 76.0, "gramsPerPiece": null },
+    { "id": 20, "name": "Пшоно", "aisle": "GRAINS_PASTA", "kcalPer100g": 378.0, "proteinPer100g": 11.0, "fatPer100g": 3.3, "carbsPer100g": 69.0, "gramsPerPiece": null },
+    { "id": 21, "name": "Макарони цільнозернові", "aisle": "GRAINS_PASTA", "kcalPer100g": 350.0, "proteinPer100g": 13.0, "fatPer100g": 2.5, "carbsPer100g": 70.0, "gramsPerPiece": null },
+    { "id": 22, "name": "Сочевиця червона", "aisle": "GRAINS_PASTA", "kcalPer100g": 340.0, "proteinPer100g": 24.0, "fatPer100g": 1.5, "carbsPer100g": 60.0, "gramsPerPiece": null },
+    { "id": 23, "name": "Борошно пшеничне", "aisle": "GRAINS_PASTA", "kcalPer100g": 364.0, "proteinPer100g": 10.0, "fatPer100g": 1.0, "carbsPer100g": 76.0, "gramsPerPiece": null },
+    { "id": 24, "name": "Нут консервований", "aisle": "CANNED", "kcalPer100g": 139.0, "proteinPer100g": 7.0, "fatPer100g": 2.6, "carbsPer100g": 22.0, "gramsPerPiece": null },
+    { "id": 25, "name": "Квасоля консервована", "aisle": "CANNED", "kcalPer100g": 110.0, "proteinPer100g": 7.0, "fatPer100g": 0.5, "carbsPer100g": 20.0, "gramsPerPiece": null },
+    { "id": 26, "name": "Кукурудза консервована", "aisle": "CANNED", "kcalPer100g": 96.0, "proteinPer100g": 3.0, "fatPer100g": 1.5, "carbsPer100g": 19.0, "gramsPerPiece": null },
+    { "id": 27, "name": "Горошок зелений консервований", "aisle": "CANNED", "kcalPer100g": 70.0, "proteinPer100g": 4.5, "fatPer100g": 0.5, "carbsPer100g": 12.0, "gramsPerPiece": null },
+    { "id": 28, "name": "Томати у власному соку", "aisle": "CANNED", "kcalPer100g": 24.0, "proteinPer100g": 1.2, "fatPer100g": 0.2, "carbsPer100g": 4.0, "gramsPerPiece": null },
+    { "id": 29, "name": "Томатна паста", "aisle": "CANNED", "kcalPer100g": 82.0, "proteinPer100g": 4.3, "fatPer100g": 0.5, "carbsPer100g": 19.0, "gramsPerPiece": null },
+    { "id": 30, "name": "Хліб цільнозерновий", "aisle": "BAKERY", "kcalPer100g": 250.0, "proteinPer100g": 9.0, "fatPer100g": 3.5, "carbsPer100g": 45.0, "gramsPerPiece": 35.0 },
+    { "id": 31, "name": "Лаваш тонкий", "aisle": "BAKERY", "kcalPer100g": 275.0, "proteinPer100g": 8.0, "fatPer100g": 1.5, "carbsPer100g": 56.0, "gramsPerPiece": 90.0 },
+    { "id": 32, "name": "Банан", "aisle": "PRODUCE", "kcalPer100g": 89.0, "proteinPer100g": 1.1, "fatPer100g": 0.3, "carbsPer100g": 23.0, "gramsPerPiece": 120.0 },
+    { "id": 33, "name": "Яблуко", "aisle": "PRODUCE", "kcalPer100g": 52.0, "proteinPer100g": 0.3, "fatPer100g": 0.2, "carbsPer100g": 14.0, "gramsPerPiece": 180.0 },
+    { "id": 34, "name": "Апельсин", "aisle": "PRODUCE", "kcalPer100g": 47.0, "proteinPer100g": 0.9, "fatPer100g": 0.1, "carbsPer100g": 12.0, "gramsPerPiece": 150.0 },
+    { "id": 35, "name": "Лимон", "aisle": "PRODUCE", "kcalPer100g": 29.0, "proteinPer100g": 1.1, "fatPer100g": 0.3, "carbsPer100g": 9.0, "gramsPerPiece": 100.0 },
+    { "id": 36, "name": "Ягоди заморожені", "aisle": "FROZEN", "kcalPer100g": 40.0, "proteinPer100g": 0.8, "fatPer100g": 0.4, "carbsPer100g": 9.0, "gramsPerPiece": null },
+    { "id": 37, "name": "Картопля", "aisle": "PRODUCE", "kcalPer100g": 77.0, "proteinPer100g": 2.0, "fatPer100g": 0.1, "carbsPer100g": 17.0, "gramsPerPiece": null },
+    { "id": 38, "name": "Морква", "aisle": "PRODUCE", "kcalPer100g": 41.0, "proteinPer100g": 0.9, "fatPer100g": 0.2, "carbsPer100g": 10.0, "gramsPerPiece": null },
+    { "id": 39, "name": "Цибуля ріпчаста", "aisle": "PRODUCE", "kcalPer100g": 40.0, "proteinPer100g": 1.1, "fatPer100g": 0.1, "carbsPer100g": 9.0, "gramsPerPiece": null },
+    { "id": 40, "name": "Буряк", "aisle": "PRODUCE", "kcalPer100g": 43.0, "proteinPer100g": 1.6, "fatPer100g": 0.2, "carbsPer100g": 10.0, "gramsPerPiece": null },
+    { "id": 41, "name": "Капуста білокачанна", "aisle": "PRODUCE", "kcalPer100g": 25.0, "proteinPer100g": 1.3, "fatPer100g": 0.1, "carbsPer100g": 6.0, "gramsPerPiece": null },
+    { "id": 42, "name": "Огірок", "aisle": "PRODUCE", "kcalPer100g": 15.0, "proteinPer100g": 0.7, "fatPer100g": 0.1, "carbsPer100g": 3.6, "gramsPerPiece": null },
+    { "id": 43, "name": "Помідор", "aisle": "PRODUCE", "kcalPer100g": 18.0, "proteinPer100g": 0.9, "fatPer100g": 0.2, "carbsPer100g": 3.9, "gramsPerPiece": null },
+    { "id": 44, "name": "Перець солодкий", "aisle": "PRODUCE", "kcalPer100g": 26.0, "proteinPer100g": 1.0, "fatPer100g": 0.3, "carbsPer100g": 6.0, "gramsPerPiece": null },
+    { "id": 45, "name": "Кабачок", "aisle": "PRODUCE", "kcalPer100g": 17.0, "proteinPer100g": 1.2, "fatPer100g": 0.3, "carbsPer100g": 3.1, "gramsPerPiece": null },
+    { "id": 46, "name": "Гарбуз", "aisle": "PRODUCE", "kcalPer100g": 28.0, "proteinPer100g": 1.0, "fatPer100g": 0.1, "carbsPer100g": 7.0, "gramsPerPiece": null },
+    { "id": 47, "name": "Броколі заморожена", "aisle": "FROZEN", "kcalPer100g": 34.0, "proteinPer100g": 2.8, "fatPer100g": 0.4, "carbsPer100g": 7.0, "gramsPerPiece": null },
+    { "id": 48, "name": "Шпинат свіжий", "aisle": "PRODUCE", "kcalPer100g": 23.0, "proteinPer100g": 2.9, "fatPer100g": 0.4, "carbsPer100g": 3.6, "gramsPerPiece": null },
+    { "id": 49, "name": "Салат листовий", "aisle": "PRODUCE", "kcalPer100g": 15.0, "proteinPer100g": 1.4, "fatPer100g": 0.2, "carbsPer100g": 2.9, "gramsPerPiece": null },
+    { "id": 50, "name": "Авокадо", "aisle": "PRODUCE", "kcalPer100g": 160.0, "proteinPer100g": 2.0, "fatPer100g": 15.0, "carbsPer100g": 9.0, "gramsPerPiece": null },
+    { "id": 51, "name": "Печериці", "aisle": "PRODUCE", "kcalPer100g": 22.0, "proteinPer100g": 3.1, "fatPer100g": 0.3, "carbsPer100g": 3.3, "gramsPerPiece": null },
+    { "id": 52, "name": "Часник", "aisle": "PRODUCE", "kcalPer100g": 149.0, "proteinPer100g": 6.4, "fatPer100g": 0.5, "carbsPer100g": 33.0, "gramsPerPiece": null },
+    { "id": 53, "name": "Кріп свіжий", "aisle": "PRODUCE", "kcalPer100g": 43.0, "proteinPer100g": 2.5, "fatPer100g": 0.5, "carbsPer100g": 7.0, "gramsPerPiece": null },
+    { "id": 54, "name": "Олія оливкова", "aisle": "SPICES_OILS", "kcalPer100g": 884.0, "proteinPer100g": 0.0, "fatPer100g": 100.0, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 55, "name": "Олія соняшникова", "aisle": "SPICES_OILS", "kcalPer100g": 884.0, "proteinPer100g": 0.0, "fatPer100g": 100.0, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 56, "name": "Сіль", "aisle": "SPICES_OILS", "kcalPer100g": 0.0, "proteinPer100g": 0.0, "fatPer100g": 0.0, "carbsPer100g": 0.0, "gramsPerPiece": null },
+    { "id": 57, "name": "Мед", "aisle": "OTHER", "kcalPer100g": 304.0, "proteinPer100g": 0.3, "fatPer100g": 0.0, "carbsPer100g": 82.0, "gramsPerPiece": null },
+    { "id": 58, "name": "Цукор", "aisle": "OTHER", "kcalPer100g": 387.0, "proteinPer100g": 0.0, "fatPer100g": 0.0, "carbsPer100g": 100.0, "gramsPerPiece": null },
+    { "id": 59, "name": "Горіхи волоські", "aisle": "SNACKS", "kcalPer100g": 654.0, "proteinPer100g": 15.0, "fatPer100g": 65.0, "carbsPer100g": 14.0, "gramsPerPiece": null },
+    { "id": 60, "name": "Мигдаль", "aisle": "SNACKS", "kcalPer100g": 579.0, "proteinPer100g": 21.0, "fatPer100g": 50.0, "carbsPer100g": 22.0, "gramsPerPiece": null },
+    { "id": 61, "name": "Арахісова паста", "aisle": "SNACKS", "kcalPer100g": 588.0, "proteinPer100g": 25.0, "fatPer100g": 50.0, "carbsPer100g": 20.0, "gramsPerPiece": null },
+    { "id": 62, "name": "Гарбузове насіння", "aisle": "SNACKS", "kcalPer100g": 559.0, "proteinPer100g": 30.0, "fatPer100g": 49.0, "carbsPer100g": 11.0, "gramsPerPiece": null },
+    { "id": 63, "name": "Курага", "aisle": "SNACKS", "kcalPer100g": 241.0, "proteinPer100g": 3.4, "fatPer100g": 0.5, "carbsPer100g": 63.0, "gramsPerPiece": null },
+    { "id": 64, "name": "Тофу", "aisle": "OTHER", "kcalPer100g": 76.0, "proteinPer100g": 8.0, "fatPer100g": 4.8, "carbsPer100g": 1.9, "gramsPerPiece": null },
+    { "id": 65, "name": "Хумус", "aisle": "OTHER", "kcalPer100g": 166.0, "proteinPer100g": 8.0, "fatPer100g": 10.0, "carbsPer100g": 14.0, "gramsPerPiece": null }
+  ],
+  "recipes": [
+    {
+      "id": 1,
+      "name": "Вівсянка з бананом і волоськими горіхами",
+      "slots": ["BREAKFAST"],
+      "cookTimeMin": 10,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["GLUTEN", "DAIRY", "NUTS"],
+      "steps": [
+        "Закип'яти молоко в невеликій каструлі.",
+        "Всип вівсяні пластівці та вари 5 хвилин, помішуючи.",
+        "Наріж банан кружальцями.",
+        "Виклади кашу в тарілку, додай банан, горіхи та мед."
+      ],
+      "ingredients": [
+        { "ingredientId": 16, "grams": 60.0 },
+        { "ingredientId": 12, "grams": 200.0 },
+        { "ingredientId": 32, "grams": 100.0 },
+        { "ingredientId": 59, "grams": 15.0 },
+        { "ingredientId": 57, "grams": 10.0 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Сирники зі сметаною",
+      "slots": ["BREAKFAST"],
+      "cookTimeMin": 25,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["GLUTEN", "DAIRY", "EGGS"],
+      "steps": [
+        "Розімни сир виделкою та змішай з яйцем і цукром.",
+        "Додай борошно та замісь однорідне тісто.",
+        "Сформуй невеликі сирники та обваляй у борошні.",
+        "Обсмаж на олії по 3-4 хвилини з кожного боку.",
+        "Подавай зі сметаною."
+      ],
+      "ingredients": [
+        { "ingredientId": 9, "grams": 180.0 },
+        { "ingredientId": 8, "grams": 55.0 },
+        { "ingredientId": 23, "grams": 25.0 },
+        { "ingredientId": 58, "grams": 10.0 },
+        { "ingredientId": 55, "grams": 5.0 },
+        { "ingredientId": 14, "grams": 25.0 }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Омлет зі шпинатом і сиром",
+      "slots": ["BREAKFAST"],
+      "cookTimeMin": 15,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["DAIRY", "EGGS"],
+      "steps": [
+        "Збий яйця з молоком і дрібкою солі.",
+        "Розтопи масло на сковороді та виклади шпинат на хвилину.",
+        "Влий яєчну суміш і смаж на середньому вогні.",
+        "Посип тертим сиром і накрий кришкою на 2 хвилини.",
+        "Подавай зі скибочками помідора."
+      ],
+      "ingredients": [
+        { "ingredientId": 8, "grams": 165.0 },
+        { "ingredientId": 12, "grams": 30.0 },
+        { "ingredientId": 13, "grams": 30.0 },
+        { "ingredientId": 48, "grams": 30.0 },
+        { "ingredientId": 43, "grams": 80.0 },
+        { "ingredientId": 15, "grams": 5.0 }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Гарбузова каша з пшоном",
+      "slots": ["BREAKFAST"],
+      "cookTimeMin": 30,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Наріж гарбуз кубиками та залий водою.",
+        "Вари 10 хвилин, потім додай промите пшоно.",
+        "Вари ще 15 хвилин на слабкому вогні, помішуючи.",
+        "Додай мед і нарізану курагу, перемішай."
+      ],
+      "ingredients": [
+        { "ingredientId": 20, "grams": 70.0 },
+        { "ingredientId": 46, "grams": 200.0 },
+        { "ingredientId": 57, "grams": 15.0 },
+        { "ingredientId": 63, "grams": 20.0 }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Тост з авокадо, яйцем і сиром",
+      "slots": ["BREAKFAST"],
+      "cookTimeMin": 15,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["GLUTEN", "DAIRY", "EGGS"],
+      "steps": [
+        "Підсмаж хліб у тостері.",
+        "Розімни авокадо виделкою та намаж на тости.",
+        "Звари яйця некруто та наріж половинками.",
+        "Виклади на тости салат, яйця, сир і скибочки помідора."
+      ],
+      "ingredients": [
+        { "ingredientId": 30, "grams": 70.0 },
+        { "ingredientId": 50, "grams": 70.0 },
+        { "ingredientId": 8, "grams": 110.0 },
+        { "ingredientId": 13, "grams": 20.0 },
+        { "ingredientId": 43, "grams": 50.0 },
+        { "ingredientId": 49, "grams": 15.0 }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Грецький йогурт з ягодами, мигдалем і медом",
+      "slots": ["BREAKFAST"],
+      "cookTimeMin": 5,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["DAIRY", "NUTS"],
+      "steps": [
+        "Виклади йогурт у глибоку тарілку.",
+        "Додай розморожені ягоди та мед.",
+        "Посип подрібненим мигдалем і перемішай."
+      ],
+      "ingredients": [
+        { "ingredientId": 10, "grams": 250.0 },
+        { "ingredientId": 36, "grams": 100.0 },
+        { "ingredientId": 57, "grams": 15.0 },
+        { "ingredientId": 60, "grams": 25.0 }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Вівсяноблін з сиром і помідором",
+      "slots": ["BREAKFAST"],
+      "cookTimeMin": 15,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["GLUTEN", "DAIRY", "EGGS"],
+      "steps": [
+        "Змішай вівсяні пластівці з яйцями та дай постояти 5 хвилин.",
+        "Вилий суміш на розігріту сковороду та розрівняй.",
+        "Смаж 3 хвилини, потім переверни.",
+        "Посип сиром, виклади помідор і склади млинець навпіл."
+      ],
+      "ingredients": [
+        { "ingredientId": 16, "grams": 50.0 },
+        { "ingredientId": 8, "grams": 110.0 },
+        { "ingredientId": 13, "grams": 30.0 },
+        { "ingredientId": 43, "grams": 70.0 }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Фруктовий салат з гарбузовим насінням",
+      "slots": ["BREAKFAST"],
+      "cookTimeMin": 10,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Наріж яблуко, банан і апельсин кубиками.",
+        "Склади фрукти в миску та полий медом.",
+        "Посип гарбузовим насінням і перемішай."
+      ],
+      "ingredients": [
+        { "ingredientId": 33, "grams": 180.0 },
+        { "ingredientId": 32, "grams": 120.0 },
+        { "ingredientId": 34, "grams": 150.0 },
+        { "ingredientId": 62, "grams": 30.0 },
+        { "ingredientId": 57, "grams": 10.0 }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Борщ зі свининою та сметаною",
+      "slots": ["LUNCH"],
+      "cookTimeMin": 45,
+      "isVegetarian": false,
+      "containsPork": true,
+      "allergens": ["DAIRY"],
+      "steps": [
+        "Наріж свинину шматочками та відвари 20 хвилин.",
+        "Додай нарізану картоплю та капусту.",
+        "Обсмаж буряк, моркву та цибулю з томатною пастою на олії.",
+        "Переклади засмажку в каструлю та вари ще 10 хвилин.",
+        "Посоли, додай кріп і подавай зі сметаною."
+      ],
+      "ingredients": [
+        { "ingredientId": 3, "grams": 150.0 },
+        { "ingredientId": 37, "grams": 150.0 },
+        { "ingredientId": 40, "grams": 100.0 },
+        { "ingredientId": 41, "grams": 100.0 },
+        { "ingredientId": 38, "grams": 50.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 29, "grams": 20.0 },
+        { "ingredientId": 55, "grams": 10.0 },
+        { "ingredientId": 14, "grams": 30.0 },
+        { "ingredientId": 53, "grams": 5.0 },
+        { "ingredientId": 56, "grams": 3.0 }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Гречка з курячим філе та овочами",
+      "slots": ["LUNCH"],
+      "cookTimeMin": 30,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Наріж куряче філе кубиками та обсмаж на олії 5 хвилин.",
+        "Додай терту моркву та нарізану цибулю, смаж ще 5 хвилин.",
+        "Всип промиту гречку та залий двома склянками води.",
+        "Посоли та туши під кришкою 20 хвилин."
+      ],
+      "ingredients": [
+        { "ingredientId": 17, "grams": 80.0 },
+        { "ingredientId": 1, "grams": 150.0 },
+        { "ingredientId": 38, "grams": 50.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 55, "grams": 10.0 },
+        { "ingredientId": 56, "grams": 2.0 }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Сочевичний суп з овочами",
+      "slots": ["LUNCH"],
+      "cookTimeMin": 35,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Обсмаж цибулю, моркву та часник на оливковій олії.",
+        "Додай томатну пасту та смаж ще хвилину.",
+        "Всип промиту сочевицю та нарізану картоплю, залий водою.",
+        "Вари 25 хвилин до м'якості сочевиці."
+      ],
+      "ingredients": [
+        { "ingredientId": 22, "grams": 90.0 },
+        { "ingredientId": 37, "grams": 100.0 },
+        { "ingredientId": 38, "grams": 60.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 29, "grams": 20.0 },
+        { "ingredientId": 54, "grams": 12.0 },
+        { "ingredientId": 52, "grams": 5.0 }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Плов з куркою",
+      "slots": ["LUNCH"],
+      "cookTimeMin": 45,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Обсмаж шматочки курячого філе на олії до золотистості.",
+        "Додай моркву соломкою та цибулю, смаж 5 хвилин.",
+        "Всип промитий рис і додай цілі зубчики часнику.",
+        "Залий гарячою водою на палець вище рису.",
+        "Туши під кришкою 25 хвилин, не перемішуючи."
+      ],
+      "ingredients": [
+        { "ingredientId": 18, "grams": 80.0 },
+        { "ingredientId": 1, "grams": 140.0 },
+        { "ingredientId": 38, "grams": 70.0 },
+        { "ingredientId": 39, "grams": 50.0 },
+        { "ingredientId": 55, "grams": 15.0 },
+        { "ingredientId": 52, "grams": 5.0 }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Паста з тунцем у томатному соусі",
+      "slots": ["LUNCH"],
+      "cookTimeMin": 25,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": ["GLUTEN", "FISH"],
+      "steps": [
+        "Відвари макарони згідно з інструкцією на упаковці.",
+        "Обсмаж цибулю та часник на оливковій олії.",
+        "Додай томати у власному соку та туши 5 хвилин.",
+        "Додай тунець, розім'явши його виделкою.",
+        "Змішай соус з макаронами та прогрій хвилину."
+      ],
+      "ingredients": [
+        { "ingredientId": 21, "grams": 80.0 },
+        { "ingredientId": 7, "grams": 100.0 },
+        { "ingredientId": 28, "grams": 150.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 54, "grams": 10.0 },
+        { "ingredientId": 52, "grams": 5.0 }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Салат з булгуром і нутом",
+      "slots": ["LUNCH"],
+      "cookTimeMin": 25,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["GLUTEN"],
+      "steps": [
+        "Залий булгур окропом і залиш під кришкою на 15 хвилин.",
+        "Наріж огірок, помідор і перець кубиками.",
+        "Промий нут і додай до овочів.",
+        "Змішай усе з булгуром, олією та лимонним соком."
+      ],
+      "ingredients": [
+        { "ingredientId": 19, "grams": 70.0 },
+        { "ingredientId": 24, "grams": 150.0 },
+        { "ingredientId": 42, "grams": 100.0 },
+        { "ingredientId": 43, "grams": 100.0 },
+        { "ingredientId": 44, "grams": 50.0 },
+        { "ingredientId": 54, "grams": 12.0 },
+        { "ingredientId": 35, "grams": 20.0 }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Тушкована індичка з гречкою",
+      "slots": ["LUNCH", "DINNER"],
+      "cookTimeMin": 40,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Наріж індиче філе кубиками та обсмаж на олії.",
+        "Додай моркву, цибулю та томатну пасту.",
+        "Влий трохи води та туши 15 хвилин.",
+        "Окремо відвари гречку до готовності.",
+        "Подавай індичку з підливою на гречці."
+      ],
+      "ingredients": [
+        { "ingredientId": 2, "grams": 150.0 },
+        { "ingredientId": 17, "grams": 70.0 },
+        { "ingredientId": 38, "grams": 50.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 29, "grams": 15.0 },
+        { "ingredientId": 55, "grams": 10.0 }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "Рис з квасолею та овочами",
+      "slots": ["LUNCH", "DINNER"],
+      "cookTimeMin": 30,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Відвари рис до готовності.",
+        "Обсмаж цибулю та перець на оливковій олії.",
+        "Додай промиту квасолю та кукурудзу, прогрій 5 хвилин.",
+        "Змішай овочі з рисом і прогрій ще 2 хвилини."
+      ],
+      "ingredients": [
+        { "ingredientId": 18, "grams": 70.0 },
+        { "ingredientId": 25, "grams": 150.0 },
+        { "ingredientId": 44, "grams": 80.0 },
+        { "ingredientId": 26, "grams": 80.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 54, "grams": 10.0 }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Макарони з індичкою в томатному соусі",
+      "slots": ["LUNCH", "DINNER"],
+      "cookTimeMin": 30,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": ["GLUTEN"],
+      "steps": [
+        "Відвари макарони до стану аль денте.",
+        "Обсмаж шматочки індички на оливковій олії 7 хвилин.",
+        "Додай цибулю та часник, смаж ще 3 хвилини.",
+        "Влий томати у власному соку та туши 10 хвилин.",
+        "Змішай соус з макаронами."
+      ],
+      "ingredients": [
+        { "ingredientId": 21, "grams": 70.0 },
+        { "ingredientId": 2, "grams": 130.0 },
+        { "ingredientId": 28, "grams": 150.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 54, "grams": 10.0 },
+        { "ingredientId": 52, "grams": 5.0 }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "Овочеве рагу з квасолею і грибами",
+      "slots": ["LUNCH", "DINNER"],
+      "cookTimeMin": 35,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Обсмаж цибулю, моркву та печериці на олії.",
+        "Додай нарізану картоплю та кабачок.",
+        "Влий трохи води та туши 15 хвилин.",
+        "Додай квасолю та томатну пасту.",
+        "Туши ще 10 хвилин до м'якості овочів."
+      ],
+      "ingredients": [
+        { "ingredientId": 37, "grams": 200.0 },
+        { "ingredientId": 25, "grams": 120.0 },
+        { "ingredientId": 45, "grams": 150.0 },
+        { "ingredientId": 51, "grams": 100.0 },
+        { "ingredientId": 38, "grams": 60.0 },
+        { "ingredientId": 39, "grams": 50.0 },
+        { "ingredientId": 55, "grams": 15.0 },
+        { "ingredientId": 29, "grams": 20.0 }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "Запечений лосось з картоплею і броколі",
+      "slots": ["DINNER"],
+      "cookTimeMin": 35,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": ["FISH"],
+      "steps": [
+        "Наріж картоплю часточками та змасти олією.",
+        "Запікай картоплю при 200 градусах 15 хвилин.",
+        "Додай на деко лосось, збризнутий лимонним соком, і броколі.",
+        "Запікай ще 15 хвилин до готовності риби."
+      ],
+      "ingredients": [
+        { "ingredientId": 5, "grams": 130.0 },
+        { "ingredientId": 37, "grams": 150.0 },
+        { "ingredientId": 47, "grams": 150.0 },
+        { "ingredientId": 54, "grams": 7.0 },
+        { "ingredientId": 35, "grams": 20.0 }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Хек, тушкований з рисом і горошком",
+      "slots": ["DINNER"],
+      "cookTimeMin": 35,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": ["FISH"],
+      "steps": [
+        "Обсмаж цибулю та моркву на олії.",
+        "Додай томатну пасту та трохи води.",
+        "Виклади шматки хека в соус, посоли та туши 15 хвилин.",
+        "Окремо відвари рис і прогрій з горошком.",
+        "Подавай рибу із соусом на рисі."
+      ],
+      "ingredients": [
+        { "ingredientId": 6, "grams": 200.0 },
+        { "ingredientId": 18, "grams": 60.0 },
+        { "ingredientId": 27, "grams": 80.0 },
+        { "ingredientId": 38, "grams": 60.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 29, "grams": 15.0 },
+        { "ingredientId": 55, "grams": 10.0 },
+        { "ingredientId": 56, "grams": 2.0 }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "Деруни зі сметаною",
+      "slots": ["DINNER"],
+      "cookTimeMin": 35,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["GLUTEN", "DAIRY", "EGGS"],
+      "steps": [
+        "Натри картоплю та цибулю на дрібній тертці.",
+        "Відіжми зайву рідину та додай яйце і борошно.",
+        "Перемішай тісто до однорідності.",
+        "Смаж невеликі млинці на олії по 3 хвилини з кожного боку.",
+        "Подавай гарячими зі сметаною."
+      ],
+      "ingredients": [
+        { "ingredientId": 37, "grams": 300.0 },
+        { "ingredientId": 8, "grams": 55.0 },
+        { "ingredientId": 23, "grams": 25.0 },
+        { "ingredientId": 39, "grams": 30.0 },
+        { "ingredientId": 55, "grams": 15.0 },
+        { "ingredientId": 14, "grams": 40.0 }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "Свинина, запечена з картоплею",
+      "slots": ["DINNER"],
+      "cookTimeMin": 45,
+      "isVegetarian": false,
+      "containsPork": true,
+      "allergens": [],
+      "steps": [
+        "Наріж свинину та картоплю шматочками.",
+        "Змішай з олією, часником, цибулею та сіллю.",
+        "Виклади у форму для запікання.",
+        "Запікай при 190 градусах 35 хвилин під фольгою.",
+        "Зніми фольгу та запікай ще 10 хвилин."
+      ],
+      "ingredients": [
+        { "ingredientId": 3, "grams": 150.0 },
+        { "ingredientId": 37, "grams": 200.0 },
+        { "ingredientId": 39, "grams": 40.0 },
+        { "ingredientId": 55, "grams": 8.0 },
+        { "ingredientId": 52, "grams": 5.0 },
+        { "ingredientId": 56, "grams": 2.0 }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Перець, фарширований фаршем і рисом",
+      "slots": ["DINNER"],
+      "cookTimeMin": 45,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": ["DAIRY"],
+      "steps": [
+        "Відвари рис до напівготовності.",
+        "Змішай фарш з рисом і нарізаною цибулею.",
+        "Наповни очищені перці начинкою.",
+        "Склади перці в каструлю та залий водою з томатною пастою.",
+        "Туши 30 хвилин і подавай зі сметаною."
+      ],
+      "ingredients": [
+        { "ingredientId": 44, "grams": 200.0 },
+        { "ingredientId": 4, "grams": 130.0 },
+        { "ingredientId": 18, "grams": 40.0 },
+        { "ingredientId": 39, "grams": 30.0 },
+        { "ingredientId": 14, "grams": 30.0 },
+        { "ingredientId": 29, "grams": 15.0 }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "Тофу з броколі та рисом",
+      "slots": ["DINNER"],
+      "cookTimeMin": 25,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["SOY"],
+      "steps": [
+        "Відвари рис до готовності.",
+        "Наріж тофу кубиками та обсмаж на олії до скоринки.",
+        "Додай броколі, перець і часник.",
+        "Смаж усе разом 7 хвилин, помішуючи.",
+        "Подавай овочі з тофу на рисі."
+      ],
+      "ingredients": [
+        { "ingredientId": 64, "grams": 150.0 },
+        { "ingredientId": 18, "grams": 60.0 },
+        { "ingredientId": 47, "grams": 150.0 },
+        { "ingredientId": 44, "grams": 60.0 },
+        { "ingredientId": 55, "grams": 12.0 },
+        { "ingredientId": 52, "grams": 5.0 }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "Йогурт з ягодами і медом",
+      "slots": ["SNACK"],
+      "cookTimeMin": 5,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["DAIRY"],
+      "steps": [
+        "Виклади йогурт у склянку.",
+        "Додай розморожені ягоди.",
+        "Полий медом і перемішай."
+      ],
+      "ingredients": [
+        { "ingredientId": 10, "grams": 150.0 },
+        { "ingredientId": 36, "grams": 100.0 },
+        { "ingredientId": 57, "grams": 10.0 }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "Яблуко з арахісовою пастою",
+      "slots": ["SNACK"],
+      "cookTimeMin": 5,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["PEANUTS"],
+      "steps": [
+        "Наріж яблуко часточками.",
+        "Виклади арахісову пасту в маленьку піалу.",
+        "Вмочуй часточки яблука в пасту."
+      ],
+      "ingredients": [
+        { "ingredientId": 33, "grams": 180.0 },
+        { "ingredientId": 61, "grams": 25.0 }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "Горіховий мікс із курагою",
+      "slots": ["SNACK"],
+      "cookTimeMin": 5,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["NUTS"],
+      "steps": [
+        "Промий курагу та обсуши.",
+        "Змішай волоські горіхи, мигдаль і курагу.",
+        "Пересип мікс у невелику ємність."
+      ],
+      "ingredients": [
+        { "ingredientId": 59, "grams": 20.0 },
+        { "ingredientId": 60, "grams": 15.0 },
+        { "ingredientId": 63, "grams": 25.0 }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "Хумус з овочевими паличками",
+      "slots": ["SNACK"],
+      "cookTimeMin": 10,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Наріж моркву та огірок довгими паличками.",
+        "Виклади хумус у піалу.",
+        "Вмочуй овочеві палички в хумус."
+      ],
+      "ingredients": [
+        { "ingredientId": 65, "grams": 80.0 },
+        { "ingredientId": 38, "grams": 100.0 },
+        { "ingredientId": 42, "grams": 100.0 }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "Варені яйця з огірком і кропом",
+      "slots": ["SNACK"],
+      "cookTimeMin": 12,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["EGGS"],
+      "steps": [
+        "Звари яйця круто протягом 9 хвилин.",
+        "Охолоди яйця у холодній воді та почисть.",
+        "Наріж огірок скибочками та посип кропом."
+      ],
+      "ingredients": [
+        { "ingredientId": 8, "grams": 110.0 },
+        { "ingredientId": 42, "grams": 100.0 },
+        { "ingredientId": 53, "grams": 3.0 }
+      ]
+    },
+    {
+      "id": 30,
+      "name": "Кефірний смузі з бананом",
+      "slots": ["SNACK"],
+      "cookTimeMin": 5,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": ["DAIRY"],
+      "steps": [
+        "Наріж банан шматочками.",
+        "Збий кефір з бананом і медом у блендері.",
+        "Перелий смузі у склянку."
+      ],
+      "ingredients": [
+        { "ingredientId": 11, "grams": 200.0 },
+        { "ingredientId": 32, "grams": 120.0 },
+        { "ingredientId": 57, "grams": 5.0 }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "Лаваш-рол з куркою та овочами",
+      "slots": ["SNACK"],
+      "cookTimeMin": 15,
+      "isVegetarian": false,
+      "containsPork": false,
+      "allergens": ["GLUTEN", "DAIRY"],
+      "steps": [
+        "Обсмаж смужки курячого філе до готовності.",
+        "Змасти лаваш йогуртом.",
+        "Виклади салат, помідор і курку.",
+        "Щільно згорни лаваш у рол і розріж навпіл."
+      ],
+      "ingredients": [
+        { "ingredientId": 31, "grams": 60.0 },
+        { "ingredientId": 1, "grams": 70.0 },
+        { "ingredientId": 49, "grams": 20.0 },
+        { "ingredientId": 43, "grams": 40.0 },
+        { "ingredientId": 10, "grams": 25.0 }
+      ]
+    },
+    {
+      "id": 32,
+      "name": "Печене яблуко з медом і курагою",
+      "slots": ["SNACK"],
+      "cookTimeMin": 20,
+      "isVegetarian": true,
+      "containsPork": false,
+      "allergens": [],
+      "steps": [
+        "Виріж серединку яблука, не прорізаючи дно.",
+        "Наповни яблуко нарізаною курагою та медом.",
+        "Запікай при 180 градусах 15 хвилин."
+      ],
+      "ingredients": [
+        { "ingredientId": 33, "grams": 180.0 },
+        { "ingredientId": 57, "grams": 15.0 },
+        { "ingredientId": 63, "grams": 20.0 }
+      ]
+    }
+  ]
+}

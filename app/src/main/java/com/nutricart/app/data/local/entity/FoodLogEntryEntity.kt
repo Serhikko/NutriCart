@@ -13,8 +13,9 @@ import com.nutricart.app.domain.model.MealSlot
  * change, even if the cached product is refreshed or evicted later. That is
  * also why productId may become null (SET_NULL) without breaking anything.
  *
- * grams == null together with productId == null means a quick-add entry
- * (typed calories without a product; UI for that comes later).
+ * grams == null together with productId == null marks a snapshot entry
+ * without a product — today that's a meal-plan recipe copied to the diary,
+ * later also quick-add typed calories.
  * servings != null means the user logged in portions; grams stays the
  * source of truth for all math either way.
  */

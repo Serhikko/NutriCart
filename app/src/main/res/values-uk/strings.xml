@@ -5,6 +5,7 @@
     <string name="back">Назад</string>
     <string name="start">Почати</string>
     <string name="kcal_value">%1$d ккал</string>
+    <string name="kcal_unit">ккал</string>
     <string name="grams_value">%1$d г</string>
 
     <!-- Onboarding: sex -->
@@ -82,7 +83,31 @@
 
     <!-- Tabs -->
     <string name="tab_today">Сьогодні</string>
+    <string name="tab_plan">План</string>
     <string name="tab_diary">Щоденник</string>
+
+    <!-- Meal plan -->
+    <string name="plan_title">План харчування</string>
+    <string name="generate_plan">Згенерувати тиждень</string>
+    <string name="regenerate_plan">Перегенерувати (закріплені лишаться)</string>
+    <string name="plan_empty_hint">Плану ще немає. Генератор складе 7 днів страв у межах ±5% твоєї добової цілі, з пріоритетом білка.</string>
+    <string name="day_kcal_vs_target">%1$d / %2$d ккал</string>
+    <string name="portion_and_kcal">×%1$.2f · %2$d ккал</string>
+    <string name="lock_meal">Закріпити страву</string>
+    <string name="unlock_meal">Відкріпити страву</string>
+    <string name="swap_meal">Замінити страву</string>
+    <string name="log_meal">У щоденник</string>
+    <string name="logged_to_diary">Додано в щоденник.</string>
+    <string name="plan_error_no_recipes">Замало рецептів під твої фільтри. Послаб якийсь фільтр у Налаштуваннях і спробуй ще раз.</string>
+    <string name="plan_error_unreachable">Не вдалося влучити в ціль калорій. Відкріпи якісь страви або зміни ціль і перегенеруй.</string>
+
+    <!-- Recipe details -->
+    <string name="ingredients_title">Інгредієнти</string>
+    <string name="steps_title">Приготування</string>
+    <string name="per_portion_note">Для твоєї порції (×%1$.2f)</string>
+    <string name="recipe_macros_line">Білки %1$d г · Жири %2$d г · Вуглеводи %3$d г</string>
+    <string name="cook_time_value">%1$d хв готування</string>
+    <string name="piece_hint">" (~%1$d шт)"</string>
 
     <!-- Food diary -->
     <string name="diary_title">Щоденник їжі</string>
@@ -117,7 +142,7 @@
     <string name="dashboard_target">Добова ціль</string>
     <string name="dashboard_current_weight">Поточна вага</string>
     <string name="weight_kg_value">%1$.1f кг</string>
-    <string name="dashboard_placeholder_note">План харчування та список покупок з\'являться в наступних кроках розробки.</string>
+    <string name="dashboard_placeholder_note">Список покупок з\'явиться в наступному кроці розробки.</string>
     <string name="steps_label">Кроки</string>
     <string name="calories_out_label">Витрачено калорій</string>
     <string name="exercise_label">Тренування</string>
@@ -137,6 +162,7 @@
     <string name="hc_install">Встановити</string>
     <string name="hc_update">Оновити</string>
     <string name="hc_grant">Надати доступ</string>
+    <string name="hc_no_data_hint">Health Connect підключено, але кроків чи калорій там ще немає. Якщо користуєшся годинником: відкрий його застосунок (напр. Samsung Health → Налаштування → Health Connect) і увімкни передачу даних у Health Connect, потім потягни тут вниз для оновлення.</string>
 
     <!-- Shown by Health Connect when the user asks why we need permissions -->
     <string name="privacy_rationale_title">Твої дані про здоров\'я</string>

@@ -1,8 +1,14 @@
 package com.nutricart.app.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -29,18 +35,24 @@ import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.dashboard.DashboardScreen
 import com.nutricart.app.ui.diary.DiaryScreen
 import com.nutricart.app.ui.diary.FoodSearchScreen
+import com.nutricart.app.ui.mealplan.MealPlanScreen
+import com.nutricart.app.ui.mealplan.RecipeDetailScreen
 import com.nutricart.app.ui.onboarding.OnboardingScreen
 import com.nutricart.app.ui.settings.SettingsScreen
 
 /** Route names in one place, so there are no magic strings scattered around. */
 object Routes {
     const val DASHBOARD = "dashboard"
+    const val PLAN = "meal_plan"
     const val DIARY = "diary"
     const val SETTINGS = "settings"
 
-    // Pattern with placeholders + a helper that fills them in.
+    // Patterns with placeholders + helpers that fill them in.
     const val FOOD_SEARCH = "food_search/{epochDay}/{slot}"
     fun foodSearch(epochDay: Long, slot: MealSlot) = "food_search/$epochDay/${slot.name}"
+
+    const val RECIPE = "recipe/{recipeId}/{factor}"
+    fun recipe(recipeId: Long, portionFactor: Double) = "recipe/$recipeId/${portionFactor.toFloat()}"
 }
 
 /**
@@ -76,14 +88,20 @@ private fun AppNavHost() {
 
     Scaffold(
         bottomBar = {
-            // The tab bar shows only on the two top-level screens.
-            if (currentRoute == Routes.DASHBOARD || currentRoute == Routes.DIARY) {
+            // The tab bar shows only on the three top-level screens.
+            if (currentRoute in setOf(Routes.DASHBOARD, Routes.PLAN, Routes.DIARY)) {
                 NavigationBar {
                     NavigationBarItem(
                         selected = currentRoute == Routes.DASHBOARD,
                         onClick = { navController.navigateToTab(Routes.DASHBOARD) },
                         icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_today)) },
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.PLAN,
+                        onClick = { navController.navigateToTab(Routes.PLAN) },
+                        icon = { Icon(Icons.Filled.DateRange, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_plan)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.DIARY,
@@ -99,11 +117,46 @@ private fun AppNavHost() {
             navController = navController,
             startDestination = Routes.DASHBOARD,
             modifier = Modifier.padding(innerPadding),
+            // Stacked screens glide in from the right; switching between the
+            // bottom-bar tabs cross-fades instead (a sideways slide would
+            // wrongly suggest the tabs are a stack).
+            enterTransition = {
+                if (bothAreTabs(initialState.destination.route, targetState.destination.route)) {
+                    fadeIn(tween(220))
+                } else {
+                    slideInHorizontally(tween(350)) { it / 4 } + fadeIn(tween(350))
+                }
+            },
+            exitTransition = { fadeOut(tween(200)) },
+            popEnterTransition = { fadeIn(tween(250)) },
+            popExitTransition = {
+                if (bothAreTabs(initialState.destination.route, targetState.destination.route)) {
+                    fadeOut(tween(220))
+                } else {
+                    slideOutHorizontally(tween(300)) { it / 4 } + fadeOut(tween(300))
+                }
+            },
         ) {
             composable(Routes.DASHBOARD) {
                 DashboardScreen(
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
+            }
+            composable(Routes.PLAN) {
+                MealPlanScreen(
+                    onOpenRecipe = { recipeId, portionFactor ->
+                        navController.navigate(Routes.recipe(recipeId, portionFactor))
+                    },
+                )
+            }
+            composable(
+                route = Routes.RECIPE,
+                arguments = listOf(
+                    navArgument("recipeId") { type = NavType.LongType },
+                    navArgument("factor") { type = NavType.FloatType },
+                ),
+            ) {
+                RecipeDetailScreen(onBack = goBack)
             }
             composable(Routes.DIARY) {
                 DiaryScreen(
@@ -124,7 +177,7 @@ private fun AppNavHost() {
             ) {
                 FoodSearchScreen(onDone = goBack)
             }
-            // Future screens (meal plan, recipes, shopping list) are added here.
+            // Future screens (shopping list) are added here.
         }
     }
 }
@@ -137,3 +190,8 @@ private fun NavHostController.navigateToTab(route: String) {
         restoreState = true
     }
 }
+
+private val TAB_ROUTES = setOf(Routes.DASHBOARD, Routes.PLAN, Routes.DIARY)
+
+private fun bothAreTabs(from: String?, to: String?): Boolean =
+    from in TAB_ROUTES && to in TAB_ROUTES

@@ -1,25 +1,55 @@
 package com.nutricart.app.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
 private val LightColors = lightColorScheme(
-    primary = Green40,
-    secondary = GreenGrey40,
-    tertiary = Teal40,
+    primary = EmeraldPrimary,
+    onPrimary = OnEmerald,
+    primaryContainer = EmeraldContainer,
+    onPrimaryContainer = OnEmeraldContainer,
+    secondary = GraphiteSecondary,
+    secondaryContainer = GraphiteContainer,      // selected chips, nav-bar pill
+    onSecondaryContainer = OnGraphiteContainer,
+    tertiary = AmberTertiary,
+    background = LightBackground,
+    surface = LightSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurface = LightOnSurface,
+    onBackground = LightOnSurface,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    outline = LightOutline,
+    surfaceContainerLowest = LightSurfaceContainerLowest,
+    surfaceContainerLow = LightSurfaceContainerLow,
+    surfaceContainer = LightSurfaceContainer,    // navigation bar background
+    surfaceContainerHigh = LightSurfaceContainerHigh,
+    surfaceContainerHighest = LightSurfaceContainerHighest, // filled cards
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Green80,
-    secondary = GreenGrey80,
-    tertiary = Teal80,
+    primary = EmeraldPrimaryDark,
+    onPrimary = OnEmeraldDark,
+    primaryContainer = EmeraldContainerDark,
+    onPrimaryContainer = OnEmeraldContainerDark,
+    secondary = GraphiteSecondaryDark,
+    secondaryContainer = GraphiteContainerDark,
+    onSecondaryContainer = OnGraphiteContainerDark,
+    tertiary = AmberTertiaryDark,
+    background = DarkBackground,
+    surface = DarkSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurface = DarkOnSurface,
+    onBackground = DarkOnSurface,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    surfaceContainerLowest = DarkSurfaceContainerLowest,
+    surfaceContainerLow = DarkSurfaceContainerLow,
+    surfaceContainer = DarkSurfaceContainer,
+    surfaceContainerHigh = DarkSurfaceContainerHigh,
+    surfaceContainerHighest = DarkSurfaceContainerHighest,
 )
 
 @Composable
@@ -27,20 +57,12 @@ fun NutriCartTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    // On Android 12+ use the user's wallpaper colors (dynamic color);
-    // on older phones fall back to our green palette.
-    val colorScheme = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColors
-        else -> LightColors
-    }
-
+    // A curated brand palette instead of wallpaper-based dynamic color:
+    // the app looks identically designed on every device.
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = if (darkTheme) DarkColors else LightColors,
         typography = AppTypography,
+        shapes = AppShapes,
         content = content,
     )
 }

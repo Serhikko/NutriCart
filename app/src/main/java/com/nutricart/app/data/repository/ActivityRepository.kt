@@ -47,14 +47,15 @@ class ActivityRepository @Inject constructor(
         }
 
         return try {
-            if (!healthConnect.hasRequiredPermissions()) return SyncResult.NO_PERMISSION
+            val granted = healthConnect.grantedPermissions()
+            if (!healthConnect.hasRequiredPermissions(granted)) return SyncResult.NO_PERMISSION
 
             val today = LocalDate.now()
             // Refresh the last 7 days: older days can still change when the
             // watch uploads its data late.
             for (offset in 6 downTo 0) {
                 val day = today.minusDays(offset.toLong())
-                val summary = healthConnect.readDay(day)
+                val summary = healthConnect.readDay(day, granted)
                 activityDao.upsert(
                     DailyActivityEntity(
                         epochDay = day.toEpochDay(),
@@ -67,9 +68,10 @@ class ActivityRepository @Inject constructor(
                 )
             }
 
-            // Weight from the watch/scale. Stored with source HEALTH_CONNECT:
-            // a MANUAL entry for the same day always wins over it in queries.
-            healthConnect.readLatestWeight(today)?.let { (date, weightKg) ->
+            // Weight from the watch/scale (only when that permission was
+            // granted). Stored with source HEALTH_CONNECT: a MANUAL entry for
+            // the same day always wins over it in queries.
+            if (healthConnect.canReadWeight(granted)) healthConnect.readLatestWeight(today)?.let { (date, weightKg) ->
                 weightDao.insert(
                     WeightEntryEntity(
                         epochDay = date.toEpochDay(),
@@ -91,6 +93,7 @@ class ActivityRepository @Inject constructor(
         } catch (e: Exception) {
             // Health Connect lives in another process; transient IO/remote errors
             // are possible and simply mean "try again later".
+            android.util.Log.w("ActivityRepository", "Health Connect sync failed", e)
             SyncResult.ERROR
         }
     }

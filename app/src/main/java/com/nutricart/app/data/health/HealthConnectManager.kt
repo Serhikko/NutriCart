@@ -2,6 +2,7 @@ package com.nutricart.app.data.health
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
@@ -48,27 +49,31 @@ class HealthConnectManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
-    /** Everything we ask the user to grant. */
-    val permissions: Set<String> = setOf(
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class),
-        HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(WeightRecord::class),
-        // Lets the hourly worker read while the app is closed. OPTIONAL: without
-        // it sync still happens whenever the app is opened or pulled-to-refresh.
-        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
+    private val stepsPermission = HealthPermission.getReadPermission(StepsRecord::class)
+    private val activeCaloriesPermission =
+        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class)
+    private val heartRatePermission = HealthPermission.getReadPermission(HeartRateRecord::class)
+    private val exercisePermission =
+        HealthPermission.getReadPermission(ExerciseSessionRecord::class)
+    private val sleepPermission = HealthPermission.getReadPermission(SleepSessionRecord::class)
+    private val weightPermission = HealthPermission.getReadPermission(WeightRecord::class)
+
+    private val dataTypePermissions: Set<String> = setOf(
+        stepsPermission,
+        activeCaloriesPermission,
+        heartRatePermission,
+        exercisePermission,
+        sleepPermission,
+        weightPermission,
     )
 
     /**
-     * The subset sync cannot work without (background read is not in it).
-     * v1 simplification: ALL data-type permissions are required — denying any
-     * single type (e.g. only sleep) shows the permission banner. Fine for now,
-     * because one aggregate request covers all types at once.
+     * Sync REQUIRES only steps + active calories (they feed the target math).
+     * Everything else is optional: a user who denies e.g. sleep still gets a
+     * fully working sync — the sleep row just stays empty.
      */
     private val requiredPermissions: Set<String> =
-        permissions - HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+        setOf(stepsPermission, activeCaloriesPermission)
 
     fun availability(): HcAvailability =
         when (HealthConnectClient.getSdkStatus(context)) {
@@ -82,28 +87,56 @@ class HealthConnectManager @Inject constructor(
     private val client: HealthConnectClient
         get() = HealthConnectClient.getOrCreate(context)
 
-    suspend fun hasRequiredPermissions(): Boolean =
-        client.permissionController.getGrantedPermissions().containsAll(requiredPermissions)
+    /**
+     * What the permission dialog should ask for. Background read is included
+     * ONLY when this Health Connect version supports it — requesting an
+     * unknown permission can break the whole dialog on older versions.
+     */
+    fun permissionsToRequest(): Set<String> {
+        if (availability() != HcAvailability.AVAILABLE) return dataTypePermissions
+        val backgroundSupported = client.features.getFeatureStatus(
+            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+        ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        return if (backgroundSupported) {
+            dataTypePermissions + HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+        } else {
+            dataTypePermissions
+        }
+    }
+
+    suspend fun grantedPermissions(): Set<String> =
+        client.permissionController.getGrantedPermissions()
+
+    fun hasRequiredPermissions(granted: Set<String>): Boolean =
+        granted.containsAll(requiredPermissions)
+
+    fun canReadWeight(granted: Set<String>): Boolean = weightPermission in granted
 
     /**
      * Daily totals via the AGGREGATE API. Aggregation is important: if both the
      * phone and the watch recorded the same walk, aggregate() de-duplicates the
      * overlap — summing raw records ourselves would count it twice.
+     * Only GRANTED record types are requested; the rest stay null.
      */
-    suspend fun readDay(day: LocalDate): DayActivitySummary {
+    suspend fun readDay(day: LocalDate, granted: Set<String>): DayActivitySummary {
         val zone = ZoneId.systemDefault()
         val start = day.atStartOfDay(zone).toInstant()
         val end = day.plusDays(1).atStartOfDay(zone).toInstant()
 
+        val metrics = buildSet {
+            if (stepsPermission in granted) add(StepsRecord.COUNT_TOTAL)
+            if (activeCaloriesPermission in granted) add(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL)
+            if (exercisePermission in granted) add(ExerciseSessionRecord.EXERCISE_DURATION_TOTAL)
+            if (sleepPermission in granted) add(SleepSessionRecord.SLEEP_DURATION_TOTAL)
+            if (heartRatePermission in granted) add(HeartRateRecord.BPM_AVG)
+        }
+        if (metrics.isEmpty()) {
+            return DayActivitySummary(null, null, null, null, null)
+        }
+
         val result = client.aggregate(
             AggregateRequest(
-                metrics = setOf(
-                    StepsRecord.COUNT_TOTAL,
-                    ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
-                    ExerciseSessionRecord.EXERCISE_DURATION_TOTAL,
-                    SleepSessionRecord.SLEEP_DURATION_TOTAL,
-                    HeartRateRecord.BPM_AVG,
-                ),
+                metrics = metrics,
                 timeRangeFilter = TimeRangeFilter.between(start, end),
             )
         )

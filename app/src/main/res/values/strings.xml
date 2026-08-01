@@ -7,6 +7,7 @@
     <string name="back">Back</string>
     <string name="start">Start</string>
     <string name="kcal_value">%1$d kcal</string>
+    <string name="kcal_unit">kcal</string>
     <string name="grams_value">%1$d g</string>
 
     <!-- Onboarding: sex -->
@@ -84,7 +85,32 @@
 
     <!-- Tabs -->
     <string name="tab_today">Today</string>
+    <string name="tab_plan">Plan</string>
     <string name="tab_diary">Diary</string>
+
+    <!-- Meal plan -->
+    <string name="plan_title">Meal plan</string>
+    <string name="generate_plan">Generate a week</string>
+    <string name="regenerate_plan">Regenerate (locked meals stay)</string>
+    <string name="plan_empty_hint">No plan yet. The generator builds 7 days of meals within ±5% of your daily calorie target, protein first.</string>
+    <string name="day_kcal_vs_target">%1$d / %2$d kcal</string>
+    <string name="portion_and_kcal">×%1$.2f · %2$d kcal</string>
+    <string name="lock_meal">Lock meal</string>
+    <string name="unlock_meal">Unlock meal</string>
+    <string name="swap_meal">Swap meal</string>
+    <string name="log_meal">Add to diary</string>
+    <string name="logged_to_diary">Added to the diary.</string>
+    <string name="plan_error_no_recipes">Not enough recipes for your diet filters. Relax a filter in Settings and try again.</string>
+    <string name="plan_error_unreachable">Couldn\'t hit the calorie target. Unlock some meals or adjust your goal, then regenerate.</string>
+
+    <!-- Recipe details -->
+    <string name="ingredients_title">Ingredients</string>
+    <string name="steps_title">Steps</string>
+    <string name="per_portion_note">For your portion (×%1$.2f)</string>
+    <string name="recipe_macros_line">Protein %1$d g · Fat %2$d g · Carbs %3$d g</string>
+    <string name="cook_time_value">%1$d min to cook</string>
+    <!-- Quoted so AAPT keeps the leading space when concatenated after grams. -->
+    <string name="piece_hint">" (~%1$d pcs)"</string>
 
     <!-- Food diary -->
     <string name="diary_title">Food diary</string>
@@ -119,7 +145,7 @@
     <string name="dashboard_target">Daily target</string>
     <string name="dashboard_current_weight">Current weight</string>
     <string name="weight_kg_value">%1$.1f kg</string>
-    <string name="dashboard_placeholder_note">Meal plan and shopping list arrive in the next build steps.</string>
+    <string name="dashboard_placeholder_note">The shopping list arrives in the next build step.</string>
     <string name="steps_label">Steps</string>
     <string name="calories_out_label">Calories out</string>
     <string name="exercise_label">Exercise</string>
@@ -140,6 +166,7 @@
     <string name="hc_install">Install</string>
     <string name="hc_update">Update</string>
     <string name="hc_grant">Allow access</string>
+    <string name="hc_no_data_hint">Health Connect is connected, but has no steps or calories yet. If you use a watch: open its companion app (e.g. Samsung Health → Settings → Health Connect) and turn on sharing with Health Connect, then pull down here to refresh.</string>
 
     <!-- Shown by Health Connect when the user asks why we need permissions -->
     <string name="privacy_rationale_title">Your health data</string>

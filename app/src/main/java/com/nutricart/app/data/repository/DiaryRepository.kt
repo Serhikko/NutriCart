@@ -60,4 +60,34 @@ class DiaryRepository @Inject constructor(
     }
 
     suspend fun delete(entry: FoodLogEntryEntity) = foodLogDao.delete(entry)
+
+    /**
+     * Logs a ready nutrition snapshot without a product — used by the meal
+     * plan's "add to diary" (the recipe name + already-scaled numbers go in).
+     */
+    suspend fun logSnapshot(
+        name: String,
+        kcal: Double,
+        proteinG: Double,
+        fatG: Double,
+        carbsG: Double,
+        meal: MealSlot,
+        epochDay: Long,
+    ) {
+        foodLogDao.insert(
+            FoodLogEntryEntity(
+                epochDay = epochDay,
+                meal = meal,
+                productId = null,
+                name = name,
+                grams = null,
+                servings = null,
+                kcal = kcal,
+                proteinG = proteinG,
+                fatG = fatG,
+                carbsG = carbsG,
+                loggedAtEpochMillis = System.currentTimeMillis(),
+            )
+        )
+    }
 }

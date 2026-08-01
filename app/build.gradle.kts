@@ -14,8 +14,8 @@ android {
         applicationId = "com.nutricart.app"
         minSdk = 28
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.4"
+        versionCode = 5
+        versionName = "0.5"
     }
 
     buildTypes {
@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core) // Settings/ArrowBack icons
+    implementation(libs.androidx.compose.ui.text.google.fonts) // Manrope via Google Fonts
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose) // LifecycleResumeEffect
     implementation(libs.androidx.navigation.compose)
