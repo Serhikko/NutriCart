@@ -512,18 +512,27 @@ private fun CustomFoodDialog(
     var fatText by rememberSaveable { mutableStateOf(editing?.fatPer100g?.toString() ?: "") }
     var carbsText by rememberSaveable { mutableStateOf(editing?.carbsPer100g?.toString() ?: "") }
     var servingText by rememberSaveable { mutableStateOf(editing?.servingSizeG?.roundToInt()?.toString() ?: "") }
+    var fiberText by rememberSaveable { mutableStateOf(editing?.fiberPer100g?.toString() ?: "") }
+    var sugarsText by rememberSaveable { mutableStateOf(editing?.sugarsPer100g?.toString() ?: "") }
+    var saltText by rememberSaveable { mutableStateOf(editing?.saltPer100g?.toString() ?: "") }
+    var satFatText by rememberSaveable { mutableStateOf(editing?.saturatedFatPer100g?.toString() ?: "") }
 
     fun parse(text: String): Double? = text.replace(',', '.').toDoubleOrNull()
+    // Optional field: blank is fine (null), a typed value must be sane.
+    fun optional(text: String): Double? =
+        if (text.isBlank()) null else parse(text)?.takeIf { it in 0.0..100.0 }
+    fun optionalOk(text: String): Boolean = text.isBlank() || optional(text) != null
 
     val kcal = parse(kcalText)?.takeIf { it in 0.0..900.0 }
     val protein = parse(proteinText)?.takeIf { it in 0.0..100.0 }
     val fat = parse(fatText)?.takeIf { it in 0.0..100.0 }
     val carbs = parse(carbsText)?.takeIf { it in 0.0..100.0 }
-    // Serving is optional: blank is fine, a typed value must be sane.
     val serving = if (servingText.isBlank()) null else parse(servingText)?.takeIf { it in 1.0..5000.0 }
     val servingOk = servingText.isBlank() || serving != null
     val valid = name.isNotBlank() && kcal != null &&
-        protein != null && fat != null && carbs != null && servingOk
+        protein != null && fat != null && carbs != null && servingOk &&
+        optionalOk(fiberText) && optionalOk(sugarsText) &&
+        optionalOk(saltText) && optionalOk(satFatText)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -557,6 +566,15 @@ private fun CustomFoodDialog(
                 NumberField(fatText, { fatText = it }, R.string.custom_food_fat)
                 NumberField(carbsText, { carbsText = it }, R.string.custom_food_carbs)
                 NumberField(servingText, { servingText = it }, R.string.custom_food_serving)
+                Text(
+                    stringResource(R.string.custom_food_optional_header),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                NumberField(fiberText, { fiberText = it }, R.string.custom_food_fiber)
+                NumberField(sugarsText, { sugarsText = it }, R.string.custom_food_sugars)
+                NumberField(saltText, { saltText = it }, R.string.custom_food_salt)
+                NumberField(satFatText, { satFatText = it }, R.string.custom_food_sat_fat)
                 if (onDelete != null) {
                     TextButton(onClick = onDelete) {
                         Text(
@@ -581,6 +599,10 @@ private fun CustomFoodDialog(
                                 fatPer100g = fat!!,
                                 carbsPer100g = carbs!!,
                                 servingSizeG = serving,
+                                fiberPer100g = optional(fiberText),
+                                sugarsPer100g = optional(sugarsText),
+                                saltPer100g = optional(saltText),
+                                saturatedFatPer100g = optional(satFatText),
                             )
                         )
                     }
@@ -591,6 +613,26 @@ private fun CustomFoodDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
+}
+
+/** One label row of the per-100g table; null renders as a dash, never 0. */
+@Composable
+private fun NutrientRow(labelRes: Int, valuePer100g: Double?) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            stringResource(labelRes),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            valuePer100g?.let { stringResource(R.string.nutrient_grams_value, it) }
+                ?: stringResource(R.string.no_data_dash),
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
 }
 
 @Composable
@@ -631,7 +673,7 @@ private fun AmountDialog(
         onDismissRequest = onDismiss,
         title = { Text(product.name) },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 if (product.servingSizeG != null) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
@@ -683,6 +725,30 @@ private fun AmountDialog(
                         stringResource(R.string.kcal_value, kcal.roundToInt()),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+
+                // The full label, per 100 g. "—" = the source didn't state it.
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.per100g_header),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                NutrientRow(R.string.summary_protein, product.proteinPer100g)
+                NutrientRow(R.string.summary_fat, product.fatPer100g)
+                NutrientRow(R.string.summary_carbs, product.carbsPer100g)
+                NutrientRow(R.string.nutrient_fiber, product.fiberPer100g)
+                NutrientRow(R.string.nutrient_sugars, product.sugarsPer100g)
+                NutrientRow(R.string.nutrient_salt, product.saltPer100g)
+                NutrientRow(R.string.nutrient_sat_fat, product.saturatedFatPer100g)
+                product.additivesCsv?.let { csv ->
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        stringResource(R.string.additives_line, csv.replace(",", ", ")),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

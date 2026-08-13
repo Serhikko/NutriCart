@@ -228,6 +228,17 @@ class MealPlanViewModel @Inject constructor(
     }
 
     private fun computeTargets(profile: UserProfileEntity, weightKg: Double): DailyTargets {
+        // Manual override wins: the plan aims at exactly the user's numbers.
+        if (profile.customKcalTarget != null && profile.customProteinG != null &&
+            profile.customFatG != null && profile.customCarbsG != null
+        ) {
+            return DailyTargets(
+                kcal = profile.customKcalTarget,
+                proteinG = profile.customProteinG,
+                fatG = profile.customFatG,
+                carbsG = profile.customCarbsG,
+            )
+        }
         val age = CalorieCalculator.ageYears(
             LocalDate.ofEpochDay(profile.birthDateEpochDay),
             LocalDate.now(),

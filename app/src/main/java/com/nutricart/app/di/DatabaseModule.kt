@@ -304,6 +304,29 @@ private val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+/**
+ * v9 -> v10 (release v0.11): detail nutrients. Nullable per-100g values +
+ * additives on the product cache, and nullable per-entry SNAPSHOTS on the
+ * diary and saved-meal items (null = unknown at log time, never 0).
+ */
+private val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        for (column in listOf("fiberPer100g", "sugarsPer100g", "saltPer100g", "saturatedFatPer100g")) {
+            db.execSQL("ALTER TABLE `food_product` ADD COLUMN `$column` REAL")
+        }
+        db.execSQL("ALTER TABLE `food_product` ADD COLUMN `additivesCsv` TEXT")
+        for (table in listOf("food_log_entry", "saved_meal_item")) {
+            for (column in listOf("fiberG", "sugarsG", "saltG", "saturatedFatG")) {
+                db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` REAL")
+            }
+        }
+        // Manual target overrides (null = automatic calculation).
+        for (column in listOf("customKcalTarget", "customProteinG", "customFatG", "customCarbsG")) {
+            db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `$column` INTEGER")
+        }
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -316,6 +339,7 @@ object DatabaseModule {
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+                MIGRATION_9_10,
             )
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.

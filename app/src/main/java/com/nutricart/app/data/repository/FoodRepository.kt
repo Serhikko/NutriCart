@@ -30,31 +30,42 @@ class FoodRepository @Inject constructor(
 ) {
 
     /**
-     * Barcode lookup, offline-first: the cache answers instantly for products
-     * scanned before; otherwise the OFF barcode endpoint is asked and the
-     * result is cached like any other product.
+     * Barcode lookup, offline-first: a fully-detailed cache row answers
+     * instantly. A row cached BEFORE the detail-nutrient columns existed
+     * (all four null) gets an online refresh attempt — OFF may well know the
+     * values, and without this the user's most-scanned staples would show
+     * "—" forever (review-caught). Offline, the stale row still wins over an
+     * error.
      * null = the database genuinely does not know this barcode.
-     * No internet is NOT "unknown" — an IOException propagates to the caller,
-     * which tells the user they are offline instead of lying "not found".
+     * No internet with NO cached row is NOT "unknown" — the IOException
+     * propagates, and the user sees "you are offline" instead of "not found".
      */
     suspend fun byBarcode(barcode: String): FoodProductEntity? {
-        foodDao.byId("off:$barcode")?.let { return it }
+        val cached = foodDao.byId("off:$barcode")
+        if (cached != null && !cached.missingDetails()) return cached
         return try {
             val product = api.productByBarcode(barcode).product
                 ?.toEntityOrNull(System.currentTimeMillis())
-                ?: return null
-            foodDao.upsertAll(listOf(product))
-            product
+                ?: return cached // OFF lost/hides the product — keep what we have
+            // Same star rule as search: fresh API data must not wipe it.
+            val merged = product.copy(isFavorite = cached?.isFavorite ?: false)
+            foodDao.upsert(merged)
+            merged
         } catch (e: CancellationException) {
             throw e
         } catch (e: IOException) {
-            throw e // offline — the ViewModel shows a dedicated message
+            cached ?: throw e // offline — the ViewModel shows a dedicated message
         } catch (e: Exception) {
-            // Server error or unexpected response — log it, treat as unknown.
+            // Server error or unexpected response — log it, use what we have.
             Log.w("FoodRepository", "Barcode lookup failed", e)
-            null
+            cached
         }
     }
+
+    /** True for rows cached before v0.11 — no detail nutrient is known. */
+    private fun FoodProductEntity.missingDetails(): Boolean =
+        fiberPer100g == null && sugarsPer100g == null &&
+            saltPer100g == null && saturatedFatPer100g == null
 
     suspend fun search(query: String): FoodSearchResult {
         return try {
@@ -114,6 +125,10 @@ class FoodRepository @Inject constructor(
         fatPer100g: Double,
         carbsPer100g: Double,
         servingSizeG: Double?,
+        fiberPer100g: Double?,
+        sugarsPer100g: Double?,
+        saltPer100g: Double?,
+        saturatedFatPer100g: Double?,
     ): FoodProductEntity {
         val product = FoodProductEntity(
             id = "local:" + UUID.randomUUID(),
@@ -124,6 +139,10 @@ class FoodRepository @Inject constructor(
             fatPer100g = fatPer100g,
             carbsPer100g = carbsPer100g,
             servingSizeG = servingSizeG,
+            fiberPer100g = fiberPer100g,
+            sugarsPer100g = sugarsPer100g,
+            saltPer100g = saltPer100g,
+            saturatedFatPer100g = saturatedFatPer100g,
             source = ProductSource.LOCAL,
             cachedAtEpochMillis = System.currentTimeMillis(),
         )

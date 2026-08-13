@@ -45,6 +45,11 @@ data class CustomFoodDraft(
     val fatPer100g: Double,
     val carbsPer100g: Double,
     val servingSizeG: Double?,
+    // Optional detail nutrients — blank fields stay null ("not stated").
+    val fiberPer100g: Double? = null,
+    val sugarsPer100g: Double? = null,
+    val saltPer100g: Double? = null,
+    val saturatedFatPer100g: Double? = null,
 )
 
 data class FoodSearchUiState(
@@ -361,6 +366,10 @@ class FoodSearchViewModel @Inject constructor(
                     fatPer100g = draft.fatPer100g,
                     carbsPer100g = draft.carbsPer100g,
                     servingSizeG = draft.servingSizeG,
+                    fiberPer100g = draft.fiberPer100g,
+                    sugarsPer100g = draft.sugarsPer100g,
+                    saltPer100g = draft.saltPer100g,
+                    saturatedFatPer100g = draft.saturatedFatPer100g,
                 )
                 // Straight into the amount dialog: after creating a product
                 // the user almost always wants to log it right away.
@@ -374,6 +383,10 @@ class FoodSearchViewModel @Inject constructor(
                     fatPer100g = draft.fatPer100g,
                     carbsPer100g = draft.carbsPer100g,
                     servingSizeG = draft.servingSizeG,
+                    fiberPer100g = draft.fiberPer100g,
+                    sugarsPer100g = draft.sugarsPer100g,
+                    saltPer100g = draft.saltPer100g,
+                    saturatedFatPer100g = draft.saturatedFatPer100g,
                 )
                 foodRepository.updateCustomProduct(updated)
                 // ALL lists, not just results: the same product may sit in

@@ -43,5 +43,11 @@ data class FoodLogEntryEntity(
     val proteinG: Double,
     val fatG: Double,
     val carbsG: Double,
+    // Detail-nutrient snapshots (v0.11): null = unknown at log time, never 0 —
+    // day sums count only what is actually known.
+    val fiberG: Double? = null,
+    val sugarsG: Double? = null,
+    val saltG: Double? = null,
+    val saturatedFatG: Double? = null,
     val loggedAtEpochMillis: Long,
 )

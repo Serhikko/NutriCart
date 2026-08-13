@@ -27,6 +27,8 @@ data class ProductDto(
     // would make ONE bad product break decoding of the whole search response.
     // (With isLenient, bare JSON numbers also decode into String just fine.)
     @SerialName("serving_quantity") val servingQuantity: String? = null,
+    /** OFF additive tags, e.g. ["en:e330", "en:e202"]. */
+    @SerialName("additives_tags") val additivesTags: List<String>? = null,
 )
 
 @Serializable
@@ -35,6 +37,12 @@ data class NutrimentsDto(
     @SerialName("proteins_100g") val proteinPer100g: Double? = null,
     @SerialName("fat_100g") val fatPer100g: Double? = null,
     @SerialName("carbohydrates_100g") val carbsPer100g: Double? = null,
+    // Optional detail nutrients: missing values do NOT drop the product —
+    // they stay null ("OFF doesn't know"), unlike the four core values above.
+    @SerialName("fiber_100g") val fiberPer100g: Double? = null,
+    @SerialName("sugars_100g") val sugarsPer100g: Double? = null,
+    @SerialName("salt_100g") val saltPer100g: Double? = null,
+    @SerialName("saturated-fat_100g") val saturatedFatPer100g: Double? = null,
 )
 
 /**
@@ -59,6 +67,18 @@ fun ProductDto.toEntityOrNull(cachedAtEpochMillis: Long): FoodProductEntity? {
         // Garbage portion sizes ("", "2 pcs") just become null — the product
         // itself stays usable, portion mode is simply unavailable for it.
         servingSizeG = servingQuantity?.replace(',', '.')?.toDoubleOrNull()?.takeIf { it > 0.0 },
+        fiberPer100g = n.fiberPer100g,
+        sugarsPer100g = n.sugarsPer100g,
+        saltPer100g = n.saltPer100g,
+        saturatedFatPer100g = n.saturatedFatPer100g,
+        // "en:e330" -> "E330". [A-Z]* (not ?): OFF subtypes can be roman
+        // numerals, e.g. "en:e500ii" -> E500II — one letter would drop them.
+        additivesCsv = additivesTags
+            ?.mapNotNull { tag ->
+                tag.substringAfter(':').uppercase().takeIf { it.matches(Regex("E\\d+[A-Z]*")) }
+            }
+            ?.takeIf { it.isNotEmpty() }
+            ?.joinToString(","),
         source = ProductSource.OPEN_FOOD_FACTS,
         cachedAtEpochMillis = cachedAtEpochMillis,
     )

@@ -207,6 +207,31 @@
     <string name="custom_food_carbs">Вуглеводи (г / 100 г)</string>
     <string name="custom_food_serving">Розмір порції (г, необов\'язково)</string>
     <string name="custom_food_delete">Видалити цей продукт</string>
+    <string name="custom_food_optional_header">Більше деталей (необов\'язково)</string>
+    <string name="custom_food_fiber">Клітковина (г / 100 г)</string>
+    <string name="custom_food_sugars">Цукри (г / 100 г)</string>
+    <string name="custom_food_salt">Сіль (г / 100 г)</string>
+    <string name="custom_food_sat_fat">Насичені жири (г / 100 г)</string>
+
+    <!-- Detail nutrients -->
+    <string name="per100g_header">На 100 г</string>
+    <string name="nutrient_fiber">Клітковина</string>
+    <string name="nutrient_sugars">Цукри</string>
+    <string name="nutrient_salt">Сіль</string>
+    <string name="nutrient_sat_fat">Насичені жири</string>
+    <string name="nutrient_grams_value">%1$.1f г</string>
+    <string name="nutrient_vs_limit">%1$.1f / %2$d г</string>
+    <string name="additives_line">Добавки: %1$s</string>
+
+    <!-- Manual daily targets -->
+    <string name="targets_section">Денні цілі</string>
+    <string name="targets_manual_switch">Задати цілі вручну</string>
+    <string name="targets_manual_note">Ручні цілі замінюють автоматичний розрахунок. Активність з годинника більше не змінює ціль; тренування, додані вручну, далі додаються зверху.</string>
+    <string name="target_kcal_label">Калорії (ккал)</string>
+    <string name="target_protein_label">Білки (г)</string>
+    <string name="target_fat_label">Жири (г)</string>
+    <string name="target_carbs_label">Вуглеводи (г)</string>
+    <string name="target_invalid">Поза розумним діапазоном</string>
 
     <!-- Favorites and frequent foods -->
     <string name="favorites_chip">Улюблені</string>

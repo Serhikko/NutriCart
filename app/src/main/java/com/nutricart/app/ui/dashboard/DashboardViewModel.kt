@@ -17,6 +17,7 @@ import com.nutricart.app.data.repository.SyncResult
 import com.nutricart.app.data.repository.WaterRepository
 import com.nutricart.app.data.repository.WorkoutRepository
 import com.nutricart.app.domain.logic.CalorieCalculator
+import com.nutricart.app.domain.logic.NutrientTargets
 import com.nutricart.app.domain.logic.StreakCalculator
 import com.nutricart.app.domain.logic.WeightTrendCalculator
 import com.nutricart.app.domain.model.DailyTargets
@@ -78,6 +79,16 @@ data class DashboardUiState(
     val eatenProteinG: Int = 0,
     val eatenFatG: Int = 0,
     val eatenCarbsG: Int = 0,
+    /** Detail nutrients: sums of the KNOWN parts of today's entries. */
+    val eatenFiberG: Double = 0.0,
+    val eatenSugarsG: Double = 0.0,
+    val eatenSaltG: Double = 0.0,
+    val eatenSatFatG: Double = 0.0,
+    /** Daily guides derived from today's kcal target (see NutrientTargets). */
+    val fiberTargetG: Int = 0,
+    val sugarLimitG: Int = 0,
+    val saltLimitG: Int = 0,
+    val satFatLimitG: Int = 0,
     val caloriesOut: Int = 0,
     /** kcal ADDED to today's target by activity: watch active kcal + manual workouts. */
     val activityBonusKcal: Int = 0,
@@ -230,30 +241,53 @@ class DashboardViewModel @Inject constructor(
                 .filter { it.source == WorkoutSource.MANUAL }
                 .sumOf { it.kcal ?: 0.0 }
 
-            val baseTarget = CalorieCalculator.baseTargetKcal(
+            // Manual override: the user's number replaces BOTH formulas —
+            // the watch no longer switches anything, only manual workouts add.
+            val customKcal = profile.customKcalTarget
+            val baseTarget = customKcal?.toDouble() ?: CalorieCalculator.baseTargetKcal(
                 profile.sex, weight.weightKg, profile.heightCm.toDouble(), age,
                 profile.activityLevel, profile.goal, profile.targetKgPerWeek,
             )
-            val targetKcal = manualWorkoutKcal + if (activeKcal != null) {
+            val targetKcal = manualWorkoutKcal + if (customKcal == null && activeKcal != null) {
                 CalorieCalculator.adjustedTargetKcal(
                     profile.sex, bmr, profile.goal, profile.targetKgPerWeek, activeKcal,
                 )
             } else {
                 baseTarget
             }
-            val targets = CalorieCalculator.macroTargets(targetKcal, weight.weightKg)
+            val targets = if (
+                customKcal != null && profile.customProteinG != null &&
+                profile.customFatG != null && profile.customCarbsG != null
+            ) {
+                DailyTargets(
+                    kcal = targetKcal.roundToInt(),
+                    proteinG = profile.customProteinG,
+                    fatG = profile.customFatG,
+                    carbsG = profile.customCarbsG,
+                )
+            } else {
+                CalorieCalculator.macroTargets(targetKcal, weight.weightKg)
+            }
             val eatenKcal = eaten.kcal.roundToInt()
             val weightPoints = dedupePerDay(pd.history)
 
             DashboardUiState(
                 loading = false,
                 targets = targets,
-                adjustedByActivity = activeKcal != null,
+                adjustedByActivity = customKcal == null && activeKcal != null,
                 eatenKcal = eatenKcal,
                 remainingKcal = targets.kcal - eatenKcal,
                 eatenProteinG = eaten.proteinG.roundToInt(),
                 eatenFatG = eaten.fatG.roundToInt(),
                 eatenCarbsG = eaten.carbsG.roundToInt(),
+                eatenFiberG = eaten.fiberG,
+                eatenSugarsG = eaten.sugarsG,
+                eatenSaltG = eaten.saltG,
+                eatenSatFatG = eaten.saturatedFatG,
+                fiberTargetG = NutrientTargets.fiberTargetG(targets.kcal),
+                sugarLimitG = NutrientTargets.sugarLimitG(targets.kcal),
+                saltLimitG = NutrientTargets.SALT_LIMIT_G.roundToInt(),
+                satFatLimitG = NutrientTargets.saturatedFatLimitG(targets.kcal),
                 caloriesOut = (CalorieCalculator
                     .caloriesOut(bmr, profile.activityLevel, activeKcal) + manualWorkoutKcal)
                     .roundToInt(),

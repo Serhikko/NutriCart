@@ -29,6 +29,13 @@ data class FoodProductEntity(
     val carbsPer100g: Double,
     /** Label portion size in grams, when the producer stated one. */
     val servingSizeG: Double?,
+    // Detail nutrients (v0.11): null = the source didn't state them — never 0.
+    val fiberPer100g: Double? = null,
+    val sugarsPer100g: Double? = null,
+    val saltPer100g: Double? = null,
+    val saturatedFatPer100g: Double? = null,
+    /** E-codes as CSV ("E330,E202"), null = none known. */
+    val additivesCsv: String? = null,
     val source: ProductSource,
     val cachedAtEpochMillis: Long,
     /**

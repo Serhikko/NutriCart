@@ -49,7 +49,7 @@ import com.nutricart.app.data.local.entity.WorkoutEntryEntity
         SavedMealEntity::class,
         SavedMealItemEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)

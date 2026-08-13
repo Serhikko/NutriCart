@@ -39,6 +39,20 @@ class DiaryRepository @Inject constructor(
         meal: MealSlot,
         epochDay: Long,
     ) {
+        foodLogDao.insert(
+            entryFor(product, grams, servings, meal, epochDay, System.currentTimeMillis())
+        )
+    }
+
+    /** The one place that turns a product + grams into a diary snapshot row. */
+    private fun entryFor(
+        product: FoodProductEntity,
+        grams: Double,
+        servings: Double?,
+        meal: MealSlot,
+        epochDay: Long,
+        loggedAtEpochMillis: Long,
+    ): FoodLogEntryEntity {
         val nutrition = FoodMath.forGrams(
             kcalPer100g = product.kcalPer100g,
             proteinPer100g = product.proteinPer100g,
@@ -46,20 +60,23 @@ class DiaryRepository @Inject constructor(
             carbsPer100g = product.carbsPer100g,
             grams = grams,
         )
-        foodLogDao.insert(
-            FoodLogEntryEntity(
-                epochDay = epochDay,
-                meal = meal,
-                productId = product.id,
-                name = product.name,
-                grams = grams,
-                servings = servings,
-                kcal = nutrition.kcal,
-                proteinG = nutrition.proteinG,
-                fatG = nutrition.fatG,
-                carbsG = nutrition.carbsG,
-                loggedAtEpochMillis = System.currentTimeMillis(),
-            )
+        return FoodLogEntryEntity(
+            epochDay = epochDay,
+            meal = meal,
+            productId = product.id,
+            name = product.name,
+            grams = grams,
+            servings = servings,
+            kcal = nutrition.kcal,
+            proteinG = nutrition.proteinG,
+            fatG = nutrition.fatG,
+            carbsG = nutrition.carbsG,
+            // Optional detail nutrients: null stays null ("label doesn't say").
+            fiberG = FoodMath.scalePer100g(product.fiberPer100g, grams),
+            sugarsG = FoodMath.scalePer100g(product.sugarsPer100g, grams),
+            saltG = FoodMath.scalePer100g(product.saltPer100g, grams),
+            saturatedFatG = FoodMath.scalePer100g(product.saturatedFatPer100g, grams),
+            loggedAtEpochMillis = loggedAtEpochMillis,
         )
     }
 
@@ -90,6 +107,10 @@ class DiaryRepository @Inject constructor(
                     proteinG = item.proteinG,
                     fatG = item.fatG,
                     carbsG = item.carbsG,
+                    fiberG = item.fiberG,
+                    sugarsG = item.sugarsG,
+                    saltG = item.saltG,
+                    saturatedFatG = item.saturatedFatG,
                     loggedAtEpochMillis = now,
                 )
             }
@@ -108,26 +129,7 @@ class DiaryRepository @Inject constructor(
         val now = System.currentTimeMillis()
         foodLogDao.insertAll(
             items.map { (product, grams) ->
-                val nutrition = FoodMath.forGrams(
-                    kcalPer100g = product.kcalPer100g,
-                    proteinPer100g = product.proteinPer100g,
-                    fatPer100g = product.fatPer100g,
-                    carbsPer100g = product.carbsPer100g,
-                    grams = grams,
-                )
-                FoodLogEntryEntity(
-                    epochDay = epochDay,
-                    meal = meal,
-                    productId = product.id,
-                    name = product.name,
-                    grams = grams,
-                    servings = null,
-                    kcal = nutrition.kcal,
-                    proteinG = nutrition.proteinG,
-                    fatG = nutrition.fatG,
-                    carbsG = nutrition.carbsG,
-                    loggedAtEpochMillis = now,
-                )
+                entryFor(product, grams, servings = null, meal, epochDay, now)
             }
         )
     }

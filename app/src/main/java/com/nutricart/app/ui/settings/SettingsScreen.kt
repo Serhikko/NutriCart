@@ -219,6 +219,43 @@ private fun SettingsForm(
             }
         }
 
+        // --- Daily targets (manual override) ---
+        SectionSpace()
+        SectionTitle(R.string.targets_section)
+        SwitchRow(R.string.targets_manual_switch, state.manualTargets, viewModel::toggleManualTargets)
+        if (state.manualTargets) {
+            Text(
+                stringResource(R.string.targets_manual_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            TargetField(
+                value = state.customKcalText,
+                onChange = viewModel::setCustomKcalText,
+                labelRes = R.string.target_kcal_label,
+                invalid = state.customKcalText.isNotEmpty() && state.customKcal == null,
+            )
+            TargetField(
+                value = state.customProteinText,
+                onChange = viewModel::setCustomProteinText,
+                labelRes = R.string.target_protein_label,
+                invalid = state.customProteinText.isNotEmpty() && state.customProtein == null,
+            )
+            TargetField(
+                value = state.customFatText,
+                onChange = viewModel::setCustomFatText,
+                labelRes = R.string.target_fat_label,
+                invalid = state.customFatText.isNotEmpty() && state.customFat == null,
+            )
+            TargetField(
+                value = state.customCarbsText,
+                onChange = viewModel::setCustomCarbsText,
+                labelRes = R.string.target_carbs_label,
+                invalid = state.customCarbsText.isNotEmpty() && state.customCarbs == null,
+            )
+        }
+
         // --- Diet ---
         SectionSpace()
         SectionTitle(R.string.onboarding_title_diet)
@@ -314,4 +351,25 @@ private fun SectionTitle(titleRes: Int) {
 @Composable
 private fun SectionSpace() {
     Spacer(modifier = Modifier.height(28.dp))
+}
+
+/** One manual-target number field with the shared error presentation. */
+@Composable
+private fun TargetField(
+    value: String,
+    onChange: (String) -> Unit,
+    labelRes: Int,
+    invalid: Boolean,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(stringResource(labelRes)) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        isError = invalid,
+        supportingText = { if (invalid) Text(stringResource(R.string.target_invalid)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(modifier = Modifier.height(8.dp))
 }

@@ -41,4 +41,9 @@ data class SavedMealItemEntity(
     val proteinG: Double,
     val fatG: Double,
     val carbsG: Double,
+    // Detail-nutrient snapshots (v0.11), same null-means-unknown rule as the diary.
+    val fiberG: Double? = null,
+    val sugarsG: Double? = null,
+    val saltG: Double? = null,
+    val saturatedFatG: Double? = null,
 )

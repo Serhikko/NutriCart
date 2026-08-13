@@ -33,4 +33,12 @@ object FoodMath {
     /** "2 portions of a 55 g portion" -> 110 g. */
     fun servingsToGrams(servings: Double, servingSizeG: Double): Double =
         servings * servingSizeG
+
+    /**
+     * Scales an OPTIONAL per-100g value to the eaten grams. Null passes
+     * through untouched: "the label doesn't state fiber" must stay unknown,
+     * never become a fake 0 that pollutes day sums.
+     */
+    fun scalePer100g(valuePer100g: Double?, grams: Double): Double? =
+        valuePer100g?.let { it * grams / 100.0 }
 }

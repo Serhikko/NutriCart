@@ -213,6 +213,31 @@
     <string name="custom_food_carbs">Carbs (g / 100 g)</string>
     <string name="custom_food_serving">Portion size (g, optional)</string>
     <string name="custom_food_delete">Delete this food</string>
+    <string name="custom_food_optional_header">More details (optional)</string>
+    <string name="custom_food_fiber">Fiber (g / 100 g)</string>
+    <string name="custom_food_sugars">Sugars (g / 100 g)</string>
+    <string name="custom_food_salt">Salt (g / 100 g)</string>
+    <string name="custom_food_sat_fat">Saturated fat (g / 100 g)</string>
+
+    <!-- Detail nutrients -->
+    <string name="per100g_header">Per 100 g</string>
+    <string name="nutrient_fiber">Fiber</string>
+    <string name="nutrient_sugars">Sugars</string>
+    <string name="nutrient_salt">Salt</string>
+    <string name="nutrient_sat_fat">Saturated fat</string>
+    <string name="nutrient_grams_value">%1$.1f g</string>
+    <string name="nutrient_vs_limit">%1$.1f / %2$d g</string>
+    <string name="additives_line">Additives: %1$s</string>
+
+    <!-- Manual daily targets -->
+    <string name="targets_section">Daily targets</string>
+    <string name="targets_manual_switch">Set targets manually</string>
+    <string name="targets_manual_note">Manual targets replace the automatic calculation. Watch activity no longer changes the target; manually logged workouts still add on top.</string>
+    <string name="target_kcal_label">Calories (kcal)</string>
+    <string name="target_protein_label">Protein (g)</string>
+    <string name="target_fat_label">Fat (g)</string>
+    <string name="target_carbs_label">Carbs (g)</string>
+    <string name="target_invalid">Out of the sane range</string>
 
     <!-- Favorites and frequent foods -->
     <string name="favorites_chip">Favorites</string>

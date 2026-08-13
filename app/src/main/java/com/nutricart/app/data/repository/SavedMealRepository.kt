@@ -37,6 +37,10 @@ class SavedMealRepository @Inject constructor(
                     proteinG = e.proteinG,
                     fatG = e.fatG,
                     carbsG = e.carbsG,
+                    fiberG = e.fiberG,
+                    sugarsG = e.sugarsG,
+                    saltG = e.saltG,
+                    saturatedFatG = e.saturatedFatG,
                 )
             },
         )

@@ -40,6 +40,12 @@ data class SettingsUiState(
     val isVegetarian: Boolean = false,
     val noPork: Boolean = false,
     val allergies: Set<Allergen> = emptySet(),
+    /** Manual daily targets: when ON, all four fields below must be valid. */
+    val manualTargets: Boolean = false,
+    val customKcalText: String = "",
+    val customProteinText: String = "",
+    val customFatText: String = "",
+    val customCarbsText: String = "",
     // Kept from the loaded profile so saving does not change the creation date.
     val createdAtEpochMillis: Long = 0L,
     // The weight the form was opened with — used to detect a real edit.
@@ -55,9 +61,26 @@ data class SettingsUiState(
         get() = weightKgText.replace(',', '.').toDoubleOrNull()
             ?.takeIf { it in ProfileOptions.WEIGHT_KG_RANGE }
 
+    // Manual-target fields: null = empty or outside the sane range.
+    // The kcal floor is the APPROVED safety rule (1500 male / 1200 female):
+    // manual targets replace the formulas, but never the safety floor.
+    val customKcal: Int?
+        get() = customKcalText.toIntOrNull()
+            ?.takeIf { it in CalorieCalculator.safetyFloorKcal(sex).toInt()..6000 }
+    val customProtein: Int?
+        get() = customProteinText.toIntOrNull()?.takeIf { it in 10..400 }
+    val customFat: Int?
+        get() = customFatText.toIntOrNull()?.takeIf { it in 10..300 }
+    val customCarbs: Int?
+        get() = customCarbsText.toIntOrNull()?.takeIf { it in 0..800 }
+
+    val customTargetsOk: Boolean
+        get() = !manualTargets || (customKcal != null && customProtein != null &&
+            customFat != null && customCarbs != null)
+
     val canSave: Boolean
         get() = !loading && !underageBlocked && heightCm != null && weightKg != null &&
-            (goal == Goal.MAINTAIN || targetKgPerWeek > 0.0)
+            (goal == Goal.MAINTAIN || targetKgPerWeek > 0.0) && customTargetsOk
 }
 
 @HiltViewModel
@@ -88,6 +111,11 @@ class SettingsViewModel @Inject constructor(
                     isVegetarian = profile.isVegetarian,
                     noPork = profile.noPork,
                     allergies = profile.allergies.toSet(),
+                    manualTargets = profile.customKcalTarget != null,
+                    customKcalText = profile.customKcalTarget?.toString() ?: "",
+                    customProteinText = profile.customProteinG?.toString() ?: "",
+                    customFatText = profile.customFatG?.toString() ?: "",
+                    customCarbsText = profile.customCarbsG?.toString() ?: "",
                     createdAtEpochMillis = profile.createdAtEpochMillis,
                     initialWeightKg = weight.weightKg,
                 )
@@ -139,6 +167,45 @@ class SettingsViewModel @Inject constructor(
         state.copy(allergies = newSet)
     }
 
+    /**
+     * Turning manual targets ON with empty fields prefills them with what the
+     * automatic math computes RIGHT NOW — the user edits numbers, not a void.
+     */
+    fun toggleManualTargets(enabled: Boolean) = _uiState.update { state ->
+        val weightKg = state.weightKg
+        val heightCm = state.heightCm
+        if (enabled && state.customKcalText.isBlank() && weightKg != null && heightCm != null) {
+            val age = CalorieCalculator.ageYears(state.birthDate, LocalDate.now())
+            val kcal = CalorieCalculator.baseTargetKcal(
+                state.sex, weightKg, heightCm.toDouble(), age,
+                state.activityLevel, state.goal, state.targetKgPerWeek,
+            )
+            val targets = CalorieCalculator.macroTargets(kcal, weightKg)
+            // coerceIn: for extreme profiles (e.g. 300 kg) the automatic math
+            // can exceed the form's ranges — the prefill must never produce a
+            // value the form itself immediately rejects (review-caught).
+            state.copy(
+                manualTargets = true,
+                customKcalText = targets.kcal.coerceIn(
+                    CalorieCalculator.safetyFloorKcal(state.sex).toInt(), 6000
+                ).toString(),
+                customProteinText = targets.proteinG.coerceIn(10, 400).toString(),
+                customFatText = targets.fatG.coerceIn(10, 300).toString(),
+                customCarbsText = targets.carbsG.coerceIn(0, 800).toString(),
+            )
+        } else {
+            state.copy(manualTargets = enabled)
+        }
+    }
+
+    fun setCustomKcalText(text: String) = _uiState.update { it.copy(customKcalText = text) }
+
+    fun setCustomProteinText(text: String) = _uiState.update { it.copy(customProteinText = text) }
+
+    fun setCustomFatText(text: String) = _uiState.update { it.copy(customFatText = text) }
+
+    fun setCustomCarbsText(text: String) = _uiState.update { it.copy(customCarbsText = text) }
+
     fun setShowResetDialog(show: Boolean) = _uiState.update { it.copy(showResetDialog = show) }
 
     /** Saves the profile and today's weight; the screen navigates back on `saved`. */
@@ -163,6 +230,11 @@ class SettingsViewModel @Inject constructor(
                     noPork = state.noPork,
                     allergies = state.allergies.toList(),
                     createdAtEpochMillis = state.createdAtEpochMillis,
+                    // All four together or none — canSave guarantees validity.
+                    customKcalTarget = if (state.manualTargets) state.customKcal else null,
+                    customProteinG = if (state.manualTargets) state.customProtein else null,
+                    customFatG = if (state.manualTargets) state.customFat else null,
+                    customCarbsG = if (state.manualTargets) state.customCarbs else null,
                 )
             )
             // Only log a weight entry when the user actually changed the value.

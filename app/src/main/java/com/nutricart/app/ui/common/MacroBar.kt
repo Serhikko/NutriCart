@@ -18,14 +18,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nutricart.app.R
 import kotlin.math.max
 
-/** One macro as "eaten / target" with a smoothly animated progress bar. */
+/**
+ * One macro as "eaten / target" with a smoothly animated progress bar.
+ * [valueColor] colors the number pair — the dashboard uses it for the
+ * "green when in range" feedback (green/amber/red by nutrient state).
+ */
 @Composable
-fun MacroBar(label: String, eatenG: Int, targetG: Int, modifier: Modifier = Modifier) {
+fun MacroBar(
+    label: String,
+    eatenG: Int,
+    targetG: Int,
+    modifier: Modifier = Modifier,
+    valueColor: Color = Color.Unspecified,
+) {
     val fraction by animateFloatAsState(
         targetValue = (eatenG / max(1, targetG).toFloat()).coerceIn(0f, 1f),
         animationSpec = tween(durationMillis = 700),
@@ -40,7 +51,11 @@ fun MacroBar(label: String, eatenG: Int, targetG: Int, modifier: Modifier = Modi
             Text(
                 stringResource(R.string.macro_pair, eatenG, targetG),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (valueColor == Color.Unspecified) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    valueColor
+                },
             )
         }
         Spacer(modifier = Modifier.height(6.dp))

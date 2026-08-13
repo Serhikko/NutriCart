@@ -30,6 +30,10 @@ interface OpenFoodFactsApi {
 
     companion object {
         const val BASE_URL = "https://world.openfoodfacts.org/"
-        const val FIELDS = "code,product_name,brands,nutriments,serving_quantity"
+
+        // OFF returns ONLY the requested fields — a field missing here is
+        // silently absent from every response (review-caught: the additives
+        // feature shipped dead because additives_tags wasn't listed).
+        const val FIELDS = "code,product_name,brands,nutriments,serving_quantity,additives_tags"
     }
 }

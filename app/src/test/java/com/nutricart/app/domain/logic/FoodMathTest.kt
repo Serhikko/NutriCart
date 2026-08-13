@@ -42,4 +42,21 @@ class FoodMathTest {
     fun `half a portion works too`() {
         assertEquals(27.5, FoodMath.servingsToGrams(0.5, 55.0), delta)
     }
+
+    @Test
+    fun `optional nutrient scales like the label says`() {
+        // 3 g fiber per 100 g, eaten 250 g -> 7.5 g.
+        assertEquals(7.5, FoodMath.scalePer100g(3.0, 250.0)!!, delta)
+    }
+
+    @Test
+    fun `unknown optional nutrient stays unknown`() {
+        // null must never turn into 0 — 0 would pollute the day's sums.
+        assertEquals(null, FoodMath.scalePer100g(null, 250.0))
+    }
+
+    @Test
+    fun `optional nutrient of zero grams is zero, not null`() {
+        assertEquals(0.0, FoodMath.scalePer100g(3.0, 0.0)!!, delta)
+    }
 }

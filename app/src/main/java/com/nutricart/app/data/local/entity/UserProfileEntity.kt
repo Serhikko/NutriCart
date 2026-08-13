@@ -32,6 +32,16 @@ data class UserProfileEntity(
     // Stored as CSV of enum names via Converters.
     val allergies: List<Allergen>,
     val createdAtEpochMillis: Long,
+    /**
+     * Manual target overrides (v0.11): null = automatic calculation. The four
+     * are set TOGETHER by the Settings "Daily targets" section. When present,
+     * they replace both the base formula and the watch-day formula switch;
+     * manually logged workouts still add on top.
+     */
+    val customKcalTarget: Int? = null,
+    val customProteinG: Int? = null,
+    val customFatG: Int? = null,
+    val customCarbsG: Int? = null,
 ) {
     companion object {
         const val SINGLETON_ID = 1
