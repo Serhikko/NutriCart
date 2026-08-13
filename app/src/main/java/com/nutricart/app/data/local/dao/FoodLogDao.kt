@@ -73,6 +73,10 @@ interface FoodLogDao {
     @Query("SELECT DISTINCT epochDay FROM food_log_entry")
     fun observeLoggedDays(): Flow<List<Long>>
 
+    /** Is this meal already logged today? — the reminder stays silent if so. */
+    @Query("SELECT COUNT(*) FROM food_log_entry WHERE epochDay = :epochDay AND meal = :meal")
+    suspend fun countForSlot(epochDay: Long, meal: com.nutricart.app.domain.model.MealSlot): Int
+
     // --- Statistics range queries (v0.12) ---
 
     @Query(

@@ -3,6 +3,7 @@ package com.nutricart.app.data.local
 import androidx.room.TypeConverter
 import com.nutricart.app.domain.model.Allergen
 import com.nutricart.app.domain.model.MealSlot
+import java.time.DayOfWeek
 
 /**
  * Room stores single enums as their name automatically; only enum LISTS
@@ -27,4 +28,13 @@ class Converters {
     fun csvToMealSlots(value: String): List<MealSlot> =
         if (value.isEmpty()) emptyList()
         else value.split(",").map { MealSlot.valueOf(it) }
+
+    @TypeConverter
+    fun daysOfWeekToCsv(value: List<DayOfWeek>): String =
+        value.joinToString(separator = ",") { it.name }
+
+    @TypeConverter
+    fun csvToDaysOfWeek(value: String): List<DayOfWeek> =
+        if (value.isEmpty()) emptyList()
+        else value.split(",").map { DayOfWeek.valueOf(it) }
 }

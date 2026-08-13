@@ -82,6 +82,10 @@ dependencies {
     // Barcode scanning (system-provided scanner UI, no camera permission)
     implementation(libs.play.services.code.scanner)
 
+    // Home-screen widget
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
     // Unit tests (pure JVM)
     testImplementation(libs.junit)
 }

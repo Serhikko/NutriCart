@@ -8,9 +8,11 @@ import com.nutricart.app.data.local.AppDatabase
 import com.nutricart.app.data.local.dao.ActivityDao
 import com.nutricart.app.data.local.dao.FoodDao
 import com.nutricart.app.data.local.dao.FoodLogDao
+import com.nutricart.app.data.local.dao.NoteDao
 import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.RecipeDao
+import com.nutricart.app.data.local.dao.RecurringWorkoutDao
 import com.nutricart.app.data.local.dao.SavedMealDao
 import com.nutricart.app.data.local.dao.ShoppingDao
 import com.nutricart.app.data.local.dao.WaterDao
@@ -327,6 +329,43 @@ private val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+/**
+ * v10 -> v11 (release v0.13): day notes + recurring activities.
+ * workout_entry gains recurringId with a UNIQUE (recurringId, epochDay) index —
+ * one materialized row per rule per day (SQLite ignores NULLs in unique
+ * indexes, so ordinary entries are unaffected).
+ */
+private val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `day_note` (
+                `epochDay` INTEGER NOT NULL,
+                `text` TEXT NOT NULL,
+                `updatedAtEpochMillis` INTEGER NOT NULL,
+                PRIMARY KEY(`epochDay`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `recurring_workout` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `type` TEXT NOT NULL,
+                `minutes` INTEGER,
+                `reps` INTEGER,
+                `days` TEXT NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("ALTER TABLE `workout_entry` ADD COLUMN `recurringId` INTEGER")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_workout_entry_recurringId_epochDay` " +
+                "ON `workout_entry` (`recurringId`, `epochDay`)"
+        )
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -339,7 +378,7 @@ object DatabaseModule {
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
-                MIGRATION_9_10,
+                MIGRATION_9_10, MIGRATION_10_11,
             )
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
@@ -378,4 +417,11 @@ object DatabaseModule {
 
     @Provides
     fun provideSavedMealDao(db: AppDatabase): SavedMealDao = db.savedMealDao()
+
+    @Provides
+    fun provideNoteDao(db: AppDatabase): NoteDao = db.noteDao()
+
+    @Provides
+    fun provideRecurringWorkoutDao(db: AppDatabase): RecurringWorkoutDao =
+        db.recurringWorkoutDao()
 }

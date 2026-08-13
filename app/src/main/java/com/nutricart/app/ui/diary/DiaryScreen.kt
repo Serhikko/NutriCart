@@ -1,6 +1,7 @@
 package com.nutricart.app.ui.diary
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -62,6 +64,7 @@ fun DiaryScreen(
     val state by viewModel.uiState.collectAsState()
     val savingSlot by viewModel.savingSlot.collectAsState()
     val mealSaved by viewModel.mealSaved.collectAsState()
+    val editingNote by viewModel.editingNote.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Keep the "today" limit of the day selector correct after midnight.
@@ -95,6 +98,8 @@ fun DiaryScreen(
                 onPrevious = viewModel::previousDay,
                 onNext = viewModel::nextDay,
             )
+
+            NoteRow(note = state.note, onEdit = viewModel::startEditingNote)
 
             Column(
                 modifier = Modifier
@@ -140,6 +145,78 @@ fun DiaryScreen(
             onDismiss = viewModel::cancelSavingMeal,
         )
     }
+
+    if (editingNote) {
+        NoteDialog(
+            initialText = state.note ?: "",
+            onConfirm = viewModel::saveNote,
+            onDismiss = viewModel::cancelEditingNote,
+        )
+    }
+}
+
+/** The day's note under the date, or a quiet "+ note" affordance. */
+@Composable
+private fun NoteRow(note: String?, onEdit: () -> Unit) {
+    if (note == null) {
+        TextButton(onClick = onEdit) {
+            Text(stringResource(R.string.day_note_add))
+        }
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onEdit),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Text(
+                    stringResource(R.string.day_note_label),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    note,
+                    style = MaterialTheme.typography.bodyMedium,
+                    // The card sits ABOVE the weighted meal list — an uncapped
+                    // note would squeeze the meals to zero height (review-caught).
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** Free-text editor; saving blank text deletes the note. */
+@Composable
+private fun NoteDialog(
+    initialText: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initialText) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.day_note_title)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                // A note is a margin scribble, not an essay — cap the length.
+                onValueChange = { text = it.take(500) },
+                label = { Text(stringResource(R.string.day_note_hint)) },
+                minLines = 2,
+                maxLines = 5,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 /** Asks for a name and hands it back — the ViewModel does the saving. */

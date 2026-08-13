@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.nutricart.app.data.local.dao.DayNutritionTotals
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
 import com.nutricart.app.data.repository.DiaryRepository
+import com.nutricart.app.data.repository.NoteRepository
 import com.nutricart.app.data.repository.SavedMealRepository
 import com.nutricart.app.domain.model.MealSlot
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,12 +26,15 @@ data class DiaryUiState(
     val isToday: Boolean = true,
     val entriesBySlot: Map<MealSlot, List<FoodLogEntryEntity>> = emptyMap(),
     val totals: DayNutritionTotals = DayNutritionTotals(0.0, 0.0, 0.0, 0.0),
+    /** The day's free-text note; null = none. */
+    val note: String? = null,
 )
 
 @HiltViewModel
 class DiaryViewModel @Inject constructor(
     private val diaryRepository: DiaryRepository,
     private val savedMealRepository: SavedMealRepository,
+    private val noteRepository: NoteRepository,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -39,6 +43,9 @@ class DiaryViewModel @Inject constructor(
 
     /** One-shot: a meal was just saved; the screen shows a snackbar and clears it. */
     val mealSaved = MutableStateFlow(false)
+
+    /** True while the day-note edit dialog is open. */
+    val editingNote = MutableStateFlow(false)
 
     // Backed by SavedStateHandle so the chosen day survives process death.
     private val selectedDay: StateFlow<Long> =
@@ -59,12 +66,14 @@ class DiaryViewModel @Inject constructor(
                 combine(
                     diaryRepository.observeDay(selected),
                     diaryRepository.observeDayTotals(selected),
-                ) { entries, totals ->
+                    noteRepository.observeDay(selected),
+                ) { entries, totals, note ->
                     DiaryUiState(
                         epochDay = selected,
                         isToday = selected == today,
                         entriesBySlot = entries.groupBy { it.meal },
                         totals = totals,
+                        note = note?.text,
                     )
                 }
             }.stateIn(
@@ -115,6 +124,20 @@ class DiaryViewModel @Inject constructor(
 
     fun clearMealSaved() {
         mealSaved.value = false
+    }
+
+    fun startEditingNote() {
+        editingNote.value = true
+    }
+
+    fun cancelEditingNote() {
+        editingNote.value = false
+    }
+
+    /** Saves the note for the DISPLAYED day; blank text deletes it. */
+    fun saveNote(text: String) {
+        editingNote.value = false
+        viewModelScope.launch { noteRepository.save(selectedDay.value, text) }
     }
 
     companion object {

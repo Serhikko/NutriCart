@@ -23,12 +23,18 @@ import com.nutricart.app.domain.model.WorkoutType
     indices = [
         Index("epochDay"),
         Index(value = ["hcSessionId"], unique = true),
+        // One materialized row per (rule, day) — a race between two refreshes
+        // can never duplicate a recurring workout (insert uses IGNORE).
+        Index(value = ["recurringId", "epochDay"], unique = true),
     ],
 )
 data class WorkoutEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val epochDay: Long,
     val source: WorkoutSource,
+    /** The recurring rule that produced this row; null = not from a rule.
+     *  Plain column, no FK: deleting a rule keeps its past entries as history. */
+    val recurringId: Long? = null,
     /** Health Connect record id; null for MANUAL entries. */
     val hcSessionId: String?,
     /**

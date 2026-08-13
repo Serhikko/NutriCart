@@ -361,6 +361,8 @@ class DashboardViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             todayFlow.value = LocalDate.now() // roll the date if midnight passed
+            // Once per calendar day: recurring rules become real workout rows.
+            workoutRepository.materializeRecurringForToday(todayFlow.value)
             refreshing.value = true
             when (activityRepository.syncNow()) {
                 SyncResult.SUCCESS -> hcBanner.value = HcBannerState.NONE

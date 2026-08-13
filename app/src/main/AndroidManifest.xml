@@ -4,6 +4,8 @@
 
     <!-- Food search via the Open Food Facts API. Everything else works offline. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Meal reminders (runtime permission on Android 13+). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Health Connect: READ-ONLY access; each record type needs its own permission. -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
@@ -36,6 +38,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Home-screen widget: remaining kcal for today. -->
+        <receiver
+            android:name=".widget.NutriCartWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
 
         <!-- Health Connect opens this when the user asks "why does this app need
              these permissions?" (Android 13 and lower). -->

@@ -44,6 +44,14 @@ interface WorkoutDao {
     suspend fun manualKcalByDay(from: Long, to: Long): List<DayKcal>
 
     /**
+     * IGNORE + the unique (recurringId, epochDay) index = idempotent
+     * materialization of recurring workouts: the second attempt for the same
+     * rule and day is silently a no-op.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnore(entry: WorkoutEntryEntity)
+
+    /**
      * REPLACE on purpose: a session's day is recomputed from the CURRENT
      * timezone on every sync, so a stored session can MOVE to another day
      * (travel, or its start edited in the watch app). The default ABORT would

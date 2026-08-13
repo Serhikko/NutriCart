@@ -1,15 +1,25 @@
 package com.nutricart.app.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nutricart.app.data.local.entity.RecurringWorkoutEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.repository.ProfileRepository
+import com.nutricart.app.data.repository.WorkoutRepository
+import com.nutricart.app.data.settings.SettingsDataStore
+import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.reminders.MealReminderScheduling
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.nutricart.app.domain.logic.CalorieCalculator
 import com.nutricart.app.domain.model.ActivityLevel
 import com.nutricart.app.domain.model.Allergen
 import com.nutricart.app.domain.model.Goal
 import com.nutricart.app.domain.model.ProfileOptions
 import com.nutricart.app.domain.model.Sex
+import com.nutricart.app.domain.model.WorkoutKind
+import com.nutricart.app.domain.model.WorkoutType
+import java.time.DayOfWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +50,13 @@ data class SettingsUiState(
     val isVegetarian: Boolean = false,
     val noPork: Boolean = false,
     val allergies: Set<Allergen> = emptySet(),
+    /** Standing workout rules shown in the "Regular activities" section. */
+    val recurring: List<RecurringWorkoutEntity> = emptyList(),
+    val showRecurringDialog: Boolean = false,
+    /** Per-meal reminder rows (slot order). */
+    val reminders: List<ReminderUi> = emptyList(),
+    /** Which slot's time picker is open; null = none. */
+    val editingReminderSlot: MealSlot? = null,
     /** Manual daily targets: when ON, all four fields below must be valid. */
     val manualTargets: Boolean = false,
     val customKcalText: String = "",
@@ -83,9 +100,19 @@ data class SettingsUiState(
             (goal == Goal.MAINTAIN || targetKgPerWeek > 0.0) && customTargetsOk
 }
 
+/** One reminder row: the meal, on/off, and the time in minutes from midnight. */
+data class ReminderUi(
+    val slot: MealSlot,
+    val enabled: Boolean,
+    val minutesOfDay: Int,
+)
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: ProfileRepository,
+    private val workoutRepository: WorkoutRepository,
+    private val settings: SettingsDataStore,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -120,6 +147,86 @@ class SettingsViewModel @Inject constructor(
                     initialWeightKg = weight.weightKg,
                 )
             }
+            refreshRecurring()
+            refreshReminders()
+        }
+    }
+
+    private suspend fun refreshReminders() {
+        val rows = MealSlot.entries.map { slot ->
+            ReminderUi(
+                slot = slot,
+                enabled = settings.reminderEnabled(slot).first(),
+                minutesOfDay = settings.reminderMinutes(slot).first(),
+            )
+        }
+        _uiState.update { it.copy(reminders = rows) }
+    }
+
+    fun toggleReminder(slot: MealSlot, enabled: Boolean) {
+        viewModelScope.launch {
+            settings.setReminderEnabled(slot, enabled)
+            if (enabled) {
+                MealReminderScheduling.schedule(
+                    appContext, slot, settings.reminderMinutes(slot).first(),
+                )
+            } else {
+                MealReminderScheduling.cancel(appContext, slot)
+            }
+            refreshReminders()
+        }
+    }
+
+    fun startEditingReminder(slot: MealSlot) =
+        _uiState.update { it.copy(editingReminderSlot = slot) }
+
+    fun cancelEditingReminder() =
+        _uiState.update { it.copy(editingReminderSlot = null) }
+
+    fun setReminderTime(minutesOfDay: Int) {
+        val slot = _uiState.value.editingReminderSlot ?: return
+        _uiState.update { it.copy(editingReminderSlot = null) }
+        viewModelScope.launch {
+            settings.setReminderMinutes(slot, minutesOfDay)
+            // A live reminder follows the new time immediately.
+            if (settings.reminderEnabled(slot).first()) {
+                MealReminderScheduling.schedule(appContext, slot, minutesOfDay)
+            }
+            refreshReminders()
+        }
+    }
+
+    private suspend fun refreshRecurring() {
+        val rules = workoutRepository.recurringRules()
+        _uiState.update { it.copy(recurring = rules) }
+    }
+
+    fun setShowRecurringDialog(show: Boolean) =
+        _uiState.update { it.copy(showRecurringDialog = show) }
+
+    /** Adds a rule; if it covers today, today's entry appears immediately. */
+    fun addRecurring(type: WorkoutType, amount: Int, days: Set<DayOfWeek>) {
+        _uiState.update { it.copy(showRecurringDialog = false) }
+        if (amount <= 0 || days.isEmpty()) return
+        viewModelScope.launch {
+            workoutRepository.addRecurring(
+                RecurringWorkoutEntity(
+                    type = type,
+                    minutes = if (type.kind == WorkoutKind.DURATION) amount else null,
+                    reps = if (type.kind == WorkoutKind.REPS) amount else null,
+                    // Sorted so "Mon, Tue" never renders as "Tue, Mon".
+                    days = days.sorted(),
+                ),
+                today = LocalDate.now(),
+            )
+            refreshRecurring()
+        }
+    }
+
+    fun deleteRecurring(rule: RecurringWorkoutEntity) {
+        viewModelScope.launch {
+            workoutRepository.deleteRecurring(rule.id)
+            refreshRecurring()
         }
     }
 

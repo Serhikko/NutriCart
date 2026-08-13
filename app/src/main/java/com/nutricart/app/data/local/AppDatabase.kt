@@ -6,15 +6,18 @@ import androidx.room.TypeConverters
 import com.nutricart.app.data.local.dao.ActivityDao
 import com.nutricart.app.data.local.dao.FoodDao
 import com.nutricart.app.data.local.dao.FoodLogDao
+import com.nutricart.app.data.local.dao.NoteDao
 import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.RecipeDao
+import com.nutricart.app.data.local.dao.RecurringWorkoutDao
 import com.nutricart.app.data.local.dao.SavedMealDao
 import com.nutricart.app.data.local.dao.ShoppingDao
 import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
 import com.nutricart.app.data.local.dao.WorkoutDao
 import com.nutricart.app.data.local.entity.DailyActivityEntity
+import com.nutricart.app.data.local.entity.DayNoteEntity
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
 import com.nutricart.app.data.local.entity.FoodProductEntity
 import com.nutricart.app.data.local.entity.IngredientEntity
@@ -22,6 +25,7 @@ import com.nutricart.app.data.local.entity.PlannedMealEntity
 import com.nutricart.app.data.local.entity.RecipeEntity
 import com.nutricart.app.data.local.entity.RecipeIngredientEntity
 import com.nutricart.app.data.local.entity.RecipeStepEntity
+import com.nutricart.app.data.local.entity.RecurringWorkoutEntity
 import com.nutricart.app.data.local.entity.SavedMealEntity
 import com.nutricart.app.data.local.entity.SavedMealItemEntity
 import com.nutricart.app.data.local.entity.ShoppingListItemEntity
@@ -48,8 +52,10 @@ import com.nutricart.app.data.local.entity.WorkoutEntryEntity
         WorkoutEntryEntity::class,
         SavedMealEntity::class,
         SavedMealItemEntity::class,
+        DayNoteEntity::class,
+        RecurringWorkoutEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)
@@ -65,4 +71,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun waterDao(): WaterDao
     abstract fun workoutDao(): WorkoutDao
     abstract fun savedMealDao(): SavedMealDao
+    abstract fun noteDao(): NoteDao
+    abstract fun recurringWorkoutDao(): RecurringWorkoutDao
 }

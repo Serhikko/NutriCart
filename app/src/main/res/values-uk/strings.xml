@@ -233,6 +233,34 @@
     <string name="target_carbs_label">Вуглеводи (г)</string>
     <string name="target_invalid">Поза розумним діапазоном</string>
 
+    <!-- Home-screen widget -->
+    <string name="widget_description">Залишок калорій на сьогодні</string>
+    <string name="widget_remaining">ккал залишилось</string>
+    <string name="widget_eaten_of_target">%1$d / %2$d ккал</string>
+    <string name="widget_no_data">Відкрий NutriCart для налаштування</string>
+
+    <!-- Meal reminders -->
+    <string name="reminders_section">Нагадування про їжу</string>
+    <string name="reminders_hint">Нагадування мовчить, якщо прийом уже записано.</string>
+    <string name="reminder_time_title">Час нагадування</string>
+    <string name="reminder_channel_name">Нагадування про їжу</string>
+    <string name="reminder_title">NutriCart</string>
+    <string name="reminder_text">Не забудь записати: %1$s</string>
+
+    <!-- Regular activities -->
+    <string name="recurring_section">Регулярні активності</string>
+    <string name="recurring_empty">Ще немає — наприклад, щоденна прогулянка, яка логується сама.</string>
+    <string name="recurring_add">+ Додати регулярну активність</string>
+    <string name="recurring_delete">Видалити правило</string>
+    <string name="recurring_dialog_title">Регулярна активність</string>
+    <string name="recurring_days_label">Дні тижня</string>
+
+    <!-- Day notes -->
+    <string name="day_note_add">+ Нотатка дня</string>
+    <string name="day_note_label">Нотатка</string>
+    <string name="day_note_title">Нотатка дня</string>
+    <string name="day_note_hint">Що варто запам\'ятати про цей день</string>
+
     <!-- Statistics -->
     <string name="tab_stats">Статистика</string>
     <string name="stats_title">Статистика</string>

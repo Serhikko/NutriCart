@@ -13,8 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,24 +31,35 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.nutricart.app.R
+import com.nutricart.app.data.local.entity.RecurringWorkoutEntity
 import com.nutricart.app.domain.model.ActivityLevel
 import com.nutricart.app.domain.model.Allergen
 import com.nutricart.app.domain.model.Goal
 import com.nutricart.app.domain.model.ProfileOptions
 import com.nutricart.app.domain.model.Sex
+import com.nutricart.app.domain.model.WorkoutKind
+import com.nutricart.app.domain.model.WorkoutType
+import com.nutricart.app.ui.diary.mealSlotLabel
 import com.nutricart.app.ui.common.DatePickerField
 import com.nutricart.app.ui.common.ErrorCard
 import com.nutricart.app.ui.common.LoadingBox
@@ -51,6 +67,10 @@ import com.nutricart.app.ui.common.RadioOptionRow
 import com.nutricart.app.ui.common.SwitchRow
 import com.nutricart.app.ui.common.allergenLabel
 import com.nutricart.app.ui.common.cookingSessionsLabel
+import com.nutricart.app.ui.common.workoutTypeLabel
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 
 /**
  * One scrollable form with the same fields as onboarding, pre-filled from the
@@ -106,6 +126,191 @@ fun SettingsScreen(
             onDismiss = { viewModel.setShowResetDialog(false) },
         )
     }
+
+    if (state.showRecurringDialog) {
+        RecurringDialog(
+            onConfirm = viewModel::addRecurring,
+            onDismiss = { viewModel.setShowRecurringDialog(false) },
+        )
+    }
+
+    state.editingReminderSlot?.let { slot ->
+        val minutes = state.reminders.firstOrNull { it.slot == slot }?.minutesOfDay ?: 0
+        ReminderTimeDialog(
+            initialMinutes = minutes,
+            onConfirm = viewModel::setReminderTime,
+            onDismiss = viewModel::cancelEditingReminder,
+        )
+    }
+}
+
+/** One reminder: meal name, its time (tap to change) and the on/off switch. */
+@Composable
+private fun ReminderRow(
+    reminder: ReminderUi,
+    onToggle: (Boolean) -> Unit,
+    onEditTime: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            mealSlotLabel(reminder.slot),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onEditTime) {
+            Text("%02d:%02d".format(reminder.minutesOfDay / 60, reminder.minutesOfDay % 60))
+        }
+        Switch(checked = reminder.enabled, onCheckedChange = onToggle)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderTimeDialog(
+    initialMinutes: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val timeState = rememberTimePickerState(
+        initialHour = initialMinutes / 60,
+        initialMinute = initialMinutes % 60,
+        is24Hour = true,
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.reminder_time_title)) },
+        text = { TimePicker(state = timeState) },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(timeState.hour * 60 + timeState.minute) }) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+/** One standing rule: "Treadmill walk · 30 min · Mon Tue Wed" + delete. */
+@Composable
+private fun RecurringRow(rule: RecurringWorkoutEntity, onDelete: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(workoutTypeLabel(rule.type)),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            val amount = rule.minutes?.let { stringResource(R.string.minutes_value, it) }
+                ?: rule.reps?.let { stringResource(R.string.workout_reps_value, it) }
+            val days = rule.days.joinToString(" ") {
+                it.getDisplayName(TextStyle.SHORT_STANDALONE, Locale.getDefault())
+            }
+            Text(
+                listOfNotNull(amount, days).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.recurring_delete),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Pick a workout, an amount and the weekdays it repeats on. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RecurringDialog(
+    onConfirm: (WorkoutType, Int, Set<DayOfWeek>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selected by rememberSaveable { mutableStateOf(WorkoutType.TREADMILL_WALK) }
+    var amountText by rememberSaveable { mutableStateOf("30") }
+    var days by rememberSaveable { mutableStateOf(setOf<DayOfWeek>()) }
+
+    val amount = amountText.toIntOrNull()?.takeIf { it in 1..999 }
+    val valid = amount != null && days.isNotEmpty()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.recurring_dialog_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    WorkoutType.entries.forEach { type ->
+                        FilterChip(
+                            selected = type == selected,
+                            onClick = {
+                                if (type.kind != selected.kind) {
+                                    amountText =
+                                        if (type.kind == WorkoutKind.DURATION) "30" else "20"
+                                }
+                                selected = type
+                            },
+                            label = { Text(stringResource(workoutTypeLabel(type))) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = {
+                        Text(
+                            stringResource(
+                                if (selected.kind == WorkoutKind.DURATION) R.string.workout_minutes_label
+                                else R.string.workout_reps_label
+                            )
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.recurring_days_label),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    DayOfWeek.entries.forEach { day ->
+                        FilterChip(
+                            selected = day in days,
+                            onClick = {
+                                days = if (day in days) days - day else days + day
+                            },
+                            label = {
+                                Text(
+                                    day.getDisplayName(
+                                        TextStyle.SHORT_STANDALONE, Locale.getDefault()
+                                    )
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = valid,
+                onClick = { amount?.let { onConfirm(selected, it, days) } },
+            ) { Text(stringResource(R.string.add_action)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -255,6 +460,49 @@ private fun SettingsForm(
                 invalid = state.customCarbsText.isNotEmpty() && state.customCarbs == null,
             )
         }
+
+        // --- Regular activities ---
+        SectionSpace()
+        SectionTitle(R.string.recurring_section)
+        if (state.recurring.isEmpty()) {
+            Text(
+                stringResource(R.string.recurring_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            state.recurring.forEach { rule ->
+                RecurringRow(rule = rule, onDelete = { viewModel.deleteRecurring(rule) })
+            }
+        }
+        TextButton(onClick = { viewModel.setShowRecurringDialog(true) }) {
+            Text(stringResource(R.string.recurring_add))
+        }
+
+        // --- Meal reminders ---
+        SectionSpace()
+        SectionTitle(R.string.reminders_section)
+        // Android 13+ needs the runtime permission before notify() works.
+        val notifPermissionLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+        ) { /* denied = reminders stay scheduled but silent; nothing to do */ }
+        state.reminders.forEach { reminder ->
+            ReminderRow(
+                reminder = reminder,
+                onToggle = { enabled ->
+                    if (enabled && Build.VERSION.SDK_INT >= 33) {
+                        notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    viewModel.toggleReminder(reminder.slot, enabled)
+                },
+                onEditTime = { viewModel.startEditingReminder(reminder.slot) },
+            )
+        }
+        Text(
+            stringResource(R.string.reminders_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         // --- Diet ---
         SectionSpace()

@@ -239,6 +239,34 @@
     <string name="target_carbs_label">Carbs (g)</string>
     <string name="target_invalid">Out of the sane range</string>
 
+    <!-- Home-screen widget -->
+    <string name="widget_description">Remaining calories for today</string>
+    <string name="widget_remaining">kcal remaining</string>
+    <string name="widget_eaten_of_target">%1$d / %2$d kcal</string>
+    <string name="widget_no_data">Open NutriCart to set up</string>
+
+    <!-- Meal reminders -->
+    <string name="reminders_section">Meal reminders</string>
+    <string name="reminders_hint">A reminder stays silent when the meal is already logged.</string>
+    <string name="reminder_time_title">Reminder time</string>
+    <string name="reminder_channel_name">Meal reminders</string>
+    <string name="reminder_title">NutriCart</string>
+    <string name="reminder_text">Don\'t forget to log: %1$s</string>
+
+    <!-- Regular activities -->
+    <string name="recurring_section">Regular activities</string>
+    <string name="recurring_empty">None yet — for example a daily commute walk that logs itself.</string>
+    <string name="recurring_add">+ Add regular activity</string>
+    <string name="recurring_delete">Delete rule</string>
+    <string name="recurring_dialog_title">Regular activity</string>
+    <string name="recurring_days_label">Days of week</string>
+
+    <!-- Day notes -->
+    <string name="day_note_add">+ Day note</string>
+    <string name="day_note_label">Note</string>
+    <string name="day_note_title">Day note</string>
+    <string name="day_note_hint">Anything worth remembering about this day</string>
+
     <!-- Statistics -->
     <string name="tab_stats">Stats</string>
     <string name="stats_title">Statistics</string>

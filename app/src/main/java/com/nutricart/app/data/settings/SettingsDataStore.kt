@@ -3,9 +3,11 @@ package com.nutricart.app.data.settings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.nutricart.app.domain.model.MealSlot
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -28,6 +30,7 @@ class SettingsDataStore @Inject constructor(
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val LAST_HC_SYNC_EPOCH_MILLIS = longPreferencesKey("last_hc_sync_epoch_millis")
         val SHOPPING_SELECTED_DAYS = stringPreferencesKey("shopping_selected_days_csv")
+        val LAST_RECURRING_DAY = longPreferencesKey("last_recurring_materialized_day")
     }
 
     val onboardingCompleted: Flow<Boolean> =
@@ -59,6 +62,60 @@ class SettingsDataStore @Inject constructor(
         context.dataStore.edit { prefs ->
             prefs[Keys.SHOPPING_SELECTED_DAYS] = days.joinToString(",")
         }
+    }
+
+    /** Sensible default reminder times, minutes from midnight. */
+    private fun defaultReminderMinutes(slot: MealSlot): Int = when (slot) {
+        MealSlot.BREAKFAST -> 8 * 60
+        MealSlot.LUNCH -> 13 * 60
+        MealSlot.DINNER -> 19 * 60
+        MealSlot.SNACK -> 16 * 60
+    }
+
+    private fun reminderEnabledKey(slot: MealSlot) =
+        booleanPreferencesKey("reminder_${slot.name}_enabled")
+
+    private fun reminderMinutesKey(slot: MealSlot) =
+        intPreferencesKey("reminder_${slot.name}_minutes")
+
+    private fun reminderLastNotifiedKey(slot: MealSlot) =
+        longPreferencesKey("reminder_${slot.name}_last_notified_day")
+
+    /** The last day this slot's reminder actually fired — the once-per-day
+     *  guard against clock shifts double-firing (DST, travel, corrections). */
+    fun reminderLastNotifiedDay(slot: MealSlot): Flow<Long?> =
+        context.dataStore.data.map { prefs -> prefs[reminderLastNotifiedKey(slot)] }
+
+    suspend fun setReminderLastNotifiedDay(slot: MealSlot, epochDay: Long) {
+        context.dataStore.edit { prefs -> prefs[reminderLastNotifiedKey(slot)] = epochDay }
+    }
+
+    fun reminderEnabled(slot: MealSlot): Flow<Boolean> =
+        context.dataStore.data.map { prefs -> prefs[reminderEnabledKey(slot)] ?: false }
+
+    fun reminderMinutes(slot: MealSlot): Flow<Int> =
+        context.dataStore.data.map { prefs ->
+            prefs[reminderMinutesKey(slot)] ?: defaultReminderMinutes(slot)
+        }
+
+    suspend fun setReminderEnabled(slot: MealSlot, enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[reminderEnabledKey(slot)] = enabled }
+    }
+
+    suspend fun setReminderMinutes(slot: MealSlot, minutesOfDay: Int) {
+        context.dataStore.edit { prefs -> prefs[reminderMinutesKey(slot)] = minutesOfDay }
+    }
+
+    /**
+     * The last day recurring workouts were materialized (null = never).
+     * Once-per-day: deleting an auto-added workout must NOT resurrect it on
+     * the next app open.
+     */
+    val lastRecurringMaterializedDay: Flow<Long?> =
+        context.dataStore.data.map { prefs -> prefs[Keys.LAST_RECURRING_DAY] }
+
+    suspend fun setLastRecurringMaterializedDay(epochDay: Long) {
+        context.dataStore.edit { prefs -> prefs[Keys.LAST_RECURRING_DAY] = epochDay }
     }
 
     /**
