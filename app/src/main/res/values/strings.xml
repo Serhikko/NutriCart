@@ -201,6 +201,44 @@
     <string name="sync_failed">Couldn\'t refresh data from Health Connect. Pull down to try again.</string>
     <string name="no_data_dash" translatable="false">—</string>
 
+    <!-- Custom foods -->
+    <string name="create_food">+ Create your own food</string>
+    <string name="custom_food_new_title">New food</string>
+    <string name="custom_food_edit_title">Edit food</string>
+    <string name="custom_food_name">Name</string>
+    <string name="custom_food_brand">Brand (optional)</string>
+    <string name="custom_food_kcal">Calories (kcal / 100 g)</string>
+    <string name="custom_food_protein">Protein (g / 100 g)</string>
+    <string name="custom_food_fat">Fat (g / 100 g)</string>
+    <string name="custom_food_carbs">Carbs (g / 100 g)</string>
+    <string name="custom_food_serving">Portion size (g, optional)</string>
+    <string name="custom_food_delete">Delete this food</string>
+
+    <!-- Favorites and frequent foods -->
+    <string name="favorites_chip">Favorites</string>
+    <string name="favorites_empty">No favorites yet — tap the star on any food.</string>
+    <string name="frequent_header">Frequently logged</string>
+    <string name="favorite_toggle">Favorite</string>
+
+    <!-- Saved meals -->
+    <string name="saved_meals_chip">My meals</string>
+    <string name="saved_meals_empty">No saved meals yet — open the diary and tap "Save as meal" on any meal section.</string>
+    <string name="save_as_meal">Save as meal</string>
+    <string name="saved_meal_name_title">Save meal</string>
+    <string name="saved_meal_name_label">Meal name</string>
+    <string name="saved_meal_saved">Meal saved</string>
+    <string name="saved_meal_summary">%1$d items · %2$d kcal</string>
+    <string name="saved_meal_delete">Delete meal</string>
+
+    <!-- Multi-add basket -->
+    <string name="basket_button">Basket: %1$d — review and add</string>
+    <string name="basket_title">Add several at once</string>
+    <string name="basket_add_all">Add all</string>
+    <string name="basket_quick_add">Add to basket</string>
+    <string name="basket_in">In basket</string>
+    <string name="basket_total">Total: %1$d kcal</string>
+    <string name="basket_reminder">Logged. Your basket still has items — tap the basket bar to add them too.</string>
+
     <!-- Workouts -->
     <string name="active_kcal_label">Active calories</string>
     <string name="workouts_section_title">Workouts</string>

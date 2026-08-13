@@ -195,6 +195,44 @@
     <string name="last_synced">Синхронізовано: %1$s</string>
     <string name="sync_failed">Не вдалося оновити дані з Health Connect. Потягни вниз, щоб спробувати ще раз.</string>
 
+    <!-- Custom foods -->
+    <string name="create_food">+ Створити свій продукт</string>
+    <string name="custom_food_new_title">Новий продукт</string>
+    <string name="custom_food_edit_title">Редагувати продукт</string>
+    <string name="custom_food_name">Назва</string>
+    <string name="custom_food_brand">Бренд (необов\'язково)</string>
+    <string name="custom_food_kcal">Калорії (ккал / 100 г)</string>
+    <string name="custom_food_protein">Білки (г / 100 г)</string>
+    <string name="custom_food_fat">Жири (г / 100 г)</string>
+    <string name="custom_food_carbs">Вуглеводи (г / 100 г)</string>
+    <string name="custom_food_serving">Розмір порції (г, необов\'язково)</string>
+    <string name="custom_food_delete">Видалити цей продукт</string>
+
+    <!-- Favorites and frequent foods -->
+    <string name="favorites_chip">Улюблені</string>
+    <string name="favorites_empty">Ще немає улюблених — натисни зірочку на будь-якому продукті.</string>
+    <string name="frequent_header">Часто логовані</string>
+    <string name="favorite_toggle">Улюблене</string>
+
+    <!-- Saved meals -->
+    <string name="saved_meals_chip">Мої страви</string>
+    <string name="saved_meals_empty">Ще немає збережених страв — відкрий щоденник і натисни «Зберегти як страву» на будь-якому прийомі їжі.</string>
+    <string name="save_as_meal">Зберегти як страву</string>
+    <string name="saved_meal_name_title">Зберегти страву</string>
+    <string name="saved_meal_name_label">Назва страви</string>
+    <string name="saved_meal_saved">Страву збережено</string>
+    <string name="saved_meal_summary">%1$d позицій · %2$d ккал</string>
+    <string name="saved_meal_delete">Видалити страву</string>
+
+    <!-- Multi-add basket -->
+    <string name="basket_button">Кошик: %1$d — переглянути й додати</string>
+    <string name="basket_title">Додати кілька за раз</string>
+    <string name="basket_add_all">Додати все</string>
+    <string name="basket_quick_add">Додати в кошик</string>
+    <string name="basket_in">У кошику</string>
+    <string name="basket_total">Разом: %1$d ккал</string>
+    <string name="basket_reminder">Записано. У кошику ще залишились продукти — натисни на панель кошика, щоб додати і їх.</string>
+
     <!-- Workouts -->
     <string name="active_kcal_label">Активні калорії</string>
     <string name="workouts_section_title">Тренування</string>

@@ -31,4 +31,10 @@ data class FoodProductEntity(
     val servingSizeG: Double?,
     val source: ProductSource,
     val cachedAtEpochMillis: Long,
+    /**
+     * Starred by the user. CAREFUL: refreshing a product from the API must
+     * carry this flag over (see FoodRepository.search) — a plain upsert of a
+     * fresh DTO would silently wipe the star.
+     */
+    val isFavorite: Boolean = false,
 )

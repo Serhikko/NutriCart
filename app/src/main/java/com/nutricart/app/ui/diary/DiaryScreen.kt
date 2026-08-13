@@ -16,19 +16,28 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -51,6 +60,9 @@ fun DiaryScreen(
     viewModel: DiaryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val savingSlot by viewModel.savingSlot.collectAsState()
+    val mealSaved by viewModel.mealSaved.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Keep the "today" limit of the day selector correct after midnight.
     LifecycleResumeEffect(Unit) {
@@ -58,7 +70,17 @@ fun DiaryScreen(
         onPauseOrDispose { }
     }
 
+    // One-shot confirmation after saving a meal.
+    val savedMessage = stringResource(R.string.saved_meal_saved)
+    LaunchedEffect(mealSaved) {
+        if (mealSaved) {
+            snackbarHostState.showSnackbar(savedMessage)
+            viewModel.clearMealSaved()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text(stringResource(R.string.diary_title)) }) },
     ) { innerPadding ->
         Column(
@@ -85,6 +107,7 @@ fun DiaryScreen(
                         entries = state.entriesBySlot[slot].orEmpty(),
                         onAdd = { onAddFood(state.epochDay, slot) },
                         onDelete = viewModel::delete,
+                        onSaveAsMeal = { viewModel.startSavingMeal(slot) },
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -109,6 +132,44 @@ fun DiaryScreen(
             }
         }
     }
+
+    // "Name this meal" dialog for the section being saved.
+    savingSlot?.let {
+        SaveMealDialog(
+            onConfirm = viewModel::saveMeal,
+            onDismiss = viewModel::cancelSavingMeal,
+        )
+    }
+}
+
+/** Asks for a name and hands it back — the ViewModel does the saving. */
+@Composable
+private fun SaveMealDialog(
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.saved_meal_name_title)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.saved_meal_name_label)) },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.isNotBlank(),
+                onClick = { onConfirm(name) },
+            ) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -149,6 +210,7 @@ private fun MealSection(
     entries: List<FoodLogEntryEntity>,
     onAdd: () -> Unit,
     onDelete: (FoodLogEntryEntity) -> Unit,
+    onSaveAsMeal: () -> Unit,
 ) {
     Spacer(modifier = Modifier.height(8.dp))
     Row(
@@ -185,6 +247,13 @@ private fun MealSection(
             ) {
                 entries.forEach { entry ->
                     EntryRow(entry = entry, onDelete = { onDelete(entry) })
+                }
+                // Freeze this whole section as a one-tap combo for later.
+                TextButton(
+                    onClick = onSaveAsMeal,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Text(stringResource(R.string.save_as_meal))
                 }
             }
         }

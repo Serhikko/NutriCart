@@ -39,6 +39,13 @@ interface FoodLogDao {
     @Insert
     suspend fun insert(entry: FoodLogEntryEntity)
 
+    /**
+     * Room wraps a list insert in ONE transaction — a multi-item write (saved
+     * meal, basket) lands complete or not at all, never half a meal.
+     */
+    @Insert
+    suspend fun insertAll(entries: List<FoodLogEntryEntity>)
+
     @Delete
     suspend fun delete(entry: FoodLogEntryEntity)
 }

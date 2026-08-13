@@ -9,6 +9,7 @@ import com.nutricart.app.data.local.dao.FoodLogDao
 import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.RecipeDao
+import com.nutricart.app.data.local.dao.SavedMealDao
 import com.nutricart.app.data.local.dao.ShoppingDao
 import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
@@ -21,6 +22,8 @@ import com.nutricart.app.data.local.entity.PlannedMealEntity
 import com.nutricart.app.data.local.entity.RecipeEntity
 import com.nutricart.app.data.local.entity.RecipeIngredientEntity
 import com.nutricart.app.data.local.entity.RecipeStepEntity
+import com.nutricart.app.data.local.entity.SavedMealEntity
+import com.nutricart.app.data.local.entity.SavedMealItemEntity
 import com.nutricart.app.data.local.entity.ShoppingListItemEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WaterEntryEntity
@@ -43,8 +46,10 @@ import com.nutricart.app.data.local.entity.WorkoutEntryEntity
         ShoppingListItemEntity::class,
         WaterEntryEntity::class,
         WorkoutEntryEntity::class,
+        SavedMealEntity::class,
+        SavedMealItemEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)
@@ -59,4 +64,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun shoppingDao(): ShoppingDao
     abstract fun waterDao(): WaterDao
     abstract fun workoutDao(): WorkoutDao
+    abstract fun savedMealDao(): SavedMealDao
 }

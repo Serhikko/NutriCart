@@ -8,13 +8,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -23,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -39,6 +48,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -47,8 +57,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.clickable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.nutricart.app.R
+import com.nutricart.app.data.local.dao.SavedMealSummary
 import com.nutricart.app.data.local.entity.FoodProductEntity
 import com.nutricart.app.domain.logic.FoodMath
+import com.nutricart.app.domain.model.ProductSource
 import kotlin.math.roundToInt
 
 /** Search Open Food Facts (or the offline cache) and log the picked product. */
@@ -64,6 +76,15 @@ fun FoodSearchScreen(
     // Entry saved -> back to the diary.
     LaunchedEffect(state.logged) {
         if (state.logged) onDone()
+    }
+
+    // One-shot reminder: something was logged but the basket still has items.
+    val basketReminderMessage = stringResource(R.string.basket_reminder)
+    LaunchedEffect(state.basketReminder) {
+        if (state.basketReminder) {
+            snackbarHostState.showSnackbar(basketReminderMessage)
+            viewModel.clearBasketReminder()
+        }
     }
 
     // One-shot barcode messages -> snackbar.
@@ -131,19 +152,97 @@ fun FoodSearchScreen(
             ) {
                 Text(stringResource(R.string.scan_barcode))
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.favoritesMode,
+                        onClick = viewModel::toggleFavoritesMode,
+                        label = { Text(stringResource(R.string.favorites_chip)) },
+                    )
+                    FilterChip(
+                        selected = state.savedMealsMode,
+                        onClick = viewModel::toggleSavedMealsMode,
+                        label = { Text(stringResource(R.string.saved_meals_chip)) },
+                    )
+                }
+                TextButton(onClick = viewModel::openCreateForm) {
+                    Text(stringResource(R.string.create_food))
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (state.searching) {
+            // The basket bar appears as soon as something is collected.
+            if (state.basket.isNotEmpty() && !state.savedMealsMode) {
+                FilledTonalButton(
+                    onClick = viewModel::openBasket,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.basket_button, state.basket.size))
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Search chrome belongs to search results only — saved meals are
+            // purely local, an "offline" note above them would be nonsense.
+            if (state.searching && !state.savedMealsMode) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
-            if (state.offline && state.searched) {
+            if (state.offline && state.searched &&
+                !state.favoritesMode && !state.savedMealsMode
+            ) {
                 Text(
                     stringResource(R.string.offline_results_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary,
                 )
             }
-            if (state.searched && !state.searching && state.results.isEmpty()) {
+
+            // What the list shows: saved meals, favorites, or (with an empty
+            // box) the user's frequent products, or the search results.
+            val showFrequent = !state.favoritesMode && !state.savedMealsMode &&
+                state.query.isBlank()
+            val listItems = when {
+                state.savedMealsMode -> emptyList()
+                state.favoritesMode -> state.favorites
+                showFrequent -> state.frequent
+                else -> state.results
+            }
+
+            if (state.savedMealsMode && state.savedMeals.isEmpty()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    stringResource(R.string.saved_meals_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (state.favoritesMode && state.favorites.isEmpty()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    // The list is query-filtered: with text typed, an empty
+                    // list means "no matches", NOT "you have no favorites".
+                    stringResource(
+                        if (state.query.isBlank()) R.string.favorites_empty
+                        else R.string.no_results
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (showFrequent && state.frequent.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.frequent_header),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!state.favoritesMode && !state.savedMealsMode && !showFrequent &&
+                state.searched && !state.searching && state.results.isEmpty()
+            ) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     stringResource(R.string.no_results),
@@ -152,10 +251,30 @@ fun FoodSearchScreen(
                 )
             }
 
-            LazyColumn {
-                items(state.results, key = { it.id }) { product ->
-                    ProductRow(product = product, onClick = { viewModel.select(product) })
-                    HorizontalDivider()
+            if (state.savedMealsMode) {
+                LazyColumn {
+                    items(state.savedMeals, key = { it.id }) { meal ->
+                        SavedMealRow(
+                            meal = meal,
+                            onClick = { viewModel.logSavedMeal(meal) },
+                            onDelete = { viewModel.deleteSavedMeal(meal) },
+                        )
+                        HorizontalDivider()
+                    }
+                }
+            } else {
+                LazyColumn {
+                    items(listItems, key = { it.id }) { product ->
+                        ProductRow(
+                            product = product,
+                            inBasket = state.basket.any { it.product.id == product.id },
+                            onClick = { viewModel.select(product) },
+                            onQuickAdd = { viewModel.addToBasket(product) },
+                            onToggleFavorite = { viewModel.toggleFavorite(product) },
+                            onEdit = { viewModel.openEditForm(product) },
+                        )
+                        HorizontalDivider()
+                    }
                 }
             }
         }
@@ -169,33 +288,320 @@ fun FoodSearchScreen(
             onDismiss = { viewModel.select(null) },
         )
     }
+
+    // Create/edit form for the user's own products.
+    state.customForm?.let { form ->
+        CustomFoodDialog(
+            editing = form.editing,
+            onSave = viewModel::saveCustomProduct,
+            onDelete = if (form.editing != null) viewModel::deleteCustomProduct else null,
+            onDismiss = viewModel::dismissCustomForm,
+        )
+    }
+
+    // Review the collected products, adjust grams, log them all at once.
+    if (state.basketOpen) {
+        BasketDialog(
+            items = state.basket,
+            onGramsChange = viewModel::setBasketGrams,
+            onRemove = viewModel::removeFromBasket,
+            onConfirm = viewModel::logBasket,
+            onDismiss = viewModel::closeBasket,
+        )
+    }
 }
 
+/** The multi-add review: one line per product with editable grams. */
 @Composable
-private fun ProductRow(product: FoodProductEntity, onClick: () -> Unit) {
-    Column(
+private fun BasketDialog(
+    items: List<BasketItem>,
+    onGramsChange: (productId: String, text: String) -> Unit,
+    onRemove: (productId: String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val allValid = items.isNotEmpty() && items.all { basketGrams(it) != null }
+    val totalKcal = items.sumOf { item ->
+        basketGrams(item)?.let { g -> item.product.kcalPer100g * g / 100.0 } ?: 0.0
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.basket_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items.forEach { item ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(item.product.name, style = MaterialTheme.typography.bodyMedium)
+                            basketGrams(item)?.let { g ->
+                                Text(
+                                    stringResource(
+                                        R.string.kcal_value,
+                                        (item.product.kcalPer100g * g / 100.0).roundToInt(),
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        OutlinedTextField(
+                            value = item.gramsText,
+                            onValueChange = { onGramsChange(item.product.id, it) },
+                            label = { Text(stringResource(R.string.grams_mode)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.width(96.dp),
+                        )
+                        IconButton(onClick = { onRemove(item.product.id) }) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.delete),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                Text(
+                    stringResource(R.string.basket_total, totalKcal.roundToInt()),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = allValid, onClick = onConfirm) {
+                Text(stringResource(R.string.basket_add_all))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+/** One saved meal: tap = log everything into this diary section. */
+@Composable
+private fun SavedMealRow(
+    meal: SavedMealSummary,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(product.name, style = MaterialTheme.typography.bodyLarge)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 10.dp),
         ) {
+            Text(meal.name, style = MaterialTheme.typography.bodyLarge)
             Text(
-                product.brand ?: "",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                stringResource(R.string.kcal_per_100g, product.kcalPer100g.roundToInt()),
+                stringResource(
+                    R.string.saved_meal_summary,
+                    meal.itemCount,
+                    meal.totalKcal.roundToInt(),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.saved_meal_delete),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
+}
+
+@Composable
+private fun ProductRow(
+    product: FoodProductEntity,
+    inBasket: Boolean,
+    onClick: () -> Unit,
+    onQuickAdd: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onEdit: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 10.dp),
+        ) {
+            Text(product.name, style = MaterialTheme.typography.bodyLarge)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    product.brand ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.kcal_per_100g, product.kcalPer100g.roundToInt()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        // Quick multi-add: "+" collects into the basket, a check marks "already in".
+        IconButton(onClick = onQuickAdd, enabled = !inBasket) {
+            Icon(
+                if (inBasket) Icons.Filled.Check else Icons.Filled.Add,
+                contentDescription = stringResource(
+                    if (inBasket) R.string.basket_in else R.string.basket_quick_add
+                ),
+                tint = if (inBasket) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        // One star icon, two colors: filled-primary = starred, faded = not.
+        // (icons-core has no StarBorder — tint does the job with one icon.)
+        IconButton(onClick = onToggleFavorite) {
+            Icon(
+                Icons.Filled.Star,
+                contentDescription = stringResource(R.string.favorite_toggle),
+                tint = if (product.isFavorite) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.outlineVariant,
+            )
+        }
+        // Only the user's own products are editable — OFF data is read-only.
+        if (product.source == ProductSource.LOCAL) {
+            IconButton(onClick = onEdit) {
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.custom_food_edit_title),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Create/edit form for a user-defined product. All numbers are per 100 g,
+ * like on any nutrition label. Save stays disabled until the input is sane.
+ */
+@Composable
+private fun CustomFoodDialog(
+    editing: FoodProductEntity?,
+    onSave: (CustomFoodDraft) -> Unit,
+    onDelete: (() -> Unit)?,
+    onDismiss: () -> Unit,
+) {
+    // rememberSaveable: typed values survive rotation, like the amount dialog.
+    var name by rememberSaveable { mutableStateOf(editing?.name ?: "") }
+    var brand by rememberSaveable { mutableStateOf(editing?.brand ?: "") }
+    var kcalText by rememberSaveable { mutableStateOf(editing?.kcalPer100g?.roundToInt()?.toString() ?: "") }
+    var proteinText by rememberSaveable { mutableStateOf(editing?.proteinPer100g?.toString() ?: "") }
+    var fatText by rememberSaveable { mutableStateOf(editing?.fatPer100g?.toString() ?: "") }
+    var carbsText by rememberSaveable { mutableStateOf(editing?.carbsPer100g?.toString() ?: "") }
+    var servingText by rememberSaveable { mutableStateOf(editing?.servingSizeG?.roundToInt()?.toString() ?: "") }
+
+    fun parse(text: String): Double? = text.replace(',', '.').toDoubleOrNull()
+
+    val kcal = parse(kcalText)?.takeIf { it in 0.0..900.0 }
+    val protein = parse(proteinText)?.takeIf { it in 0.0..100.0 }
+    val fat = parse(fatText)?.takeIf { it in 0.0..100.0 }
+    val carbs = parse(carbsText)?.takeIf { it in 0.0..100.0 }
+    // Serving is optional: blank is fine, a typed value must be sane.
+    val serving = if (servingText.isBlank()) null else parse(servingText)?.takeIf { it in 1.0..5000.0 }
+    val servingOk = servingText.isBlank() || serving != null
+    val valid = name.isNotBlank() && kcal != null &&
+        protein != null && fat != null && carbs != null && servingOk
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (editing == null) R.string.custom_food_new_title
+                    else R.string.custom_food_edit_title
+                )
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.custom_food_name)) },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = brand,
+                    onValueChange = { brand = it },
+                    label = { Text(stringResource(R.string.custom_food_brand)) },
+                    singleLine = true,
+                )
+                NumberField(kcalText, { kcalText = it }, R.string.custom_food_kcal)
+                NumberField(proteinText, { proteinText = it }, R.string.custom_food_protein)
+                NumberField(fatText, { fatText = it }, R.string.custom_food_fat)
+                NumberField(carbsText, { carbsText = it }, R.string.custom_food_carbs)
+                NumberField(servingText, { servingText = it }, R.string.custom_food_serving)
+                if (onDelete != null) {
+                    TextButton(onClick = onDelete) {
+                        Text(
+                            stringResource(R.string.custom_food_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = valid,
+                onClick = {
+                    if (valid) {
+                        onSave(
+                            CustomFoodDraft(
+                                name = name,
+                                brand = brand.takeIf { it.isNotBlank() },
+                                kcalPer100g = kcal!!,
+                                proteinPer100g = protein!!,
+                                fatPer100g = fat!!,
+                                carbsPer100g = carbs!!,
+                                servingSizeG = serving,
+                            )
+                        )
+                    }
+                },
+            ) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun NumberField(value: String, onChange: (String) -> Unit, labelRes: Int) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(stringResource(labelRes)) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+    )
 }
 
 /**

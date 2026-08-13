@@ -11,6 +11,7 @@ import com.nutricart.app.data.local.dao.FoodLogDao
 import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.RecipeDao
+import com.nutricart.app.data.local.dao.SavedMealDao
 import com.nutricart.app.data.local.dao.ShoppingDao
 import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
@@ -260,6 +261,49 @@ private val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+/**
+ * v8 -> v9 (release v0.10): favorites flag on cached products + saved meals
+ * (named food combos loggable in one tap). One schema bump for the release.
+ */
+private val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `food_product` ADD COLUMN `isFavorite` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `saved_meal` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `createdAtEpochMillis` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `saved_meal_item` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `mealId` INTEGER NOT NULL,
+                `productId` TEXT,
+                `name` TEXT NOT NULL,
+                `grams` REAL,
+                `servings` REAL,
+                `kcal` REAL NOT NULL,
+                `proteinG` REAL NOT NULL,
+                `fatG` REAL NOT NULL,
+                `carbsG` REAL NOT NULL,
+                FOREIGN KEY(`mealId`) REFERENCES `saved_meal`(`id`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`productId`) REFERENCES `food_product`(`id`)
+                    ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_saved_meal_item_mealId` ON `saved_meal_item` (`mealId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_saved_meal_item_productId` ON `saved_meal_item` (`productId`)")
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -270,8 +314,8 @@ object DatabaseModule {
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "nutricart.db")
             .addMigrations(
-                MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
+                MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
             )
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
@@ -307,4 +351,7 @@ object DatabaseModule {
 
     @Provides
     fun provideWorkoutDao(db: AppDatabase): WorkoutDao = db.workoutDao()
+
+    @Provides
+    fun provideSavedMealDao(db: AppDatabase): SavedMealDao = db.savedMealDao()
 }
