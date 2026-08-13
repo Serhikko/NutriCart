@@ -4,10 +4,13 @@ import com.nutricart.app.data.health.HcAvailability
 import com.nutricart.app.data.health.HealthConnectManager
 import com.nutricart.app.data.local.dao.ActivityDao
 import com.nutricart.app.data.local.dao.WeightDao
+import com.nutricart.app.data.local.dao.WorkoutDao
 import com.nutricart.app.data.local.entity.DailyActivityEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
+import com.nutricart.app.data.local.entity.WorkoutEntryEntity
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.WeightSource
+import com.nutricart.app.domain.model.WorkoutSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
@@ -26,6 +29,7 @@ class ActivityRepository @Inject constructor(
     private val healthConnect: HealthConnectManager,
     private val activityDao: ActivityDao,
     private val weightDao: WeightDao,
+    private val workoutDao: WorkoutDao,
     private val settings: SettingsDataStore,
 ) {
 
@@ -66,6 +70,31 @@ class ActivityRepository @Inject constructor(
                         avgHeartRateBpm = summary.avgHeartRateBpm,
                     )
                 )
+
+                // Watch workout sessions for the same day. null = the exercise
+                // permission is denied ("cannot know") — keep the cached rows;
+                // an empty list genuinely means "no workouts" and clears them.
+                healthConnect.readExerciseSessions(day, granted)?.let { sessions ->
+                    workoutDao.replaceHealthConnectDay(
+                        day.toEpochDay(),
+                        sessions.map { s ->
+                            WorkoutEntryEntity(
+                                epochDay = day.toEpochDay(),
+                                source = WorkoutSource.HEALTH_CONNECT,
+                                hcSessionId = s.id,
+                                hcExerciseType = s.exerciseType,
+                                type = null,
+                                title = s.title,
+                                minutes = s.minutes,
+                                reps = null,
+                                kcal = s.kcal,
+                                // Session start, so the day's list sorts by
+                                // when the workout actually happened.
+                                loggedAtEpochMillis = s.startEpochMillis,
+                            )
+                        },
+                    )
+                }
             }
 
             // Weight from the watch/scale (only when that permission was

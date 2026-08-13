@@ -60,4 +60,12 @@ class SettingsDataStore @Inject constructor(
             prefs[Keys.SHOPPING_SELECTED_DAYS] = days.joinToString(",")
         }
     }
+
+    /**
+     * Wipes EVERY stored key (used only by the app reset). Clearing beats
+     * resetting keys one by one: a key added later can never be forgotten here.
+     */
+    suspend fun resetAll() {
+        context.dataStore.edit { prefs -> prefs.clear() }
+    }
 }

@@ -126,6 +126,11 @@ class ShoppingViewModel @Inject constructor(
     fun toggleDay(day: Long) {
         userTouchedSelection = true
         val current = effectiveSelection(selectedDays.value, uiState.value.weekDays)
+        // At least one day stays selected. Allowing zero would feed the
+        // empty set back into effectiveSelection, whose empty->"all 7 days"
+        // fallback (meant for STALE past-week selections) would instantly
+        // re-light every chip — the opposite of what the user just did.
+        if (day in current && current.size == 1) return
         selectedDays.value =
             if (day in current) current - day else current + day
     }

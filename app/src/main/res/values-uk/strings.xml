@@ -195,6 +195,38 @@
     <string name="last_synced">Синхронізовано: %1$s</string>
     <string name="sync_failed">Не вдалося оновити дані з Health Connect. Потягни вниз, щоб спробувати ще раз.</string>
 
+    <!-- Workouts -->
+    <string name="active_kcal_label">Активні калорії</string>
+    <string name="workouts_section_title">Тренування</string>
+    <string name="workouts_empty">Сьогодні тренувань ще немає.</string>
+    <string name="workout_add">Додати тренування</string>
+    <string name="workout_type_label">Вправа</string>
+    <string name="workout_minutes_label">Хвилини</string>
+    <string name="workout_reps_label">Повторення</string>
+    <string name="workout_source_watch">годинник</string>
+    <string name="workout_source_manual">вручну</string>
+    <string name="workout_delete">Видалити тренування</string>
+    <string name="workout_dialog_hint">Тренування з годинника враховуються автоматично — додавай вручну лише те, що годинник не записав.</string>
+    <string name="target_activity_bonus">Ціль підвищено на %1$d ккал за сьогоднішню активність.</string>
+    <string name="workout_running">Біг</string>
+    <string name="workout_treadmill_walk">Ходьба на доріжці</string>
+    <string name="workout_walking">Ходьба</string>
+    <string name="workout_hiking">Похід</string>
+    <string name="workout_cycling">Велосипед</string>
+    <string name="workout_swimming">Плавання</string>
+    <string name="workout_strength">Силове тренування</string>
+    <string name="workout_hiit">Інтервальне (HIIT)</string>
+    <string name="workout_jump_rope">Скакалка</string>
+    <string name="workout_football">Футбол</string>
+    <string name="workout_basketball">Баскетбол</string>
+    <string name="workout_yoga">Йога</string>
+    <string name="workout_other">Інше (середнє)</string>
+    <string name="workout_push_ups">Віджимання</string>
+    <string name="workout_squats">Присідання</string>
+    <string name="workout_pull_ups">Підтягування</string>
+    <string name="workout_sit_ups">Прес</string>
+    <string name="workout_generic">Тренування</string>
+
     <!-- Health Connect states -->
     <string name="hc_banner_not_installed">Встанови Health Connect, щоб синхронізувати кроки, калорії та вагу з годинника.</string>
     <string name="hc_banner_update">Health Connect потребує оновлення для роботи з NutriCart.</string>

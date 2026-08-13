@@ -14,6 +14,7 @@ import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -34,6 +35,23 @@ data class DayActivitySummary(
     val exerciseMinutes: Int?,
     val sleepMinutes: Int?,
     val avgHeartRateBpm: Int?,
+)
+
+/**
+ * One workout session recorded by the watch (a run, a gym visit, ...).
+ * kcal can be null: the watch logged the session but reported no calories
+ * for its time window — "no data", not 0.
+ */
+data class ExerciseSessionSummary(
+    /** Health Connect record id — stable across syncs, used for de-duplication. */
+    val id: String,
+    /** User-visible name from the watch app (often null). */
+    val title: String?,
+    /** Raw ExerciseSessionRecord.EXERCISE_TYPE_* constant. */
+    val exerciseType: Int,
+    val startEpochMillis: Long,
+    val minutes: Int,
+    val kcal: Double?,
 )
 
 /**
@@ -153,6 +171,58 @@ class HealthConnectManager @Inject constructor(
                 ?.toMinutes()?.toInt(),
             avgHeartRateBpm = result[HeartRateRecord.BPM_AVG]?.toInt(),
         )
+    }
+
+    /**
+     * The day's workout sessions. Returns NULL when the exercise permission is
+     * missing ("cannot know"), an empty list when there genuinely were none —
+     * the caller must not wipe its cache in the null case.
+     *
+     * A session is assigned to the day its START falls on: readRecords returns
+     * everything OVERLAPPING the window, so without the start filter a session
+     * crossing midnight would be returned for both days and break the unique
+     * hcSessionId index.
+     */
+    suspend fun readExerciseSessions(
+        day: LocalDate,
+        granted: Set<String>,
+    ): List<ExerciseSessionSummary>? {
+        if (exercisePermission !in granted) return null
+        val zone = ZoneId.systemDefault()
+        val start = day.atStartOfDay(zone).toInstant()
+        val end = day.plusDays(1).atStartOfDay(zone).toInstant()
+
+        val response = client.readRecords(
+            ReadRecordsRequest(
+                recordType = ExerciseSessionRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(start, end),
+            )
+        )
+        return response.records
+            .filter { it.startTime >= start && it.startTime < end }
+            .map { record ->
+                // kcal for the session = aggregate over ITS OWN time window, so
+                // Health Connect de-duplicates phone/watch overlap exactly like
+                // it does for the daily total.
+                val kcal = if (activeCaloriesPermission in granted) {
+                    client.aggregate(
+                        AggregateRequest(
+                            metrics = setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL),
+                            timeRangeFilter = TimeRangeFilter.between(record.startTime, record.endTime),
+                        )
+                    )[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories
+                } else {
+                    null
+                }
+                ExerciseSessionSummary(
+                    id = record.metadata.id,
+                    title = record.title,
+                    exerciseType = record.exerciseType,
+                    startEpochMillis = record.startTime.toEpochMilli(),
+                    minutes = Duration.between(record.startTime, record.endTime).toMinutes().toInt(),
+                    kcal = kcal,
+                )
+            }
     }
 
     /** Newest weight measurement from the last 30 days, or null if none. */

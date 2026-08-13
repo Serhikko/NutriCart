@@ -11,6 +11,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,17 +21,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -43,29 +50,37 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.nutricart.app.R
+import com.nutricart.app.domain.logic.WorkoutMath
+import com.nutricart.app.domain.model.WorkoutKind
+import com.nutricart.app.domain.model.WorkoutType
 import com.nutricart.app.ui.common.AnimatedNumber
 import com.nutricart.app.ui.common.CalorieRing
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.common.MacroBar
 import com.nutricart.app.ui.common.WeightChart
+import com.nutricart.app.ui.common.hcExerciseLabel
+import com.nutricart.app.ui.common.workoutTypeLabel
 import com.nutricart.app.ui.diary.mealSlotLabel
 import java.time.LocalDate
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlin.math.roundToInt
 
 private const val HEALTH_CONNECT_PLAY_URL =
     "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata"
@@ -92,13 +107,17 @@ fun DashboardScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
-        if (granted.isEmpty()) {
-            // After two denials Android blocks this dialog and returns instantly
-            // with nothing granted — send the user to the Health Connect
-            // settings screen instead of leaving a button that "does nothing".
-            context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
-        } else {
+        if (viewModel.hasRequiredHealthPermissions(granted)) {
             viewModel.refresh()
+        } else {
+            // The result lists every CURRENTLY granted permission, not just the
+            // newly granted ones — so "is it empty" is the wrong question: with
+            // only an optional type granted (say, sleep) the set is non-empty,
+            // yet sync still can't run. When the two REQUIRED permissions are
+            // still missing, the dialog was denied (or blocked after two
+            // denials and returned instantly) — the Health Connect settings
+            // screen is the only remaining place where they can be granted.
+            context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
         }
     }
 
@@ -209,7 +228,22 @@ fun DashboardScreen(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    ActivityCard(state)
+                    var showAddWorkout by rememberSaveable { mutableStateOf(false) }
+                    ActivityCard(
+                        state = state,
+                        onAddWorkout = { showAddWorkout = true },
+                        onDeleteWorkout = viewModel::deleteWorkout,
+                    )
+                    if (showAddWorkout) {
+                        AddWorkoutDialog(
+                            weightKg = state.weightKg,
+                            onConfirm = { type, amount ->
+                                viewModel.addWorkout(type, amount)
+                                showAddWorkout = false
+                            },
+                            onDismiss = { showAddWorkout = false },
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     WeightCard(state)
@@ -289,7 +323,17 @@ private fun HeroRing(state: DashboardUiState) {
         HeroStat(stringResource(R.string.calories_out_label), state.caloriesOut)
     }
 
-    if (state.adjustedByActivity) {
+    // One note, most useful first: "+N kcal" covers watch AND manual workouts;
+    // the old watch note stays for the rare measured-zero day (bonus == 0 but
+    // the formula did switch to watch mode).
+    if (state.activityBonusKcal > 0) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.target_activity_bonus, state.activityBonusKcal),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.tertiary,
+        )
+    } else if (state.adjustedByActivity) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             stringResource(R.string.target_adjusted_note),
@@ -327,7 +371,11 @@ private fun MacroCard(state: DashboardUiState) {
 }
 
 @Composable
-private fun ActivityCard(state: DashboardUiState) {
+private fun ActivityCard(
+    state: DashboardUiState,
+    onAddWorkout: () -> Unit,
+    onDeleteWorkout: (Long) -> Unit,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -336,6 +384,12 @@ private fun ActivityCard(state: DashboardUiState) {
             ValueRow(
                 labelRes = R.string.steps_label,
                 value = state.steps?.toString() ?: stringResource(R.string.no_data_dash),
+            )
+            ValueRow(
+                labelRes = R.string.active_kcal_label,
+                value = state.activeKcal
+                    ?.let { stringResource(R.string.kcal_value, it) }
+                    ?: stringResource(R.string.no_data_dash),
             )
             ValueRow(
                 labelRes = R.string.exercise_label,
@@ -355,6 +409,33 @@ private fun ActivityCard(state: DashboardUiState) {
                     ?.let { stringResource(R.string.bpm_value, it) }
                     ?: stringResource(R.string.no_data_dash),
             )
+
+            HorizontalDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.workouts_section_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                TextButton(onClick = onAddWorkout) {
+                    Text(stringResource(R.string.workout_add))
+                }
+            }
+            if (state.workouts.isEmpty()) {
+                Text(
+                    stringResource(R.string.workouts_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                state.workouts.forEach { item ->
+                    WorkoutRow(item = item, onDelete = onDeleteWorkout)
+                }
+            }
+
             HorizontalDivider()
             ValueRow(
                 labelRes = R.string.dashboard_current_weight,
@@ -362,6 +443,141 @@ private fun ActivityCard(state: DashboardUiState) {
             )
         }
     }
+}
+
+/** One workout line: name + amount/source underneath, kcal and (for manual) delete. */
+@Composable
+private fun WorkoutRow(item: WorkoutItem, onDelete: (Long) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            // Manual rows have a catalog type; watch rows use their own title,
+            // or a name mapped from the raw HC exercise type when there is none.
+            val name = when {
+                item.type != null -> stringResource(workoutTypeLabel(item.type))
+                !item.title.isNullOrBlank() -> item.title
+                else -> stringResource(hcExerciseLabel(item.hcExerciseType))
+            }
+            Text(name, style = MaterialTheme.typography.bodyLarge)
+            val amountText = item.minutes?.let { stringResource(R.string.minutes_value, it) }
+                ?: item.reps?.let { stringResource(R.string.workout_reps_value, it) }
+            val sourceText = stringResource(
+                if (item.isFromWatch) R.string.workout_source_watch
+                else R.string.workout_source_manual
+            )
+            Text(
+                listOfNotNull(amountText, sourceText).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            item.kcal?.let { stringResource(R.string.kcal_value, it) }
+                ?: stringResource(R.string.no_data_dash),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        if (!item.isFromWatch) {
+            IconButton(onClick = { onDelete(item.id) }) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.workout_delete),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Type picker (chips) + one number field. The field means minutes or
+ * repetitions depending on the chosen type, and the kcal preview uses the
+ * same WorkoutMath the repository will store — no surprises after saving.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddWorkoutDialog(
+    weightKg: Double,
+    onConfirm: (WorkoutType, Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // rememberSaveable: the picked type and amount survive screen rotation.
+    var selected by rememberSaveable { mutableStateOf(WorkoutType.RUNNING) }
+    var amountText by rememberSaveable { mutableStateOf("30") }
+
+    val amount = amountText.toIntOrNull()?.takeIf { it in 1..999 }
+    val previewKcal = amount?.let {
+        when (selected.kind) {
+            WorkoutKind.DURATION -> WorkoutMath.kcalForDuration(selected, weightKg, it)
+            WorkoutKind.REPS -> WorkoutMath.kcalForReps(selected, weightKg, it)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.workout_add)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    WorkoutType.entries.forEach { type ->
+                        FilterChip(
+                            selected = type == selected,
+                            onClick = {
+                                // Only reset the amount when the input UNIT
+                                // changes (minutes <-> repetitions).
+                                if (type.kind != selected.kind) {
+                                    amountText =
+                                        if (type.kind == WorkoutKind.DURATION) "30" else "20"
+                                }
+                                selected = type
+                            },
+                            label = { Text(stringResource(workoutTypeLabel(type))) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = {
+                        Text(
+                            stringResource(
+                                if (selected.kind == WorkoutKind.DURATION) R.string.workout_minutes_label
+                                else R.string.workout_reps_label
+                            )
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                )
+                if (previewKcal != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.kcal_value, previewKcal.roundToInt()),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.workout_dialog_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = amount != null,
+                onClick = { amount?.let { onConfirm(selected, it) } },
+            ) { Text(stringResource(R.string.add_action)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 /** Today's planned meals — one tap away from the recipe. */

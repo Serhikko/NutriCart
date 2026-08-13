@@ -8,12 +8,14 @@ import com.nutricart.app.data.local.entity.DailyActivityEntity
 import com.nutricart.app.data.local.entity.PlannedMealEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
+import com.nutricart.app.data.local.entity.WorkoutEntryEntity
 import com.nutricart.app.data.repository.ActivityRepository
 import com.nutricart.app.data.repository.DiaryRepository
 import com.nutricart.app.data.repository.PlanRepository
 import com.nutricart.app.data.repository.ProfileRepository
 import com.nutricart.app.data.repository.SyncResult
 import com.nutricart.app.data.repository.WaterRepository
+import com.nutricart.app.data.repository.WorkoutRepository
 import com.nutricart.app.domain.logic.CalorieCalculator
 import com.nutricart.app.domain.logic.StreakCalculator
 import com.nutricart.app.domain.logic.WeightTrendCalculator
@@ -21,6 +23,9 @@ import com.nutricart.app.domain.model.DailyTargets
 import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.domain.model.RecipeNutrition
 import com.nutricart.app.domain.model.WeightSource
+import com.nutricart.app.domain.model.WorkoutKind
+import com.nutricart.app.domain.model.WorkoutSource
+import com.nutricart.app.domain.model.WorkoutType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +51,23 @@ data class TodayMenuItem(
     val portionFactor: Double,
 )
 
+/** One row of the workout list on the activity card. */
+data class WorkoutItem(
+    val id: Long,
+    /** Watch sessions are display-only; manual entries can be deleted. */
+    val isFromWatch: Boolean,
+    /** Catalog type — set for manual entries only. */
+    val type: WorkoutType?,
+    /** Raw HC exercise-type constant — set for watch sessions only. */
+    val hcExerciseType: Int?,
+    /** Session name from the watch app, may be null even for watch rows. */
+    val title: String?,
+    val minutes: Int?,
+    val reps: Int?,
+    /** null = the watch session carried no calorie data. */
+    val kcal: Int?,
+)
+
 data class DashboardUiState(
     val loading: Boolean = true,
     val targets: DailyTargets? = null,
@@ -57,7 +79,12 @@ data class DashboardUiState(
     val eatenFatG: Int = 0,
     val eatenCarbsG: Int = 0,
     val caloriesOut: Int = 0,
+    /** kcal ADDED to today's target by activity: watch active kcal + manual workouts. */
+    val activityBonusKcal: Int = 0,
     val steps: Int? = null,
+    /** Watch active calories for today (raw, for the activity card). */
+    val activeKcal: Int? = null,
+    val workouts: List<WorkoutItem> = emptyList(),
     val exerciseMinutes: Int? = null,
     val sleepMinutes: Int? = null,
     val avgHeartRateBpm: Int? = null,
@@ -86,6 +113,7 @@ class DashboardViewModel @Inject constructor(
     private val activityRepository: ActivityRepository,
     diaryRepository: DiaryRepository,
     private val waterRepository: WaterRepository,
+    private val workoutRepository: WorkoutRepository,
     planRepository: PlanRepository,
     private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
@@ -101,6 +129,10 @@ class DashboardViewModel @Inject constructor(
     /** The permission set the screen hands to the system permission dialog. */
     val healthPermissions: Set<String>
         get() = healthConnectManager.permissionsToRequest()
+
+    /** True when the dialog result contains BOTH permissions sync needs. */
+    fun hasRequiredHealthPermissions(granted: Set<String>): Boolean =
+        healthConnectManager.hasRequiredPermissions(granted)
 
     private val hcBanner = MutableStateFlow(HcBannerState.NONE)
     private val refreshing = MutableStateFlow(false)
@@ -129,10 +161,11 @@ class DashboardViewModel @Inject constructor(
         val eaten: DayNutritionTotals,
         val waterMl: Int,
         val planMeals: List<PlannedMealEntity>,
+        val workouts: List<WorkoutEntryEntity>,
     )
 
     // When the date rolls over, switch to observing the new day's rows —
-    // watch activity, food diary totals, water and the planned menu.
+    // watch activity, food diary totals, water, the planned menu and workouts.
     @OptIn(ExperimentalCoroutinesApi::class)
     private val todayData = todayFlow.flatMapLatest { day ->
         combine(
@@ -140,7 +173,10 @@ class DashboardViewModel @Inject constructor(
             diaryRepository.observeDayTotals(day.toEpochDay()),
             waterRepository.observeDayTotal(day.toEpochDay()),
             planRepository.observeDay(day.toEpochDay()),
-        ) { activity, eaten, water, planMeals -> TodayData(activity, eaten, water, planMeals) }
+            workoutRepository.observeDay(day.toEpochDay()),
+        ) { activity, eaten, water, planMeals, workouts ->
+            TodayData(activity, eaten, water, planMeals, workouts)
+        }
     }
 
     // Everything about the user, grouped so the main combine stays small.
@@ -187,15 +223,23 @@ class DashboardViewModel @Inject constructor(
             // and DOES switch the formula (see CalorieCalculator for the reason).
             val activeKcal = activity?.activeKcal
 
-            val targetKcal = if (activeKcal != null) {
+            // Manually logged workouts ALWAYS raise the day's budget: the watch
+            // never saw them, so they can't be double-counted with activeKcal.
+            // (Watch sessions are already inside activeKcal — never added here.)
+            val manualWorkoutKcal = todayValues.workouts
+                .filter { it.source == WorkoutSource.MANUAL }
+                .sumOf { it.kcal ?: 0.0 }
+
+            val baseTarget = CalorieCalculator.baseTargetKcal(
+                profile.sex, weight.weightKg, profile.heightCm.toDouble(), age,
+                profile.activityLevel, profile.goal, profile.targetKgPerWeek,
+            )
+            val targetKcal = manualWorkoutKcal + if (activeKcal != null) {
                 CalorieCalculator.adjustedTargetKcal(
                     profile.sex, bmr, profile.goal, profile.targetKgPerWeek, activeKcal,
                 )
             } else {
-                CalorieCalculator.baseTargetKcal(
-                    profile.sex, weight.weightKg, profile.heightCm.toDouble(), age,
-                    profile.activityLevel, profile.goal, profile.targetKgPerWeek,
-                )
+                baseTarget
             }
             val targets = CalorieCalculator.macroTargets(targetKcal, weight.weightKg)
             val eatenKcal = eaten.kcal.roundToInt()
@@ -210,10 +254,29 @@ class DashboardViewModel @Inject constructor(
                 eatenProteinG = eaten.proteinG.roundToInt(),
                 eatenFatG = eaten.fatG.roundToInt(),
                 eatenCarbsG = eaten.carbsG.roundToInt(),
-                caloriesOut = CalorieCalculator
-                    .caloriesOut(bmr, profile.activityLevel, activeKcal)
+                caloriesOut = (CalorieCalculator
+                    .caloriesOut(bmr, profile.activityLevel, activeKcal) + manualWorkoutKcal)
                     .roundToInt(),
+                // The REAL difference vs the questionnaire-only target — NOT
+                // raw activeKcal + manual: the safety floor can absorb part of
+                // the raise, and on a watch day the formula switch itself can
+                // even LOWER the target. When this is <= 0 the screen shows the
+                // neutral "adjusted for watch activity" note instead.
+                activityBonusKcal = (targetKcal - baseTarget).roundToInt(),
                 steps = activity?.steps,
+                activeKcal = activeKcal?.roundToInt(),
+                workouts = todayValues.workouts.map { w ->
+                    WorkoutItem(
+                        id = w.id,
+                        isFromWatch = w.source == WorkoutSource.HEALTH_CONNECT,
+                        type = w.type,
+                        hcExerciseType = w.hcExerciseType,
+                        title = w.title,
+                        minutes = w.minutes,
+                        reps = w.reps,
+                        kcal = w.kcal?.roundToInt(),
+                    )
+                },
                 exerciseMinutes = activity?.exerciseMinutes,
                 sleepMinutes = activity?.sleepMinutes,
                 avgHeartRateBpm = activity?.avgHeartRateBpm,
@@ -279,6 +342,30 @@ class DashboardViewModel @Inject constructor(
 
     fun clearSyncFailed() {
         syncFailed.value = false
+    }
+
+    /**
+     * Logs a manual workout for today. `amount` is minutes for DURATION types
+     * and repetitions for REPS types — the catalog decides which formula runs.
+     */
+    fun addWorkout(type: WorkoutType, amount: Int) {
+        viewModelScope.launch {
+            // The dialog is only reachable after the state has loaded, so the
+            // weight is real; the guard is just a belt against a stale 0.
+            val weightKg = uiState.value.weightKg
+            if (weightKg <= 0.0 || amount <= 0) return@launch
+            val day = todayFlow.value.toEpochDay()
+            when (type.kind) {
+                WorkoutKind.DURATION ->
+                    workoutRepository.addDuration(day, type, weightKg, amount)
+                WorkoutKind.REPS ->
+                    workoutRepository.addReps(day, type, weightKg, amount)
+            }
+        }
+    }
+
+    fun deleteWorkout(id: Long) {
+        viewModelScope.launch { workoutRepository.deleteManual(id) }
     }
 
     fun addWater(ml: Int) {

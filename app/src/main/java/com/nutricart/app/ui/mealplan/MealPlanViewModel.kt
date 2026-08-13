@@ -199,6 +199,11 @@ class MealPlanViewModel @Inject constructor(
     /** Copies the meal's scaled nutrition into that day's diary as a snapshot. */
     fun addToDiary(meal: PlanMealUi) {
         viewModelScope.launch {
+            // The diary can only browse up to today, so a FUTURE-day entry
+            // would be invisible and undeletable until that day arrives. The
+            // screen hides the button on future days; this guard covers a
+            // stale UI (e.g. the list rendered before midnight).
+            if (meal.epochDay > LocalDate.now().toEpochDay()) return@launch
             val n = nutrition.value[meal.recipeId] ?: return@launch
             diaryRepository.logSnapshot(
                 name = n.name,

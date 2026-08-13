@@ -1,11 +1,13 @@
 package com.nutricart.app.data.repository
 
+import com.nutricart.app.data.local.AppDatabase
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.WeightDao
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.WeightSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -21,6 +23,7 @@ class ProfileRepository @Inject constructor(
     private val profileDao: ProfileDao,
     private val weightDao: WeightDao,
     private val settings: SettingsDataStore,
+    private val db: AppDatabase,
 ) {
     fun observeProfile(): Flow<UserProfileEntity?> = profileDao.observeProfile()
 
@@ -46,17 +49,21 @@ class ProfileRepository @Inject constructor(
     }
 
     /**
-     * "Reset the app": wipes all saved data and clears the onboarding flag,
-     * which automatically sends the UI back to the questionnaire.
+     * "Reset the app": wipes ALL saved data — every Room table (diary, plan,
+     * shopping list, activity, workouts, water, recipes...) and every DataStore
+     * key — and thereby clears the onboarding flag, which sends the UI back to
+     * the questionnaire. clearAllTables() beats per-DAO deletes: a table added
+     * later can never be forgotten here (that exact bug shipped in v0.2–v0.8).
+     * Recipes re-seed from assets on the next screen that touches them.
      */
     suspend fun resetAll() {
         // NonCancellable: once started, the reset must run to completion even if
         // the calling screen dies mid-way. A half-done reset could leave
         // "onboarding completed" pointing at an already-empty database.
-        withContext(NonCancellable) {
-            profileDao.deleteAll()
-            weightDao.deleteAll()
-            settings.setOnboardingCompleted(false)
+        // IO dispatcher: clearAllTables() is a blocking call.
+        withContext(NonCancellable + Dispatchers.IO) {
+            db.clearAllTables()
+            settings.resetAll()
         }
     }
 

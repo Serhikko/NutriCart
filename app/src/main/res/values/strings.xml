@@ -201,6 +201,39 @@
     <string name="sync_failed">Couldn\'t refresh data from Health Connect. Pull down to try again.</string>
     <string name="no_data_dash" translatable="false">—</string>
 
+    <!-- Workouts -->
+    <string name="active_kcal_label">Active calories</string>
+    <string name="workouts_section_title">Workouts</string>
+    <string name="workouts_empty">No workouts yet today.</string>
+    <string name="workout_add">Add workout</string>
+    <string name="workout_type_label">Exercise</string>
+    <string name="workout_minutes_label">Minutes</string>
+    <string name="workout_reps_label">Repetitions</string>
+    <string name="workout_reps_value" translatable="false">×%1$d</string>
+    <string name="workout_source_watch">watch</string>
+    <string name="workout_source_manual">manual</string>
+    <string name="workout_delete">Delete workout</string>
+    <string name="workout_dialog_hint">Workouts recorded by your watch are counted automatically — log only what the watch didn\'t track.</string>
+    <string name="target_activity_bonus">Target raised by %1$d kcal for today\'s activity.</string>
+    <string name="workout_running">Running</string>
+    <string name="workout_treadmill_walk">Treadmill walk</string>
+    <string name="workout_walking">Walking</string>
+    <string name="workout_hiking">Hiking</string>
+    <string name="workout_cycling">Cycling</string>
+    <string name="workout_swimming">Swimming</string>
+    <string name="workout_strength">Strength training</string>
+    <string name="workout_hiit">HIIT</string>
+    <string name="workout_jump_rope">Jump rope</string>
+    <string name="workout_football">Football</string>
+    <string name="workout_basketball">Basketball</string>
+    <string name="workout_yoga">Yoga</string>
+    <string name="workout_other">Other (moderate)</string>
+    <string name="workout_push_ups">Push-ups</string>
+    <string name="workout_squats">Squats</string>
+    <string name="workout_pull_ups">Pull-ups</string>
+    <string name="workout_sit_ups">Sit-ups</string>
+    <string name="workout_generic">Workout</string>
+
     <!-- Health Connect states -->
     <string name="hc_banner_not_installed">Install Health Connect to sync steps, calories and weight from your watch.</string>
     <string name="hc_banner_update">Health Connect needs an update to work with NutriCart.</string>

@@ -12,6 +12,7 @@ import com.nutricart.app.data.local.dao.RecipeDao
 import com.nutricart.app.data.local.dao.ShoppingDao
 import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
+import com.nutricart.app.data.local.dao.WorkoutDao
 import com.nutricart.app.data.local.entity.DailyActivityEntity
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
 import com.nutricart.app.data.local.entity.FoodProductEntity
@@ -24,6 +25,7 @@ import com.nutricart.app.data.local.entity.ShoppingListItemEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WaterEntryEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
+import com.nutricart.app.data.local.entity.WorkoutEntryEntity
 
 // Every version bump needs a matching Migration in DatabaseModule.
 @Database(
@@ -40,8 +42,9 @@ import com.nutricart.app.data.local.entity.WeightEntryEntity
         PlannedMealEntity::class,
         ShoppingListItemEntity::class,
         WaterEntryEntity::class,
+        WorkoutEntryEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)
@@ -55,4 +58,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun planDao(): PlanDao
     abstract fun shoppingDao(): ShoppingDao
     abstract fun waterDao(): WaterDao
+    abstract fun workoutDao(): WorkoutDao
 }

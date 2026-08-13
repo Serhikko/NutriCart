@@ -14,6 +14,7 @@ import com.nutricart.app.data.local.dao.RecipeDao
 import com.nutricart.app.data.local.dao.ShoppingDao
 import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
+import com.nutricart.app.data.local.dao.WorkoutDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -227,6 +228,38 @@ private val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+/**
+ * v7 -> v8: adds the workout log (manual entries + imported watch sessions).
+ * The unique index on hcSessionId de-duplicates re-synced Health Connect
+ * sessions; SQLite ignores NULLs in unique indexes, so manual rows never clash.
+ */
+private val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `workout_entry` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `epochDay` INTEGER NOT NULL,
+                `source` TEXT NOT NULL,
+                `hcSessionId` TEXT,
+                `hcExerciseType` INTEGER,
+                `type` TEXT,
+                `title` TEXT,
+                `minutes` INTEGER,
+                `reps` INTEGER,
+                `kcal` REAL,
+                `loggedAtEpochMillis` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_entry_epochDay` ON `workout_entry` (`epochDay`)")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_workout_entry_hcSessionId` " +
+                "ON `workout_entry` (`hcSessionId`)"
+        )
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -238,7 +271,7 @@ object DatabaseModule {
         Room.databaseBuilder(context, AppDatabase::class.java, "nutricart.db")
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
             )
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
@@ -271,4 +304,7 @@ object DatabaseModule {
 
     @Provides
     fun provideWaterDao(db: AppDatabase): WaterDao = db.waterDao()
+
+    @Provides
+    fun provideWorkoutDao(db: AppDatabase): WorkoutDao = db.workoutDao()
 }

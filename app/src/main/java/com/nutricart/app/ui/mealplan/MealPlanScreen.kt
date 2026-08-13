@@ -132,6 +132,10 @@ fun MealPlanScreen(
                         // While a generation runs the plan is being rewritten —
                         // freeze the per-meal actions to avoid racing it.
                         actionsEnabled = !state.generating,
+                        // The diary cannot browse into the future, so logging a
+                        // future meal would create an entry the user can't see
+                        // or delete until that day — offer "+" only for today.
+                        canLogToDiary = day.epochDay <= LocalDate.now().toEpochDay(),
                         onOpenRecipe = onOpenRecipe,
                         onToggleLock = viewModel::toggleLock,
                         onSwap = viewModel::swap,
@@ -149,6 +153,7 @@ private fun DayCard(
     day: PlanDayUi,
     targetKcal: Int,
     actionsEnabled: Boolean,
+    canLogToDiary: Boolean,
     onOpenRecipe: (Long, Double) -> Unit,
     onToggleLock: (PlanMealUi) -> Unit,
     onSwap: (PlanMealUi) -> Unit,
@@ -183,6 +188,7 @@ private fun DayCard(
                 MealRow(
                     meal = meal,
                     actionsEnabled = actionsEnabled,
+                    canLogToDiary = canLogToDiary,
                     onClick = { onOpenRecipe(meal.recipeId, meal.portionFactor) },
                     onToggleLock = { onToggleLock(meal) },
                     onSwap = { onSwap(meal) },
@@ -197,6 +203,7 @@ private fun DayCard(
 private fun MealRow(
     meal: PlanMealUi,
     actionsEnabled: Boolean,
+    canLogToDiary: Boolean,
     onClick: () -> Unit,
     onToggleLock: () -> Unit,
     onSwap: () -> Unit,
@@ -238,11 +245,13 @@ private fun MealRow(
                 contentDescription = stringResource(R.string.swap_meal),
             )
         }
-        IconButton(onClick = onAddToDiary, enabled = actionsEnabled) {
-            Icon(
-                Icons.Filled.Add,
-                contentDescription = stringResource(R.string.log_meal),
-            )
+        if (canLogToDiary) {
+            IconButton(onClick = onAddToDiary, enabled = actionsEnabled) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.log_meal),
+                )
+            }
         }
     }
 }
