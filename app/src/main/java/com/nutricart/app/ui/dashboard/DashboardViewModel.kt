@@ -17,6 +17,7 @@ import com.nutricart.app.data.repository.SyncResult
 import com.nutricart.app.data.repository.WaterRepository
 import com.nutricart.app.data.repository.WorkoutRepository
 import com.nutricart.app.domain.logic.CalorieCalculator
+import com.nutricart.app.domain.logic.DailyTargetMath
 import com.nutricart.app.domain.logic.NutrientTargets
 import com.nutricart.app.domain.logic.StreakCalculator
 import com.nutricart.app.domain.logic.WeightTrendCalculator
@@ -241,20 +242,19 @@ class DashboardViewModel @Inject constructor(
                 .filter { it.source == WorkoutSource.MANUAL }
                 .sumOf { it.kcal ?: 0.0 }
 
-            // Manual override: the user's number replaces BOTH formulas —
-            // the watch no longer switches anything, only manual workouts add.
+            // The one shared day-target rule (DailyTargetMath): manual override
+            // beats both formulas; watch data switches the formula otherwise;
+            // manual workouts always add. Statistics reuses the same function.
             val customKcal = profile.customKcalTarget
-            val baseTarget = customKcal?.toDouble() ?: CalorieCalculator.baseTargetKcal(
+            val baseTarget = DailyTargetMath.referenceKcal(
+                profile.sex, weight.weightKg, profile.heightCm.toDouble(), age,
+                profile.activityLevel, profile.goal, profile.targetKgPerWeek, customKcal,
+            )
+            val targetKcal = DailyTargetMath.dayTargetKcal(
                 profile.sex, weight.weightKg, profile.heightCm.toDouble(), age,
                 profile.activityLevel, profile.goal, profile.targetKgPerWeek,
+                customKcal, activeKcal, manualWorkoutKcal,
             )
-            val targetKcal = manualWorkoutKcal + if (customKcal == null && activeKcal != null) {
-                CalorieCalculator.adjustedTargetKcal(
-                    profile.sex, bmr, profile.goal, profile.targetKgPerWeek, activeKcal,
-                )
-            } else {
-                baseTarget
-            }
             val targets = if (
                 customKcal != null && profile.customProteinG != null &&
                 profile.customFatG != null && profile.customCarbsG != null

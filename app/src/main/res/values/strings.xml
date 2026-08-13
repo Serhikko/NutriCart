@@ -239,6 +239,32 @@
     <string name="target_carbs_label">Carbs (g)</string>
     <string name="target_invalid">Out of the sane range</string>
 
+    <!-- Statistics -->
+    <string name="tab_stats">Stats</string>
+    <string name="stats_title">Statistics</string>
+    <string name="stats_range_week">Week</string>
+    <string name="stats_range_month">Month</string>
+    <string name="stats_range_90">90 days</string>
+    <string name="stats_chart_title">Calories by day</string>
+    <string name="stats_avg_target_note">Dashed line — average target: %1$d kcal</string>
+    <string name="stats_summary_title">Averages (logged days)</string>
+    <string name="stats_avg_kcal">Calories per day</string>
+    <string name="stats_days_on_plan">Days on plan</string>
+    <string name="stats_days_value">%1$d of %2$d</string>
+    <string name="stats_no_data">No diary entries in this period yet.</string>
+    <string name="stats_calendar_title">Adherence calendar</string>
+    <string name="stats_prev_month">Previous month</string>
+    <string name="stats_next_month">Next month</string>
+    <string name="stats_analysis_title">Diet analysis</string>
+    <string name="stats_top_sources_title">Top sources over the period</string>
+    <string name="stats_no_sources">No data for this nutrient yet.</string>
+    <string name="insight_all_good">No gaps or excesses — keep it up!</string>
+    <string name="insight_protein_low">On average protein falls short: %1$.1f of %2$d g</string>
+    <string name="insight_fiber_low">On average fiber falls short: %1$.1f of %2$d g</string>
+    <string name="insight_sugar_high">Sugar is above the limit: %1$.1f g vs %2$d g</string>
+    <string name="insight_salt_high">Salt is above the limit: %1$.1f g vs %2$d g</string>
+    <string name="insight_sat_fat_high">Saturated fat is above the limit: %1$.1f g vs %2$d g</string>
+
     <!-- Favorites and frequent foods -->
     <string name="favorites_chip">Favorites</string>
     <string name="favorites_empty">No favorites yet — tap the star on any food.</string>

@@ -7,6 +7,31 @@ import androidx.room.Query
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
 import kotlinx.coroutines.flow.Flow
 
+/** Eaten kcal of one day — a bar of the statistics chart. */
+data class DayKcal(
+    val epochDay: Long,
+    val kcal: Double,
+)
+
+/** Range sums + how many days actually have entries (for honest averages). */
+data class RangeNutritionTotals(
+    val kcal: Double,
+    val proteinG: Double,
+    val fatG: Double,
+    val carbsG: Double,
+    val fiberG: Double,
+    val sugarsG: Double,
+    val saltG: Double,
+    val saturatedFatG: Double,
+    val loggedDays: Int,
+)
+
+/** One food and how much of a nutrient it contributed over a range. */
+data class FoodContribution(
+    val name: String,
+    val amount: Double,
+)
+
 /**
  * Summed nutrition of one diary day (COALESCE turns "no rows" into 0).
  * Detail nutrients sum only the entries that KNOW their value (SQL SUM
@@ -47,6 +72,72 @@ interface FoodLogDao {
     /** Which days have at least one entry — feeds the dashboard streak. */
     @Query("SELECT DISTINCT epochDay FROM food_log_entry")
     fun observeLoggedDays(): Flow<List<Long>>
+
+    // --- Statistics range queries (v0.12) ---
+
+    @Query(
+        """
+        SELECT epochDay, SUM(kcal) AS kcal FROM food_log_entry
+        WHERE epochDay BETWEEN :from AND :to
+        GROUP BY epochDay
+        """
+    )
+    suspend fun dayKcalBetween(from: Long, to: Long): List<DayKcal>
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(kcal), 0) AS kcal,
+               COALESCE(SUM(proteinG), 0) AS proteinG,
+               COALESCE(SUM(fatG), 0) AS fatG,
+               COALESCE(SUM(carbsG), 0) AS carbsG,
+               COALESCE(SUM(fiberG), 0) AS fiberG,
+               COALESCE(SUM(sugarsG), 0) AS sugarsG,
+               COALESCE(SUM(saltG), 0) AS saltG,
+               COALESCE(SUM(saturatedFatG), 0) AS saturatedFatG,
+               COUNT(DISTINCT epochDay) AS loggedDays
+        FROM food_log_entry WHERE epochDay BETWEEN :from AND :to
+        """
+    )
+    suspend fun rangeTotals(from: Long, to: Long): RangeNutritionTotals
+
+    // Four almost-identical queries instead of one clever parameterized SQL:
+    // a column name cannot be a bind parameter, and copy-paste beats string
+    // concatenation into raw queries. HAVING > 0 drops all-null foods.
+    @Query(
+        """
+        SELECT name, SUM(proteinG) AS amount FROM food_log_entry
+        WHERE epochDay BETWEEN :from AND :to
+        GROUP BY name HAVING amount > 0 ORDER BY amount DESC LIMIT 5
+        """
+    )
+    suspend fun topProteinSources(from: Long, to: Long): List<FoodContribution>
+
+    @Query(
+        """
+        SELECT name, SUM(fatG) AS amount FROM food_log_entry
+        WHERE epochDay BETWEEN :from AND :to
+        GROUP BY name HAVING amount > 0 ORDER BY amount DESC LIMIT 5
+        """
+    )
+    suspend fun topFatSources(from: Long, to: Long): List<FoodContribution>
+
+    @Query(
+        """
+        SELECT name, SUM(carbsG) AS amount FROM food_log_entry
+        WHERE epochDay BETWEEN :from AND :to
+        GROUP BY name HAVING amount > 0 ORDER BY amount DESC LIMIT 5
+        """
+    )
+    suspend fun topCarbSources(from: Long, to: Long): List<FoodContribution>
+
+    @Query(
+        """
+        SELECT name, SUM(sugarsG) AS amount FROM food_log_entry
+        WHERE epochDay BETWEEN :from AND :to
+        GROUP BY name HAVING amount > 0 ORDER BY amount DESC LIMIT 5
+        """
+    )
+    suspend fun topSugarSources(from: Long, to: Long): List<FoodContribution>
 
     @Insert
     suspend fun insert(entry: FoodLogEntryEntity)

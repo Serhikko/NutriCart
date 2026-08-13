@@ -233,6 +233,32 @@
     <string name="target_carbs_label">Вуглеводи (г)</string>
     <string name="target_invalid">Поза розумним діапазоном</string>
 
+    <!-- Statistics -->
+    <string name="tab_stats">Статистика</string>
+    <string name="stats_title">Статистика</string>
+    <string name="stats_range_week">Тиждень</string>
+    <string name="stats_range_month">Місяць</string>
+    <string name="stats_range_90">90 днів</string>
+    <string name="stats_chart_title">Калорії по днях</string>
+    <string name="stats_avg_target_note">Пунктир — середня ціль: %1$d ккал</string>
+    <string name="stats_summary_title">Середнє (дні з записами)</string>
+    <string name="stats_avg_kcal">Калорій на день</string>
+    <string name="stats_days_on_plan">Днів у нормі</string>
+    <string name="stats_days_value">%1$d з %2$d</string>
+    <string name="stats_no_data">У цьому періоді ще немає записів щоденника.</string>
+    <string name="stats_calendar_title">Календар дисципліни</string>
+    <string name="stats_prev_month">Попередній місяць</string>
+    <string name="stats_next_month">Наступний місяць</string>
+    <string name="stats_analysis_title">Аналіз раціону</string>
+    <string name="stats_top_sources_title">Топ-джерела за період</string>
+    <string name="stats_no_sources">Ще немає даних для цього нутрієнта.</string>
+    <string name="insight_all_good">Без прогалин і надлишків — так тримати!</string>
+    <string name="insight_protein_low">У середньому бракує білка: %1$.1f з %2$d г</string>
+    <string name="insight_fiber_low">У середньому бракує клітковини: %1$.1f з %2$d г</string>
+    <string name="insight_sugar_high">Цукру забагато: %1$.1f г при ліміті %2$d г</string>
+    <string name="insight_salt_high">Солі забагато: %1$.1f г при ліміті %2$d г</string>
+    <string name="insight_sat_fat_high">Насичених жирів забагато: %1$.1f г при ліміті %2$d г</string>
+
     <!-- Favorites and frequent foods -->
     <string name="favorites_chip">Улюблені</string>
     <string name="favorites_empty">Ще немає улюблених — натисни зірочку на будь-якому продукті.</string>

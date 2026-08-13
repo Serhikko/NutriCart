@@ -12,6 +12,10 @@ interface ActivityDao {
     @Query("SELECT * FROM daily_activity WHERE epochDay = :epochDay")
     fun observeDay(epochDay: Long): Flow<DailyActivityEntity?>
 
+    /** Range read for the statistics screen (historical day targets). */
+    @Query("SELECT * FROM daily_activity WHERE epochDay BETWEEN :from AND :to")
+    suspend fun daysBetween(from: Long, to: Long): List<DailyActivityEntity>
+
     @Upsert
     suspend fun upsert(day: DailyActivityEntity)
 }

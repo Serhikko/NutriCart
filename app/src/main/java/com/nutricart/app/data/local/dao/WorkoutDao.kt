@@ -31,6 +31,19 @@ interface WorkoutDao {
     suspend fun deleteHealthConnectForDay(epochDay: Long)
 
     /**
+     * Manual workout kcal per day over a range — the statistics screen adds
+     * these to each day's historical target (watch kcal is inside activeKcal).
+     */
+    @Query(
+        """
+        SELECT epochDay, COALESCE(SUM(kcal), 0) AS kcal FROM workout_entry
+        WHERE source = 'MANUAL' AND epochDay BETWEEN :from AND :to
+        GROUP BY epochDay
+        """
+    )
+    suspend fun manualKcalByDay(from: Long, to: Long): List<DayKcal>
+
+    /**
      * REPLACE on purpose: a session's day is recomputed from the CURRENT
      * timezone on every sync, so a stored session can MOVE to another day
      * (travel, or its start edited in the watch app). The default ABORT would

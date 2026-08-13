@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -41,6 +42,7 @@ import com.nutricart.app.ui.mealplan.RecipeDetailScreen
 import com.nutricart.app.ui.onboarding.OnboardingScreen
 import com.nutricart.app.ui.settings.SettingsScreen
 import com.nutricart.app.ui.shopping.ShoppingScreen
+import com.nutricart.app.ui.stats.StatsScreen
 
 /** Route names in one place, so there are no magic strings scattered around. */
 object Routes {
@@ -48,6 +50,7 @@ object Routes {
     const val PLAN = "meal_plan"
     const val SHOPPING = "shopping"
     const val DIARY = "diary"
+    const val STATS = "stats"
     const val SETTINGS = "settings"
 
     // Patterns with placeholders + helpers that fill them in.
@@ -118,6 +121,12 @@ private fun AppNavHost() {
                         icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_diary)) },
                     )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.STATS,
+                        onClick = { navController.navigateToTab(Routes.STATS) },
+                        icon = { Icon(Icons.Filled.Star, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_stats)) },
+                    )
                 }
             }
         },
@@ -180,6 +189,9 @@ private fun AppNavHost() {
                     },
                 )
             }
+            composable(Routes.STATS) {
+                StatsScreen()
+            }
             composable(Routes.SETTINGS) {
                 SettingsScreen(onBack = goBack)
             }
@@ -206,7 +218,8 @@ private fun NavHostController.navigateToTab(route: String) {
     }
 }
 
-private val TAB_ROUTES = setOf(Routes.DASHBOARD, Routes.PLAN, Routes.SHOPPING, Routes.DIARY)
+private val TAB_ROUTES =
+    setOf(Routes.DASHBOARD, Routes.PLAN, Routes.SHOPPING, Routes.DIARY, Routes.STATS)
 
 private fun bothAreTabs(from: String?, to: String?): Boolean =
     from in TAB_ROUTES && to in TAB_ROUTES
