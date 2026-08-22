@@ -19,15 +19,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,64 +55,55 @@ import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** Statistics tab: kcal-by-day chart, honest averages, days on plan. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The "how am I doing over time" body of the Today screen: kcal-by-day chart,
+ * adherence calendar, honest averages, diet analysis.
+ *
+ * It owns no chrome — the screen above it draws the app bar and the range
+ * chips and hands the chosen [range] down.
+ */
 @Composable
-fun StatsScreen(viewModel: StatsViewModel = hiltViewModel()) {
+fun StatsBody(range: StatsRange, viewModel: StatsViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
 
-    // Fresh numbers every time the tab comes back to the foreground.
-    LifecycleResumeEffect(Unit) {
-        viewModel.refresh()
+    // Loads on entry, on every range change, and on every resume WHILE THIS
+    // BODY IS ON SCREEN. The last part matters twice: it rolls the window over
+    // at midnight, and it picks up a watch sync that just landed. It still
+    // costs nothing for someone sitting on the "Today" chip — this composable
+    // does not exist then, so the 90-day queries never run for them.
+    LifecycleResumeEffect(range) {
+        viewModel.selectRange(range)
         onPauseOrDispose { }
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.stats_title)) }) },
-    ) { innerPadding ->
-        if (state.loading) {
-            LoadingBox(modifier = Modifier.padding(innerPadding))
-            return@Scaffold
+    if (state.loading) {
+        LoadingBox()
+        return
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        KcalChartCard(state)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        CalendarCard(
+            state = state,
+            onPreviousMonth = viewModel::previousMonth,
+            onNextMonth = viewModel::nextMonth,
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        AveragesCard(state)
+
+        if (state.loggedDays > 0) {
+            Spacer(modifier = Modifier.height(16.dp))
+            AnalysisCard(state)
         }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RangeChip(R.string.stats_range_week, state.range == StatsRange.WEEK) {
-                    viewModel.selectRange(StatsRange.WEEK)
-                }
-                RangeChip(R.string.stats_range_month, state.range == StatsRange.MONTH) {
-                    viewModel.selectRange(StatsRange.MONTH)
-                }
-                RangeChip(R.string.stats_range_90, state.range == StatsRange.NINETY) {
-                    viewModel.selectRange(StatsRange.NINETY)
-                }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            KcalChartCard(state)
-
-            Spacer(modifier = Modifier.height(16.dp))
-            CalendarCard(
-                state = state,
-                onPreviousMonth = viewModel::previousMonth,
-                onNextMonth = viewModel::nextMonth,
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-            AveragesCard(state)
-
-            if (state.loggedDays > 0) {
-                Spacer(modifier = Modifier.height(16.dp))
-                AnalysisCard(state)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -358,15 +346,6 @@ private fun DayCell(
             color = textColor,
         )
     }
-}
-
-@Composable
-private fun RangeChip(labelRes: Int, selected: Boolean, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(stringResource(labelRes)) },
-    )
 }
 
 @Composable

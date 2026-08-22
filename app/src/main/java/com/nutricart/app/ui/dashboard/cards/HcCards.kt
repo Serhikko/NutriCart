@@ -9,16 +9,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nutricart.app.R
 import com.nutricart.app.ui.dashboard.HcBannerState
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 internal const val HEALTH_CONNECT_PLAY_URL =
     "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata"
@@ -55,18 +50,4 @@ internal fun HcBannerCard(
             }
         }
     }
-}
-
-@Composable
-internal fun LastSyncedText(epochMillis: Long) {
-    val formatter = remember { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT) }
-    val text = Instant.ofEpochMilli(epochMillis)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDateTime()
-        .format(formatter)
-    Text(
-        stringResource(R.string.last_synced, text),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }

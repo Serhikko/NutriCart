@@ -3,6 +3,8 @@ package com.nutricart.app.ui.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nutricart.app.data.health.HcAvailability
+import com.nutricart.app.data.health.HealthConnectManager
 import com.nutricart.app.data.local.entity.RecurringWorkoutEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.repository.ProfileRepository
@@ -67,6 +69,9 @@ data class SettingsUiState(
     val createdAtEpochMillis: Long = 0L,
     // The weight the form was opened with — used to detect a real edit.
     val initialWeightKg: Double? = null,
+    /** Health Connect diagnostics, moved here off the dashboard. */
+    val hcAvailable: Boolean = false,
+    val lastSyncEpochMillis: Long? = null,
     val saved: Boolean = false,
     val showResetDialog: Boolean = false,
 ) {
@@ -112,6 +117,7 @@ class SettingsViewModel @Inject constructor(
     private val repository: ProfileRepository,
     private val workoutRepository: WorkoutRepository,
     private val settings: SettingsDataStore,
+    healthConnectManager: HealthConnectManager,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -119,6 +125,18 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
+        // Health Connect diagnostics live here now. The "open Health Connect
+        // settings" intent resolves nowhere when the app is missing, so the
+        // whole section only exists when Health Connect is really installed.
+        _uiState.update {
+            it.copy(hcAvailable = healthConnectManager.availability() == HcAvailability.AVAILABLE)
+        }
+        viewModelScope.launch {
+            settings.lastHcSyncEpochMillis.collect { millis ->
+                _uiState.update { it.copy(lastSyncEpochMillis = millis) }
+            }
+        }
+
         // Load the saved profile and latest weight once into the editable form.
         viewModelScope.launch {
             val profile = repository.observeProfile().filterNotNull().first()

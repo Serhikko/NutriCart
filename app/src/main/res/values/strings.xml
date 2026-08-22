@@ -187,7 +187,6 @@
     <string name="weight_trend_value">%1$+.1f kg/week</string>
     <string name="weight_chart_hint">Log a few more weigh-ins — the chart appears from two different days.</string>
     <string name="weight_kg_value">%1$.1f kg</string>
-    <string name="dashboard_placeholder_note">All v1 features are in. Enjoy!</string>
     <string name="steps_label">Steps</string>
     <string name="calories_out_label">Calories out</string>
     <string name="exercise_label">Exercise</string>
@@ -268,8 +267,6 @@
     <string name="day_note_hint">Anything worth remembering about this day</string>
 
     <!-- Statistics -->
-    <string name="tab_stats">Stats</string>
-    <string name="stats_title">Statistics</string>
     <string name="stats_range_week">Week</string>
     <string name="stats_range_month">Month</string>
     <string name="stats_range_90">90 days</string>
@@ -358,6 +355,7 @@
     <string name="hc_install">Install</string>
     <string name="hc_update">Update</string>
     <string name="hc_grant">Allow access</string>
+    <string name="hc_section">Health Connect</string>
     <string name="hc_open_settings">Check data sources in Health Connect</string>
     <string name="hc_no_data_hint">Health Connect is connected, but has no steps or calories yet. If you use a watch: open its companion app (e.g. Samsung Health → Settings → Health Connect) and turn on sharing with Health Connect, then pull down here to refresh.</string>
 

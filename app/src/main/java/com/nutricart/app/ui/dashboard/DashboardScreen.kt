@@ -7,9 +7,14 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +31,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -35,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,11 +59,24 @@ import com.nutricart.app.ui.dashboard.cards.AddWorkoutDialog
 import com.nutricart.app.ui.dashboard.cards.HEALTH_CONNECT_PLAY_URL
 import com.nutricart.app.ui.dashboard.cards.HcBannerCard
 import com.nutricart.app.ui.dashboard.cards.HeroRing
-import com.nutricart.app.ui.dashboard.cards.LastSyncedText
 import com.nutricart.app.ui.dashboard.cards.MacroCard
 import com.nutricart.app.ui.dashboard.cards.TodayMenuCard
 import com.nutricart.app.ui.dashboard.cards.WaterCard
 import com.nutricart.app.ui.dashboard.cards.WeightCard
+import com.nutricart.app.ui.stats.StatsBody
+import com.nutricart.app.ui.stats.StatsRange
+
+/**
+ * The four horizons of this screen. One question — "how am I doing" — over
+ * one day or over a stretch of days, so TODAY shows the dashboard and the
+ * other three show the statistics body. [statsRange] is null for TODAY only.
+ */
+enum class TodayRange(val labelRes: Int, val statsRange: StatsRange?) {
+    TODAY(R.string.tab_today, null),
+    WEEK(R.string.stats_range_week, StatsRange.WEEK),
+    MONTH(R.string.stats_range_month, StatsRange.MONTH),
+    NINETY(R.string.stats_range_90, StatsRange.NINETY),
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,9 +86,10 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
-    val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var range by rememberSaveable { mutableStateOf(TodayRange.TODAY) }
+    val bodyState = rememberSaveableStateHolder()
 
     // Sync every time the screen comes to the foreground (first open included).
     LifecycleResumeEffect(Unit) {
@@ -120,137 +140,176 @@ fun DashboardScreen(
             )
         },
     ) { innerPadding ->
-        PullToRefreshBox(
-            isRefreshing = state.refreshing,
-            onRefresh = viewModel::refresh,
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            if (state.loading) {
-                LoadingBox()
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    // Freeze the banner content during its exit animation:
-                    // while it shrinks away the state is already NONE, which
-                    // would otherwise flash the wrong text for a moment.
-                    var shownBanner by remember { mutableStateOf(state.hcBanner) }
-                    if (state.hcBanner != HcBannerState.NONE) shownBanner = state.hcBanner
+            RangeChips(selected = range, onSelect = { range = it })
 
-                    // Banners slide in and out instead of popping.
-                    AnimatedVisibility(
-                        visible = state.hcBanner != HcBannerState.NONE,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically(),
-                    ) {
-                        Column {
-                            HcBannerCard(
-                                banner = shownBanner,
-                                onInstallOrUpdate = { uriHandler.openUri(HEALTH_CONNECT_PLAY_URL) },
-                                onGrant = { permissionLauncher.launch(viewModel.healthPermissions) },
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
-                    AnimatedVisibility(
-                        visible = state.showNoDataHint,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically(),
-                    ) {
-                        Column {
-                            Card {
-                                Text(
-                                    stringResource(R.string.hc_no_data_hint),
-                                    modifier = Modifier.padding(16.dp),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
-
-                    HeroRing(state)
-
-                    if (state.streakDays >= 2) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.streak_value, state.streakDays),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.tertiary,
-                        )
-                    }
-
-                    if (state.todayMenu.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        TodayMenuCard(menu = state.todayMenu, onOpenRecipe = onOpenRecipe)
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-                    MacroCard(state)
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    WaterCard(
-                        waterMl = state.waterMl,
-                        onAdd = viewModel::addWater,
-                        onUndo = viewModel::undoWater,
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    var showAddWorkout by rememberSaveable { mutableStateOf(false) }
-                    ActivityCard(
-                        state = state,
-                        onAddWorkout = { showAddWorkout = true },
-                        onDeleteWorkout = viewModel::deleteWorkout,
-                    )
-                    if (showAddWorkout) {
-                        AddWorkoutDialog(
-                            weightKg = state.weightKg,
-                            onConfirm = { type, amount ->
-                                viewModel.addWorkout(type, amount)
-                                showAddWorkout = false
+            // The body is SWAPPED, never appended: this screen can hold four
+            // horizons without ever growing into an endless scroll.
+            // weight(1f), not fillMaxSize: the body must take what is LEFT
+            // under the chip row, not the whole screen height.
+            Box(modifier = Modifier.weight(1f)) {
+                val statsRange = range.statsRange
+                // Swapping the body would otherwise throw away its scroll
+                // position and its own inner state. One saved slot per body
+                // (today / statistics) keeps both where the user left them,
+                // exactly as separate tabs used to.
+                bodyState.SaveableStateProvider(key = statsRange == null) {
+                    if (statsRange == null) {
+                        DashboardBody(
+                            state = state,
+                            viewModel = viewModel,
+                            onOpenRecipe = onOpenRecipe,
+                            onGrantPermissions = {
+                                permissionLauncher.launch(viewModel.healthPermissions)
                             },
-                            onDismiss = { showAddWorkout = false },
                         )
+                    } else {
+                        StatsBody(statsRange)
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    WeightCard(state)
-
-                    // Numbers look wrong (e.g. watch steps missing)? Let the
-                    // user inspect Health Connect's own sources and priorities.
-                    // Only when HC is actually usable — with no HC installed
-                    // this intent would resolve nowhere and crash.
-                    if (state.hcBanner == HcBannerState.NONE) {
-                        TextButton(
-                            onClick = {
-                                context.startActivity(
-                                    Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)
-                                )
-                            },
-                        ) {
-                            Text(stringResource(R.string.hc_open_settings))
-                        }
-                    }
-
-                    state.lastSyncEpochMillis?.let { millis ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        LastSyncedText(millis)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        stringResource(R.string.dashboard_placeholder_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
+            }
+        }
+    }
+}
+
+/** Today / Week / Month / 90 days. Scrolls sideways on narrow phones. */
+@Composable
+private fun RangeChips(selected: TodayRange, onSelect: (TodayRange) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TodayRange.entries.forEach { option ->
+            FilterChip(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                label = { Text(stringResource(option.labelRes)) },
+            )
+        }
+    }
+}
+
+/** Everything about TODAY: the ring, the cards and the pull-to-refresh sync. */
+@Composable
+private fun DashboardBody(
+    state: DashboardUiState,
+    viewModel: DashboardViewModel,
+    onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
+    onGrantPermissions: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+
+    PullToRefreshBox(
+        isRefreshing = state.refreshing,
+        onRefresh = viewModel::refresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        if (state.loading) {
+            LoadingBox()
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // Freeze the banner content during its exit animation:
+                // while it shrinks away the state is already NONE, which
+                // would otherwise flash the wrong text for a moment.
+                var shownBanner by remember { mutableStateOf(state.hcBanner) }
+                if (state.hcBanner != HcBannerState.NONE) shownBanner = state.hcBanner
+
+                // Banners slide in and out instead of popping.
+                AnimatedVisibility(
+                    visible = state.hcBanner != HcBannerState.NONE,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    Column {
+                        HcBannerCard(
+                            banner = shownBanner,
+                            onInstallOrUpdate = { uriHandler.openUri(HEALTH_CONNECT_PLAY_URL) },
+                            onGrant = onGrantPermissions,
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+                AnimatedVisibility(
+                    visible = state.showNoDataHint,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    Column {
+                        Card {
+                            Text(
+                                stringResource(R.string.hc_no_data_hint),
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+
+                HeroRing(state)
+
+                if (state.streakDays >= 2) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.streak_value, state.streakDays),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+
+                if (state.todayMenu.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    TodayMenuCard(menu = state.todayMenu, onOpenRecipe = onOpenRecipe)
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                MacroCard(state)
+
+                Spacer(modifier = Modifier.height(16.dp))
+                WaterCard(
+                    waterMl = state.waterMl,
+                    onAdd = viewModel::addWater,
+                    onUndo = viewModel::undoWater,
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                var showAddWorkout by rememberSaveable { mutableStateOf(false) }
+                ActivityCard(
+                    state = state,
+                    onAddWorkout = { showAddWorkout = true },
+                    onDeleteWorkout = viewModel::deleteWorkout,
+                )
+                if (showAddWorkout) {
+                    AddWorkoutDialog(
+                        weightKg = state.weightKg,
+                        onConfirm = { type, amount ->
+                            viewModel.addWorkout(type, amount)
+                            showAddWorkout = false
+                        },
+                        onDismiss = { showAddWorkout = false },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                WeightCard(state)
+
+                // "Last synced" and the Health Connect settings shortcut used
+                // to sit here; they are diagnostics, not today's numbers, and
+                // now live in Settings > Health Connect.
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

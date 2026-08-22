@@ -182,7 +182,6 @@
     <string name="weight_trend_value">%1$+.1f кг/тижд.</string>
     <string name="weight_chart_hint">Додай ще кілька вимірів — графік з\'являється з двох різних днів.</string>
     <string name="weight_kg_value">%1$.1f кг</string>
-    <string name="dashboard_placeholder_note">Усі функції v1 на місці. Смачного!</string>
     <string name="steps_label">Кроки</string>
     <string name="calories_out_label">Витрачено калорій</string>
     <string name="exercise_label">Тренування</string>
@@ -262,8 +261,6 @@
     <string name="day_note_hint">Що варто запам\'ятати про цей день</string>
 
     <!-- Statistics -->
-    <string name="tab_stats">Статистика</string>
-    <string name="stats_title">Статистика</string>
     <string name="stats_range_week">Тиждень</string>
     <string name="stats_range_month">Місяць</string>
     <string name="stats_range_90">90 днів</string>
@@ -351,6 +348,7 @@
     <string name="hc_install">Встановити</string>
     <string name="hc_update">Оновити</string>
     <string name="hc_grant">Надати доступ</string>
+    <string name="hc_section">Health Connect</string>
     <string name="hc_open_settings">Перевірити джерела даних у Health Connect</string>
     <string name="hc_no_data_hint">Health Connect підключено, але кроків чи калорій там ще немає. Якщо користуєшся годинником: відкрий його застосунок (напр. Samsung Health → Налаштування → Health Connect) і увімкни передачу даних у Health Connect, потім потягни тут вниз для оновлення.</string>
 
