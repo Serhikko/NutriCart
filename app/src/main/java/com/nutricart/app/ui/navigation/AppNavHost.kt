@@ -6,21 +6,29 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -39,8 +47,10 @@ import com.nutricart.app.ui.diary.FoodSearchScreen
 import com.nutricart.app.ui.mealplan.MealPlanScreen
 import com.nutricart.app.ui.mealplan.RecipeDetailScreen
 import com.nutricart.app.ui.onboarding.OnboardingScreen
+import com.nutricart.app.ui.quickadd.QuickAddSheet
 import com.nutricart.app.ui.settings.SettingsScreen
 import com.nutricart.app.ui.shopping.ShoppingScreen
+import java.time.LocalDate
 
 /** Route names in one place, so there are no magic strings scattered around. */
 object Routes {
@@ -51,8 +61,11 @@ object Routes {
     const val SETTINGS = "settings"
 
     // Patterns with placeholders + helpers that fill them in.
-    const val FOOD_SEARCH = "food_search/{epochDay}/{slot}"
-    fun foodSearch(epochDay: Long, slot: MealSlot) = "food_search/$epochDay/${slot.name}"
+    // autoScan = the screen opens straight into the barcode scanner; the quick-add
+    // sheet uses it so scanning is two taps from anywhere.
+    const val FOOD_SEARCH = "food_search/{epochDay}/{slot}/{autoScan}"
+    fun foodSearch(epochDay: Long, slot: MealSlot, autoScan: Boolean = false) =
+        "food_search/$epochDay/${slot.name}/$autoScan"
 
     const val RECIPE = "recipe/{recipeId}/{factor}"
     fun recipe(recipeId: Long, portionFactor: Double) = "recipe/$recipeId/${portionFactor.toFloat()}"
@@ -80,6 +93,7 @@ private fun AppNavHost() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    var showQuickAdd by rememberSaveable { mutableStateOf(false) }
 
     // Pops safely: after the first pop there is nothing behind, and popping the
     // start destination would leave a blank screen (double-tap protection).
@@ -105,6 +119,35 @@ private fun AppNavHost() {
                         onClick = { navController.navigateToTab(Routes.PLAN) },
                         icon = { Icon(Icons.Filled.DateRange, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_plan)) },
+                    )
+                    // The centre "+" is a bar SLOT, not a floating button:
+                    // Material docks FABs on a BottomAppBar, never on a
+                    // NavigationBar, so a real dock would mean hand-rolled
+                    // offsets fighting the window insets. As a slot it also
+                    // stays evenly spaced with the tabs for free.
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { showQuickAdd = true },
+                        icon = {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                shape = CircleShape,
+                            ) {
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription = stringResource(R.string.quick_add_title),
+                                    // 24 dp icon + 4 + 4 = a 32 dp circle, the
+                                    // same height as the tabs' selection pill.
+                                    modifier = Modifier.padding(4.dp),
+                                )
+                            }
+                        },
+                        // A label even though the icon speaks for itself: an
+                        // unlabelled item is laid out by a different branch of
+                        // NavigationBarItem and its icon would sit lower than
+                        // the four tabs beside it.
+                        label = { Text(stringResource(R.string.add_action)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.SHOPPING,
@@ -188,12 +231,32 @@ private fun AppNavHost() {
                 arguments = listOf(
                     navArgument("epochDay") { type = NavType.LongType },
                     navArgument("slot") { type = NavType.StringType },
+                    navArgument("autoScan") { type = NavType.BoolType },
                 ),
             ) {
                 FoodSearchScreen(onDone = goBack)
             }
             // Future screens (shopping list) are added here.
         }
+    }
+
+    // Lives outside the Scaffold on purpose: the sheet belongs to the app, not
+    // to one tab, and it renders in its own window anyway. Rows that navigate
+    // close it FIRST, so a dismissal can never race a navigation.
+    if (showQuickAdd) {
+        QuickAddSheet(
+            onDismiss = { showQuickAdd = false },
+            onLogFood = { slot ->
+                showQuickAdd = false
+                navController.navigate(Routes.foodSearch(LocalDate.now().toEpochDay(), slot))
+            },
+            onScanFood = { slot ->
+                showQuickAdd = false
+                navController.navigate(
+                    Routes.foodSearch(LocalDate.now().toEpochDay(), slot, autoScan = true)
+                )
+            },
+        )
     }
 }
 

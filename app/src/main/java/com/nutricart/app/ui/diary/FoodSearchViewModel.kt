@@ -92,12 +92,25 @@ class FoodSearchViewModel @Inject constructor(
     private val diaryRepository: DiaryRepository,
     private val savedMealRepository: SavedMealRepository,
     private val barcodeScanner: BarcodeScanner, // interface — Hilt injects the ML Kit one
-    savedStateHandle: SavedStateHandle, // navigation arguments arrive here
+    private val savedStateHandle: SavedStateHandle, // navigation arguments arrive here
 ) : ViewModel() {
 
     /** Which meal and which day this search will log into (from the route). */
     val mealSlot: MealSlot = MealSlot.valueOf(checkNotNull(savedStateHandle["slot"]))
-    private val epochDay: Long = checkNotNull(savedStateHandle["epochDay"])
+    val epochDay: Long = checkNotNull(savedStateHandle["epochDay"])
+
+    /** Opened straight from the quick-add sheet's "Scan a barcode" row. */
+    private val autoScan: Boolean = savedStateHandle["autoScan"] ?: false
+
+    // Saved in the handle, not in a plain field: the scanner hands the
+    // foreground to Play services, so the whole activity can be destroyed
+    // while the camera is up. A plain field would come back false and reopen
+    // the camera; the route argument itself always survives.
+    private var autoScanFired: Boolean
+        get() = savedStateHandle["autoScanFired"] ?: false
+        set(value) {
+            savedStateHandle["autoScanFired"] = value
+        }
 
     private val _uiState = MutableStateFlow(FoodSearchUiState())
     val uiState: StateFlow<FoodSearchUiState> = _uiState.asStateFlow()
@@ -303,6 +316,18 @@ class FoodSearchViewModel @Inject constructor(
     fun select(product: FoodProductEntity?) = _uiState.update { it.copy(selected = product) }
 
     private var scanning = false
+
+    /**
+     * Opens the scanner once when the screen was entered from the quick-add
+     * sheet. The "once" lives HERE and not in the screen: a rotation recreates
+     * the composable but not this view model, and the saved flag additionally
+     * covers the app being killed behind the camera.
+     */
+    fun scanOnOpenIfAsked() {
+        if (!autoScan || autoScanFired) return
+        autoScanFired = true
+        scanBarcode()
+    }
 
     /** Opens the system scanner; a found product goes straight to the amount dialog. */
     fun scanBarcode() {

@@ -175,6 +175,8 @@
     <string name="dashboard_title">Сьогодні</string>
     <string name="dashboard_target">Добова ціль</string>
     <string name="dashboard_current_weight">Поточна вага</string>
+    <string name="quick_add_title">Швидко додати</string>
+    <string name="quick_add_food">Записати їжу</string>
     <string name="water_label">Вода</string>
     <string name="ml_unit">мл</string>
     <string name="water_undo">Скасувати</string>

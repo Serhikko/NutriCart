@@ -61,6 +61,9 @@ import com.nutricart.app.data.local.dao.SavedMealSummary
 import com.nutricart.app.data.local.entity.FoodProductEntity
 import com.nutricart.app.domain.logic.FoodMath
 import com.nutricart.app.domain.model.ProductSource
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import kotlin.math.roundToInt
 
 /** Search Open Food Facts (or the offline cache) and log the picked product. */
@@ -72,6 +75,9 @@ fun FoodSearchScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Arrived from the quick-add sheet's scan row: straight into the camera.
+    LaunchedEffect(Unit) { viewModel.scanOnOpenIfAsked() }
 
     // Entry saved -> back to the diary.
     LaunchedEffect(state.logged) {
@@ -107,7 +113,21 @@ fun FoodSearchScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(mealSlotLabel(viewModel.mealSlot)) },
+                title = {
+                    Column {
+                        Text(mealSlotLabel(viewModel.mealSlot))
+                        // The day is spelled out because this screen is now
+                        // reachable from the quick-add sheet, which always
+                        // means TODAY even when the diary is showing another
+                        // day. Silently logging into the wrong day would be
+                        // invisible until the numbers stopped adding up.
+                        Text(
+                            targetDayLabel(viewModel.epochDay),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
                         Icon(
@@ -312,6 +332,15 @@ fun FoodSearchScreen(
 }
 
 /** The multi-add review: one line per product with editable grams. */
+/** "Today", or the actual date when this search targets some other day. */
+@Composable
+private fun targetDayLabel(epochDay: Long): String {
+    val day = LocalDate.ofEpochDay(epochDay)
+    if (day == LocalDate.now()) return stringResource(R.string.tab_today)
+    val formatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
+    return day.format(formatter)
+}
+
 @Composable
 private fun BasketDialog(
     items: List<BasketItem>,

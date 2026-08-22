@@ -1,4 +1,4 @@
-package com.nutricart.app.ui.dashboard.cards
+package com.nutricart.app.ui.common
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,7 +28,6 @@ import com.nutricart.app.R
 import com.nutricart.app.domain.logic.WorkoutMath
 import com.nutricart.app.domain.model.WorkoutKind
 import com.nutricart.app.domain.model.WorkoutType
-import com.nutricart.app.ui.common.workoutTypeLabel
 import kotlin.math.roundToInt
 
 /**

@@ -178,6 +178,8 @@
     <string name="dashboard_title">Today</string>
     <string name="dashboard_target">Daily target</string>
     <string name="dashboard_current_weight">Current weight</string>
+    <string name="quick_add_title">Quick add</string>
+    <string name="quick_add_food">Log food</string>
     <string name="water_label">Water</string>
     <string name="ml_unit">ml</string>
     <string name="water_add_250" translatable="false">+250</string>

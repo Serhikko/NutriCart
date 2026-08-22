@@ -53,9 +53,9 @@ import androidx.health.connect.client.PermissionController
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.nutricart.app.R
+import com.nutricart.app.ui.common.AddWorkoutDialog
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.dashboard.cards.ActivityCard
-import com.nutricart.app.ui.dashboard.cards.AddWorkoutDialog
 import com.nutricart.app.ui.dashboard.cards.HEALTH_CONNECT_PLAY_URL
 import com.nutricart.app.ui.dashboard.cards.HcBannerCard
 import com.nutricart.app.ui.dashboard.cards.HeroRing
