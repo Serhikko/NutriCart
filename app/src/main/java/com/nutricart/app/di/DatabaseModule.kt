@@ -8,6 +8,7 @@ import com.nutricart.app.data.local.AppDatabase
 import com.nutricart.app.data.local.dao.ActivityDao
 import com.nutricart.app.data.local.dao.FoodDao
 import com.nutricart.app.data.local.dao.FoodLogDao
+import com.nutricart.app.data.local.dao.FridgeDao
 import com.nutricart.app.data.local.dao.NoteDao
 import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
@@ -366,6 +367,32 @@ private val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+/**
+ * v11 -> v12 (release v0.15): the fridge — what the user actually has at home.
+ *
+ * One new table plus one flag on the shopping list. movedToFridge is what keeps
+ * "bought it" from adding the same groceries twice; it is separate from
+ * isChecked because the tick means "in my trolley" and must survive the move.
+ */
+private val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `fridge_item` (
+                `ingredientName` TEXT NOT NULL,
+                `aisle` TEXT NOT NULL,
+                `grams` REAL NOT NULL,
+                PRIMARY KEY(`ingredientName`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "ALTER TABLE `shopping_list_item` " +
+                "ADD COLUMN `movedToFridge` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -378,7 +405,7 @@ object DatabaseModule {
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
-                MIGRATION_9_10, MIGRATION_10_11,
+                MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
             )
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
@@ -424,4 +451,7 @@ object DatabaseModule {
     @Provides
     fun provideRecurringWorkoutDao(db: AppDatabase): RecurringWorkoutDao =
         db.recurringWorkoutDao()
+
+    @Provides
+    fun provideFridgeDao(db: AppDatabase): FridgeDao = db.fridgeDao()
 }

@@ -3,6 +3,7 @@ package com.nutricart.app.ui.shopping
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutricart.app.data.local.entity.ShoppingListItemEntity
+import com.nutricart.app.data.repository.FridgeRepository
 import com.nutricart.app.data.repository.PlanRepository
 import com.nutricart.app.data.repository.ShoppingRepository
 import com.nutricart.app.domain.logic.ShoppingListBuilder
@@ -31,6 +32,8 @@ data class ShoppingItemUi(
     val pieces: Int?,
     val isChecked: Boolean,
     val alreadyHave: Boolean,
+    /** Already carried into the fridge; it cannot be moved a second time. */
+    val movedToFridge: Boolean,
 )
 
 data class ShoppingUiState(
@@ -44,11 +47,15 @@ data class ShoppingUiState(
     val generating: Boolean = false,
     /** Raw rows for the text export. */
     val rawItems: List<ShoppingListItemEntity> = emptyList(),
+    /** Ticked, not "have it", not yet carried over — what one tap would move. */
+    val movableCount: Int = 0,
+    val moving: Boolean = false,
 )
 
 @HiltViewModel
 class ShoppingViewModel @Inject constructor(
     private val shoppingRepository: ShoppingRepository,
+    private val fridgeRepository: FridgeRepository,
     planRepository: PlanRepository,
     private val exportProvider: ManualExportProvider,
 ) : ViewModel() {
@@ -58,6 +65,7 @@ class ShoppingViewModel @Inject constructor(
     private val weekStart = MutableStateFlow(LocalDate.now().toEpochDay())
     private val selectedDays = MutableStateFlow<Set<Long>>(emptySet())
     private val generating = MutableStateFlow(false)
+    private val moving = MutableStateFlow(false)
 
     // Guards the persisted selection from overwriting a fresh user tap
     // if the DataStore read finishes late.
@@ -80,7 +88,8 @@ class ShoppingViewModel @Inject constructor(
         shoppingRepository.observeList(),
         selectedDays,
         generating,
-    ) { (start, meals), items, selected, isGenerating ->
+        moving,
+    ) { (start, meals), items, selected, isGenerating, isMoving ->
         val weekDays = (0..6).map { start + it }
         ShoppingUiState(
             loading = false,
@@ -96,6 +105,7 @@ class ShoppingViewModel @Inject constructor(
                         pieces = row.pieces,
                         isChecked = row.isChecked,
                         alreadyHave = row.alreadyHave,
+                        movedToFridge = row.movedToFridge,
                     )
                 }
                 // The DB returns rows in unspecified order — sort where consumed,
@@ -106,6 +116,8 @@ class ShoppingViewModel @Inject constructor(
             hasList = items.isNotEmpty(),
             generating = isGenerating,
             rawItems = items,
+            movableCount = items.count { it.isChecked && !it.alreadyHave && !it.movedToFridge },
+            moving = isMoving,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -154,6 +166,25 @@ class ShoppingViewModel @Inject constructor(
 
     fun toggleAlreadyHave(item: ShoppingItemUi) {
         viewModelScope.launch { shoppingRepository.setAlreadyHave(item.id, !item.alreadyHave) }
+    }
+
+    /**
+     * "Bought it": every ticked row that is not a "have it" and has not been
+     * carried over yet becomes fridge stock, in ONE transaction that also
+     * marks those rows — so a second tap adds nothing. Deliberately a button
+     * and not a side effect of ticking: a silent write into another table is
+     * impossible to notice and impossible to undo.
+     */
+    fun moveBoughtToFridge() {
+        if (moving.value) return
+        viewModelScope.launch {
+            moving.value = true
+            try {
+                fridgeRepository.putBought(uiState.value.rawItems)
+            } finally {
+                moving.value = false
+            }
+        }
     }
 
     /** The screen supplies translated labels; the provider formats the text. */

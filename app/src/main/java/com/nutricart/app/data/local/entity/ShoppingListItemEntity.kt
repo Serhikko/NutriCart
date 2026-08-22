@@ -27,4 +27,11 @@ data class ShoppingListItemEntity(
     val pieces: Int?,
     val isChecked: Boolean,
     val alreadyHave: Boolean,
+    /**
+     * These grams already went into the fridge. Separate from isChecked on
+     * purpose: the tick means "it is in my trolley" and has to stay visible
+     * for the rest of the trip, while this one is what stops the same
+     * groceries being added to the fridge a second time.
+     */
+    val movedToFridge: Boolean = false,
 )

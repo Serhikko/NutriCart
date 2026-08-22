@@ -57,6 +57,10 @@ class ShoppingRepository @Inject constructor(
                 pieces = item.pieces,
                 isChecked = previous[item.name]?.isChecked ?: false,
                 alreadyHave = previous[item.name]?.alreadyHave ?: false,
+                // Carried with the tick, not reset: a row that is still ticked
+                // from the last trip and already sits in the fridge must not
+                // become movable again, or those groceries land there twice.
+                movedToFridge = previous[item.name]?.movedToFridge ?: false,
             )
         }
         shoppingDao.replaceAll(rows)

@@ -17,17 +17,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,18 +42,23 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.nutricart.app.R
 import com.nutricart.app.domain.model.Aisle
 import com.nutricart.app.ui.common.LoadingBox
+import com.nutricart.app.ui.common.aisleLabel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-/** The shopping list: day chips, aisle groups, checkboxes, share/copy export. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The "to buy" half of the fridge tab: day chips, aisle groups, checkboxes and
+ * the export. It owns no chrome — the fridge screen above it draws the app bar
+ * (including the share action) and holds the snackbar.
+ */
 @Composable
-fun ShoppingScreen(viewModel: ShoppingViewModel = hiltViewModel()) {
+fun ShoppingBody(
+    snackbarHostState: SnackbarHostState,
+    viewModel: ShoppingViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     LifecycleResumeEffect(Unit) {
@@ -65,130 +66,155 @@ fun ShoppingScreen(viewModel: ShoppingViewModel = hiltViewModel()) {
         onPauseOrDispose { }
     }
 
-    // Labels and formats are resolved HERE (Compose has the language context)
-    // and handed to the export provider as plain functions — the shared text
-    // then matches the screen in any language.
     val aisleLabels = Aisle.entries.associateWith { aisleLabel(it) }
-    val amountLabel: (Int, Int?) -> String = { grams, pieces ->
-        context.getString(R.string.grams_value, grams) +
-            (pieces?.let { context.getString(R.string.piece_hint, it) } ?: "")
-    }
+    val amountLabel = amountLabel()
     val copiedMessage = stringResource(R.string.copied_toast)
+    val movedMessage = stringResource(R.string.fridge_moved_toast)
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.shopping_title)) },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            val text = viewModel.buildShareText(
-                                aisleLabel = { aisleLabels.getValue(it) },
-                                amountLabel = amountLabel,
-                            )
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, text)
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
-                        },
-                        enabled = state.hasList,
-                    ) {
-                        Icon(
-                            Icons.Filled.Share,
-                            contentDescription = stringResource(R.string.share_action),
-                        )
-                    }
-                },
+    if (state.loading) {
+        LoadingBox()
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+    ) {
+        item {
+            Text(
+                stringResource(R.string.shopping_days_label),
+                style = MaterialTheme.typography.titleMedium,
             )
-        },
-    ) { innerPadding ->
-        if (state.loading) {
-            LoadingBox(modifier = Modifier.padding(innerPadding))
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
+            Spacer(modifier = Modifier.height(8.dp))
+            DayChips(
+                weekDays = state.weekDays,
+                selected = state.selectedDays,
+                onToggle = viewModel::toggleDay,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = viewModel::regenerate,
+                enabled = state.hasPlan && !state.generating,
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                item {
-                    Text(
-                        stringResource(R.string.shopping_days_label),
-                        style = MaterialTheme.typography.titleMedium,
+                Text(
+                    stringResource(
+                        if (state.hasList) R.string.shopping_regenerate
+                        else R.string.shopping_generate
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    DayChips(
-                        weekDays = state.weekDays,
-                        selected = state.selectedDays,
-                        onToggle = viewModel::toggleDay,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = viewModel::regenerate,
-                        enabled = state.hasPlan && !state.generating,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            stringResource(
-                                if (state.hasList) R.string.shopping_regenerate
-                                else R.string.shopping_generate
-                            )
-                        )
-                    }
-                    if (!state.hasPlan) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.shopping_no_plan_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+                )
+            }
+            if (!state.hasPlan) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.shopping_no_plan_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
-                state.itemsByAisle.forEach { (aisle, items) ->
-                    item(key = "aisle-$aisle") {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            aisleLabels.getValue(aisle),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    items(items, key = { it.id }) { item ->
-                        ShoppingRow(
-                            item = item,
-                            onChecked = { checked -> viewModel.setChecked(item, checked) },
-                            onToggleHave = { viewModel.toggleAlreadyHave(item) },
-                        )
-                    }
-                }
+        state.itemsByAisle.forEach { (aisle, items) ->
+            item(key = "aisle-$aisle") {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    aisleLabels.getValue(aisle),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            items(items, key = { it.id }) { item ->
+                ShoppingRow(
+                    item = item,
+                    onChecked = { checked -> viewModel.setChecked(item, checked) },
+                    onToggleHave = { viewModel.toggleAlreadyHave(item) },
+                )
+            }
+        }
 
-                if (state.hasList) {
-                    item {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        TextButton(
-                            onClick = {
-                                clipboard.setText(
-                                    AnnotatedString(
-                                        viewModel.buildShareText(
-                                            aisleLabel = { aisleLabels.getValue(it) },
-                                            amountLabel = amountLabel,
-                                        )
-                                    )
-                                )
-                                scope.launch { snackbarHostState.showSnackbar(copiedMessage) }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(stringResource(R.string.copy_action))
-                        }
-                    }
+        // Carrying the shopping into the fridge is an explicit action, never a
+        // side effect of ticking a row: a silent write into another table is
+        // impossible to notice and impossible to take back.
+        if (state.movableCount > 0) {
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        viewModel.moveBoughtToFridge()
+                        scope.launch { snackbarHostState.showSnackbar(movedMessage) }
+                    },
+                    enabled = !state.moving,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.fridge_move_bought, state.movableCount))
                 }
             }
         }
+
+        if (state.hasList) {
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(
+                    onClick = {
+                        clipboard.setText(
+                            AnnotatedString(
+                                viewModel.buildShareText(
+                                    aisleLabel = { aisleLabels.getValue(it) },
+                                    amountLabel = amountLabel,
+                                )
+                            )
+                        )
+                        scope.launch { snackbarHostState.showSnackbar(copiedMessage) }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.copy_action))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The share icon for the fridge screen's app bar. It lives here, next to the
+ * list it shares, and builds its own labels — Compose has the language context
+ * here, so the exported text always matches what the screen shows.
+ */
+@Composable
+fun ShareListAction(viewModel: ShoppingViewModel = hiltViewModel()) {
+    val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val aisleLabels = Aisle.entries.associateWith { aisleLabel(it) }
+    val amountLabel = amountLabel()
+
+    IconButton(
+        onClick = {
+            val text = viewModel.buildShareText(
+                aisleLabel = { aisleLabels.getValue(it) },
+                amountLabel = amountLabel,
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+            }
+            context.startActivity(Intent.createChooser(intent, null))
+        },
+        enabled = state.hasList,
+    ) {
+        Icon(
+            Icons.Filled.Share,
+            contentDescription = stringResource(R.string.share_action),
+        )
+    }
+}
+
+/** "250 g (~2 pcs)" in the phone's language, for both the screen and the export. */
+@Composable
+private fun amountLabel(): (Int, Int?) -> String {
+    val context = LocalContext.current
+    return { grams, pieces ->
+        context.getString(R.string.grams_value, grams) +
+            (pieces?.let { context.getString(R.string.piece_hint, it) } ?: "")
     }
 }
 
@@ -238,7 +264,12 @@ private fun ShoppingRow(
             )
             Text(
                 stringResource(R.string.grams_value, item.displayGrams) +
-                    (item.pieces?.let { stringResource(R.string.piece_hint, it) } ?: ""),
+                    (item.pieces?.let { stringResource(R.string.piece_hint, it) } ?: "") +
+                    if (item.movedToFridge) {
+                        " · " + stringResource(R.string.fridge_in_stock_note)
+                    } else {
+                        ""
+                    },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -253,21 +284,3 @@ private fun ShoppingRow(
         }
     }
 }
-
-/** Maps each aisle enum value to its translated label. */
-@Composable
-fun aisleLabel(aisle: Aisle): String = stringResource(
-    when (aisle) {
-        Aisle.PRODUCE -> R.string.aisle_produce
-        Aisle.MEAT_FISH -> R.string.aisle_meat_fish
-        Aisle.DAIRY_EGGS -> R.string.aisle_dairy_eggs
-        Aisle.BAKERY -> R.string.aisle_bakery
-        Aisle.GRAINS_PASTA -> R.string.aisle_grains
-        Aisle.CANNED -> R.string.aisle_canned
-        Aisle.FROZEN -> R.string.aisle_frozen
-        Aisle.SPICES_OILS -> R.string.aisle_spices_oils
-        Aisle.SNACKS -> R.string.aisle_snacks
-        Aisle.BEVERAGES -> R.string.aisle_beverages
-        Aisle.OTHER -> R.string.aisle_other
-    }
-)

@@ -98,6 +98,15 @@ interface RecipeDao {
     )
     suspend fun recipesWithNutrition(): List<RecipeNutritionRow>
 
+    /**
+     * The whole ingredient catalogue for the fridge's add-picker. ORDER BY name
+     * is fine here and does NOT break the no-ORDER-BY rule: that rule exists
+     * because `aisle` is stored as TEXT and SQL would sort enum names
+     * alphabetically; a real name column sorted alphabetically is the point.
+     */
+    @Query("SELECT * FROM ingredient ORDER BY name")
+    suspend fun allIngredients(): List<IngredientEntity>
+
     @Query("SELECT * FROM recipe_step WHERE recipeId = :recipeId ORDER BY stepNumber")
     suspend fun stepsFor(recipeId: Long): List<RecipeStepEntity>
 

@@ -364,4 +364,23 @@
     <!-- Shown by Health Connect when the user asks why we need permissions -->
     <string name="privacy_rationale_title">Your health data</string>
     <string name="privacy_rationale_text">NutriCart reads steps, active calories, heart rate, exercise sessions, sleep and weight from Health Connect to adjust your daily calorie target and to show your daily activity on the dashboard. All data stays on this device — nothing is uploaded anywhere.</string>
+    <string name="fridge_title">Fridge</string>
+    <string name="fridge_tab_stock">In stock</string>
+    <string name="fridge_tab_to_buy">To buy</string>
+    <string name="fridge_add_action">Add what you have</string>
+    <string name="fridge_add_title">Add to the fridge</string>
+    <string name="fridge_search_hint">Search ingredients…</string>
+    <string name="fridge_grams_label">Grams</string>
+    <string name="fridge_edit_hint">0 g takes it out of the fridge.</string>
+    <string name="fridge_empty_hint">The fridge is empty. Add what you have at home, or tick items off in the shopping list and put them in.</string>
+    <string name="fridge_ideas_title">You could cook</string>
+    <string name="fridge_idea_ready">everything is in the fridge</string>
+    <string name="fridge_idea_missing">missing: %1$s</string>
+    <string name="fridge_move_bought">Bought %1$d — put in the fridge</string>
+    <string name="fridge_moved_toast">Moved to the fridge</string>
+    <string name="fridge_in_stock_note">in the fridge</string>
+    <string name="fridge_cooked_action">I cooked this</string>
+    <string name="fridge_cooked_title">How many portions did you cook?</string>
+    <string name="fridge_cooked_hint">One pot for several days? Say how many portions, so the fridge loses the right amount.</string>
+    <string name="fridge_cooked_toast">Taken out of the fridge</string>
 </resources>

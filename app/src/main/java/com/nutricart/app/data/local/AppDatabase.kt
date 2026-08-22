@@ -6,6 +6,7 @@ import androidx.room.TypeConverters
 import com.nutricart.app.data.local.dao.ActivityDao
 import com.nutricart.app.data.local.dao.FoodDao
 import com.nutricart.app.data.local.dao.FoodLogDao
+import com.nutricart.app.data.local.dao.FridgeDao
 import com.nutricart.app.data.local.dao.NoteDao
 import com.nutricart.app.data.local.dao.PlanDao
 import com.nutricart.app.data.local.dao.ProfileDao
@@ -20,6 +21,7 @@ import com.nutricart.app.data.local.entity.DailyActivityEntity
 import com.nutricart.app.data.local.entity.DayNoteEntity
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
 import com.nutricart.app.data.local.entity.FoodProductEntity
+import com.nutricart.app.data.local.entity.FridgeItemEntity
 import com.nutricart.app.data.local.entity.IngredientEntity
 import com.nutricart.app.data.local.entity.PlannedMealEntity
 import com.nutricart.app.data.local.entity.RecipeEntity
@@ -42,6 +44,7 @@ import com.nutricart.app.data.local.entity.WorkoutEntryEntity
         DailyActivityEntity::class,
         FoodProductEntity::class,
         FoodLogEntryEntity::class,
+        FridgeItemEntity::class,
         IngredientEntity::class,
         RecipeEntity::class,
         RecipeStepEntity::class,
@@ -55,7 +58,7 @@ import com.nutricart.app.data.local.entity.WorkoutEntryEntity
         DayNoteEntity::class,
         RecurringWorkoutEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)
@@ -65,6 +68,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun activityDao(): ActivityDao
     abstract fun foodDao(): FoodDao
     abstract fun foodLogDao(): FoodLogDao
+    abstract fun fridgeDao(): FridgeDao
     abstract fun recipeDao(): RecipeDao
     abstract fun planDao(): PlanDao
     abstract fun shoppingDao(): ShoppingDao

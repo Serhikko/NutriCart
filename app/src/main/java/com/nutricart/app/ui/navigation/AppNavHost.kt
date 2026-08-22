@@ -44,19 +44,19 @@ import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.dashboard.DashboardScreen
 import com.nutricart.app.ui.diary.DiaryScreen
 import com.nutricart.app.ui.diary.FoodSearchScreen
+import com.nutricart.app.ui.fridge.FridgeScreen
 import com.nutricart.app.ui.mealplan.MealPlanScreen
 import com.nutricart.app.ui.mealplan.RecipeDetailScreen
 import com.nutricart.app.ui.onboarding.OnboardingScreen
 import com.nutricart.app.ui.quickadd.QuickAddSheet
 import com.nutricart.app.ui.settings.SettingsScreen
-import com.nutricart.app.ui.shopping.ShoppingScreen
 import java.time.LocalDate
 
 /** Route names in one place, so there are no magic strings scattered around. */
 object Routes {
     const val DASHBOARD = "dashboard"
     const val PLAN = "meal_plan"
-    const val SHOPPING = "shopping"
+    const val FRIDGE = "fridge"
     const val DIARY = "diary"
     const val SETTINGS = "settings"
 
@@ -150,10 +150,10 @@ private fun AppNavHost() {
                         label = { Text(stringResource(R.string.add_action)) },
                     )
                     NavigationBarItem(
-                        selected = currentRoute == Routes.SHOPPING,
-                        onClick = { navController.navigateToTab(Routes.SHOPPING) },
+                        selected = currentRoute == Routes.FRIDGE,
+                        onClick = { navController.navigateToTab(Routes.FRIDGE) },
                         icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_shopping)) },
+                        label = { Text(stringResource(R.string.fridge_title)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.DIARY,
@@ -213,8 +213,12 @@ private fun AppNavHost() {
             ) {
                 RecipeDetailScreen(onBack = goBack)
             }
-            composable(Routes.SHOPPING) {
-                ShoppingScreen()
+            composable(Routes.FRIDGE) {
+                FridgeScreen(
+                    onOpenRecipe = { recipeId, portionFactor ->
+                        navController.navigate(Routes.recipe(recipeId, portionFactor))
+                    },
+                )
             }
             composable(Routes.DIARY) {
                 DiaryScreen(
@@ -270,7 +274,7 @@ private fun NavHostController.navigateToTab(route: String) {
 }
 
 private val TAB_ROUTES =
-    setOf(Routes.DASHBOARD, Routes.PLAN, Routes.SHOPPING, Routes.DIARY)
+    setOf(Routes.DASHBOARD, Routes.PLAN, Routes.FRIDGE, Routes.DIARY)
 
 private fun bothAreTabs(from: String?, to: String?): Boolean =
     from in TAB_ROUTES && to in TAB_ROUTES

@@ -357,4 +357,23 @@
     <!-- Shown by Health Connect when the user asks why we need permissions -->
     <string name="privacy_rationale_title">Твої дані про здоров\'я</string>
     <string name="privacy_rationale_text">NutriCart читає кроки, активні калорії, пульс, тренування, сон і вагу з Health Connect, щоб коригувати твою добову ціль калорій і показувати денну активність на дашборді. Усі дані залишаються на цьому пристрої — нікуди не завантажуються.</string>
+    <string name="fridge_title">Холодильник</string>
+    <string name="fridge_tab_stock">Є вдома</string>
+    <string name="fridge_tab_to_buy">Купити</string>
+    <string name="fridge_add_action">Додати те, що є</string>
+    <string name="fridge_add_title">Додати в холодильник</string>
+    <string name="fridge_search_hint">Пошук інгредієнтів…</string>
+    <string name="fridge_grams_label">Грами</string>
+    <string name="fridge_edit_hint">0 г прибирає продукт із холодильника.</string>
+    <string name="fridge_empty_hint">Холодильник порожній. Додай, що є вдома, або відміть куплене у списку покупок і перенеси сюди.</string>
+    <string name="fridge_ideas_title">Можна приготувати</string>
+    <string name="fridge_idea_ready">усе є вдома</string>
+    <string name="fridge_idea_missing">бракує: %1$s</string>
+    <string name="fridge_move_bought">Куплено %1$d — у холодильник</string>
+    <string name="fridge_moved_toast">Перенесено в холодильник</string>
+    <string name="fridge_in_stock_note">у холодильнику</string>
+    <string name="fridge_cooked_action">Я це приготував</string>
+    <string name="fridge_cooked_title">Скільки порцій приготовано?</string>
+    <string name="fridge_cooked_hint">Один казан на кілька днів? Вкажи кількість порцій, щоб із холодильника списалось стільки, скільки пішло.</string>
+    <string name="fridge_cooked_toast">Списано з холодильника</string>
 </resources>
