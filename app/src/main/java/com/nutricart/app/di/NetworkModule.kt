@@ -1,5 +1,6 @@
 package com.nutricart.app.di
 
+import com.nutricart.app.data.remote.ClaudeApi
 import com.nutricart.app.data.remote.OpenFoodFactsApi
 import dagger.Module
 import dagger.Provides
@@ -10,6 +11,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -53,4 +55,37 @@ object NetworkModule {
     @Singleton
     fun provideOpenFoodFactsApi(retrofit: Retrofit): OpenFoodFactsApi =
         retrofit.create(OpenFoodFactsApi::class.java)
+
+    /**
+     * The optional AI assistant talks to a different host with different
+     * rules, so it builds its OWN client and Json INSIDE this provider and
+     * exposes only the interface. Providing a second OkHttpClient, Retrofit or
+     * Json to Hilt would be a duplicate-binding compile error, and introducing
+     * the project's first @Qualifier for one service is not worth it.
+     *
+     * Two things the shared ones would get wrong:
+     *  - OkHttp's ~10 s read timeout is far below a normal model response;
+     *  - the shared Json leaves encodeDefaults off, so any request field left
+     *    at its Kotlin default would silently vanish from the body and the
+     *    server would answer 400.
+     */
+    @Provides
+    @Singleton
+    fun provideClaudeApi(): ClaudeApi {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(90, TimeUnit.SECONDS)
+            .build()
+        val json = Json {
+            encodeDefaults = true
+            ignoreUnknownKeys = true
+        }
+        return Retrofit.Builder()
+            .baseUrl(ClaudeApi.BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(ClaudeApi::class.java)
+    }
 }

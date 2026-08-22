@@ -33,6 +33,9 @@ class FridgeRepository @Inject constructor(
 
     fun observeAll(): Flow<List<FridgeItemEntity>> = fridgeDao.observeAll()
 
+    /** A one-shot read, for building the assistant's prompt. */
+    suspend fun items(): List<FridgeItemEntity> = fridgeDao.allItems()
+
     /**
      * The 65 seeded ingredients — the only names the fridge accepts, because a
      * hand-typed name would never equal a recipe's ingredient and cooking would

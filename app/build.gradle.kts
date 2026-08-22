@@ -14,8 +14,8 @@ android {
         applicationId = "com.nutricart.app"
         minSdk = 28
         targetSdk = 37
-        versionCode = 8
-        versionName = "0.8"
+        versionCode = 100
+        versionName = "1.0"
     }
 
     buildTypes {

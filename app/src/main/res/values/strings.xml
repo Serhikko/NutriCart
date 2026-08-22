@@ -383,4 +383,24 @@
     <string name="fridge_cooked_title">How many portions did you cook?</string>
     <string name="fridge_cooked_hint">One pot for several days? Say how many portions, so the fridge loses the right amount.</string>
     <string name="fridge_cooked_toast">Taken out of the fridge</string>
+    <string name="ai_section">AI assistant (optional)</string>
+    <string name="ai_key_label">Your API key</string>
+    <string name="ai_key_hint">Stored on this phone only, in plain text, and kept out of cloud backup. You can delete it at any time.</string>
+    <string name="ai_key_show">Show</string>
+    <string name="ai_key_hide">Hide</string>
+    <string name="ai_key_invalid">That does not look like a key.</string>
+    <string name="ai_key_saved">Key saved</string>
+    <string name="ai_ask_action">Ask what to cook</string>
+    <string name="ai_asking">Asking…</string>
+    <string name="ai_no_key_hint">Add your own API key in Settings to ask the assistant what to cook from this.</string>
+    <string name="ai_disclaimer">A suggestion, not a calculation — the app did not check this answer against your allergies.</string>
+    <string name="ai_tokens">%1$d in / %2$d out tokens</string>
+    <string name="ai_truncated">(the answer was cut short)</string>
+    <string name="ai_error_bad_key">That key was rejected — check it in Settings.</string>
+    <string name="ai_error_offline">You are offline.</string>
+    <string name="ai_error_slow">The answer took too long — try again.</string>
+    <string name="ai_error_busy">Busy right now — try again in a moment.</string>
+    <string name="ai_error_refused">The assistant declined to answer this one.</string>
+    <string name="ai_error_empty">No answer came back — try again.</string>
+    <string name="ai_error_failed">Something went wrong.</string>
 </resources>

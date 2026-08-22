@@ -5,6 +5,7 @@ import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.WeightDao
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
+import com.nutricart.app.data.settings.SecretsDataStore
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.WeightSource
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ class ProfileRepository @Inject constructor(
     private val profileDao: ProfileDao,
     private val weightDao: WeightDao,
     private val settings: SettingsDataStore,
+    private val secrets: SecretsDataStore,
     private val db: AppDatabase,
 ) {
     fun observeProfile(): Flow<UserProfileEntity?> = profileDao.observeProfile()
@@ -64,6 +66,9 @@ class ProfileRepository @Inject constructor(
         withContext(NonCancellable + Dispatchers.IO) {
             db.clearAllTables()
             settings.resetAll()
+            // The second DataStore file is exactly the kind of store that gets
+            // forgotten here — the same class of bug as per-DAO deletes.
+            secrets.resetAll()
         }
     }
 

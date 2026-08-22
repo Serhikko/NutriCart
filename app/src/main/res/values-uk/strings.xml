@@ -376,4 +376,24 @@
     <string name="fridge_cooked_title">Скільки порцій приготовано?</string>
     <string name="fridge_cooked_hint">Один казан на кілька днів? Вкажи кількість порцій, щоб із холодильника списалось стільки, скільки пішло.</string>
     <string name="fridge_cooked_toast">Списано з холодильника</string>
+    <string name="ai_section">AI-асистент (необов\'язково)</string>
+    <string name="ai_key_label">Твій ключ API</string>
+    <string name="ai_key_hint">Зберігається лише на цьому телефоні, у відкритому вигляді, і не потрапляє в хмарний бекап. Видалити можна будь-коли.</string>
+    <string name="ai_key_show">Показати</string>
+    <string name="ai_key_hide">Сховати</string>
+    <string name="ai_key_invalid">Це не схоже на ключ.</string>
+    <string name="ai_key_saved">Ключ збережено</string>
+    <string name="ai_ask_action">Спитати, що приготувати</string>
+    <string name="ai_asking">Питаю…</string>
+    <string name="ai_no_key_hint">Додай свій ключ API в налаштуваннях, щоб спитати асистента, що приготувати з цього.</string>
+    <string name="ai_disclaimer">Це порада, а не розрахунок — застосунок не перевіряв цю відповідь на твої алергії.</string>
+    <string name="ai_tokens">%1$d вх. / %2$d вих. токенів</string>
+    <string name="ai_truncated">(відповідь обірвалась)</string>
+    <string name="ai_error_bad_key">Ключ відхилено — перевір його в налаштуваннях.</string>
+    <string name="ai_error_offline">Немає інтернету.</string>
+    <string name="ai_error_slow">Відповідь надто довго йшла — спробуй ще раз.</string>
+    <string name="ai_error_busy">Зараз зайнято — спробуй за хвилину.</string>
+    <string name="ai_error_refused">Асистент відмовився відповідати на це.</string>
+    <string name="ai_error_empty">Відповідь порожня — спробуй ще раз.</string>
+    <string name="ai_error_failed">Щось пішло не так.</string>
 </resources>

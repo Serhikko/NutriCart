@@ -9,6 +9,7 @@ import com.nutricart.app.data.local.entity.RecurringWorkoutEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.repository.ProfileRepository
 import com.nutricart.app.data.repository.WorkoutRepository
+import com.nutricart.app.data.settings.SecretsDataStore
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.reminders.MealReminderScheduling
@@ -72,6 +73,9 @@ data class SettingsUiState(
     /** Health Connect diagnostics, moved here off the dashboard. */
     val hcAvailable: Boolean = false,
     val lastSyncEpochMillis: Long? = null,
+    /** The optional AI assistant's key, as typed. */
+    val aiKeyText: String = "",
+    val aiKeyStored: Boolean = false,
     val saved: Boolean = false,
     val showResetDialog: Boolean = false,
 ) {
@@ -103,6 +107,16 @@ data class SettingsUiState(
     val canSave: Boolean
         get() = !loading && !underageBlocked && heightCm != null && weightKg != null &&
             (goal == Goal.MAINTAIN || targetKgPerWeek > 0.0) && customTargetsOk
+
+    /**
+     * A pasted key often carries a trailing newline, and OkHttp rejects an
+     * illegal header VALUE with an exception whose message contains the key
+     * itself. Catching it here means it never reaches the network layer.
+     */
+    val aiKeyValid: Boolean
+        get() = aiKeyText.trim().let { key ->
+            key.isNotEmpty() && key.all { it in ' '..'~' }
+        }
 }
 
 /** One reminder row: the meal, on/off, and the time in minutes from midnight. */
@@ -117,6 +131,7 @@ class SettingsViewModel @Inject constructor(
     private val repository: ProfileRepository,
     private val workoutRepository: WorkoutRepository,
     private val settings: SettingsDataStore,
+    private val secrets: SecretsDataStore,
     healthConnectManager: HealthConnectManager,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -134,6 +149,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settings.lastHcSyncEpochMillis.collect { millis ->
                 _uiState.update { it.copy(lastSyncEpochMillis = millis) }
+            }
+        }
+        // Read ONCE, like the profile: a live collector would overwrite the
+        // field while the user is typing into it.
+        viewModelScope.launch {
+            val stored = secrets.aiApiKey.first()
+            _uiState.update {
+                it.copy(aiKeyText = stored.orEmpty(), aiKeyStored = !stored.isNullOrBlank())
             }
         }
 
@@ -334,6 +357,29 @@ class SettingsViewModel @Inject constructor(
     fun setShowResetDialog(show: Boolean) = _uiState.update { it.copy(showResetDialog = show) }
 
     /** Saves the profile and today's weight; the screen navigates back on `saved`. */
+    fun setAiKeyText(value: String) = _uiState.update { it.copy(aiKeyText = value) }
+
+    /**
+     * Writes immediately, like the reminder times and unlike the profile form:
+     * save() is gated on canSave, and refusing to store a key because the
+     * weight field happens to be empty would make no sense.
+     */
+    fun saveAiKey() {
+        val key = _uiState.value.aiKeyText.trim()
+        if (!_uiState.value.aiKeyValid) return
+        viewModelScope.launch {
+            secrets.setAiApiKey(key)
+            _uiState.update { it.copy(aiKeyText = key, aiKeyStored = true) }
+        }
+    }
+
+    fun deleteAiKey() {
+        viewModelScope.launch {
+            secrets.clearAiApiKey()
+            _uiState.update { it.copy(aiKeyText = "", aiKeyStored = false) }
+        }
+    }
+
     fun save() {
         val state = _uiState.value
         if (!state.canSave) return

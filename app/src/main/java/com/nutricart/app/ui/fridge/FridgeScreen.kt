@@ -50,7 +50,10 @@ import com.nutricart.app.ui.shopping.ShoppingBody
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FridgeScreen(onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit) {
+fun FridgeScreen(
+    onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     var showStock by rememberSaveable { mutableStateOf(true) }
     val snackbarHostState = remember { SnackbarHostState() }
     val bodyState = rememberSaveableStateHolder()
@@ -94,7 +97,10 @@ fun FridgeScreen(onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit) 
             Box(modifier = Modifier.weight(1f)) {
                 bodyState.SaveableStateProvider(key = showStock) {
                     if (showStock) {
-                        StockBody(onOpenRecipe = onOpenRecipe)
+                        StockBody(
+                            onOpenRecipe = onOpenRecipe,
+                            onOpenSettings = onOpenSettings,
+                        )
                     } else {
                         ShoppingBody(snackbarHostState = snackbarHostState)
                     }
@@ -107,9 +113,11 @@ fun FridgeScreen(onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit) 
 @Composable
 private fun StockBody(
     onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: FridgeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val aiState by viewModel.aiState.collectAsState()
     val pickable by viewModel.pickable.collectAsState()
     var showAdd by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<FridgeItemUi?>(null) }
@@ -128,6 +136,19 @@ private fun StockBody(
                 IdeasCard(ideas = state.ideas, onOpenRecipe = onOpenRecipe)
                 Spacer(modifier = Modifier.height(16.dp))
             }
+        }
+
+        // The assistant comes AFTER the ideas card on purpose: the local,
+        // free, offline answer is the feature; the AI is the accelerator.
+        item {
+            FridgeAiBlock(
+                state = aiState,
+                canAsk = state.itemCount > 0,
+                onAsk = viewModel::askAi,
+                onDismiss = viewModel::dismissAiAnswer,
+                onOpenSettings = onOpenSettings,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         item {

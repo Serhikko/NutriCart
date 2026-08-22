@@ -218,6 +218,7 @@ private fun AppNavHost() {
                     onOpenRecipe = { recipeId, portionFactor ->
                         navController.navigate(Routes.recipe(recipeId, portionFactor))
                     },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
             composable(Routes.DIARY) {

@@ -52,6 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.nutricart.app.R
@@ -555,6 +557,11 @@ private fun SettingsForm(
             }
         }
 
+        // --- AI assistant (optional) ---
+        SectionSpace()
+        SectionTitle(R.string.ai_section)
+        AiKeySection(state = state, viewModel = viewModel)
+
         // --- Health Connect ---
         // Diagnostics, not daily numbers: they used to sit at the bottom of the
         // dashboard. The whole section is hidden when Health Connect is not
@@ -623,6 +630,68 @@ private fun ResetConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
                 Text(stringResource(R.string.cancel))
             }
         },
+    )
+}
+
+/**
+ * The user's own API key for the fridge assistant. Its own composable because
+ * SettingsScreen is long enough already.
+ *
+ * The warning under the field is not decoration: the key really is stored in
+ * plain text, and that is an accepted decision — so the screen says it, and
+ * there is always a way to delete it.
+ */
+@Composable
+private fun AiKeySection(state: SettingsUiState, viewModel: SettingsViewModel) {
+    var revealed by rememberSaveable { mutableStateOf(false) }
+
+    OutlinedTextField(
+        value = state.aiKeyText,
+        onValueChange = viewModel::setAiKeyText,
+        label = { Text(stringResource(R.string.ai_key_label)) },
+        isError = state.aiKeyText.isNotBlank() && !state.aiKeyValid,
+        supportingText = {
+            if (state.aiKeyText.isNotBlank() && !state.aiKeyValid) {
+                Text(stringResource(R.string.ai_key_invalid))
+            }
+        },
+        visualTransformation = if (revealed) {
+            VisualTransformation.None
+        } else {
+            PasswordVisualTransformation()
+        },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = { revealed = !revealed }) {
+            Text(
+                stringResource(
+                    if (revealed) R.string.ai_key_hide else R.string.ai_key_show
+                )
+            )
+        }
+        TextButton(
+            onClick = viewModel::saveAiKey,
+            enabled = state.aiKeyValid,
+        ) { Text(stringResource(R.string.save)) }
+        if (state.aiKeyStored) {
+            TextButton(onClick = viewModel::deleteAiKey) {
+                Text(
+                    stringResource(R.string.delete),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+    Text(
+        stringResource(R.string.ai_key_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 

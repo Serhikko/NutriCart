@@ -3,6 +3,8 @@ package com.nutricart.app.ui.fridge
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutricart.app.data.local.entity.IngredientEntity
+import com.nutricart.app.data.repository.AiResult
+import com.nutricart.app.data.repository.FridgeAiRepository
 import com.nutricart.app.data.repository.FridgeRepository
 import com.nutricart.app.data.repository.ProfileRepository
 import com.nutricart.app.domain.logic.FridgeMath
@@ -14,7 +16,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -36,10 +40,23 @@ data class FridgeUiState(
     val ideas: List<FridgeMath.Match> = emptyList(),
 )
 
+/**
+ * The optional assistant's corner of the screen. Separate from the stock state
+ * so that asking a question never recomputes the fridge, and a stock change
+ * never throws away an answer the user is reading.
+ */
+data class AiUiState(
+    /** No key configured: the screen offers Settings instead of a request. */
+    val hasKey: Boolean = false,
+    val loading: Boolean = false,
+    val result: AiResult? = null,
+)
+
 @HiltViewModel
 class FridgeViewModel @Inject constructor(
     private val fridgeRepository: FridgeRepository,
-    profileRepository: ProfileRepository,
+    private val aiRepository: FridgeAiRepository,
+    private val profileRepository: ProfileRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<FridgeUiState> = combine(
@@ -76,6 +93,38 @@ class FridgeViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = FridgeUiState(),
     )
+
+    private val aiLocal = MutableStateFlow(AiUiState())
+
+    val aiState: StateFlow<AiUiState> = combine(aiRepository.hasKey, aiLocal) { hasKey, local ->
+        local.copy(hasKey = hasKey)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = AiUiState(),
+    )
+
+    /**
+     * One request, on an explicit tap. Never on screen open, never from a flow,
+     * never from a worker — it is the user's own key and their own money.
+     */
+    fun askAi() {
+        if (aiLocal.value.loading) return
+        viewModelScope.launch {
+            aiLocal.update { it.copy(loading = true, result = null) }
+            val profile = profileRepository.observeProfile().first()
+            val result = if (profile == null) {
+                AiResult.Failed
+            } else {
+                aiRepository.suggest(fridgeRepository.items(), profile)
+            }
+            aiLocal.update { it.copy(loading = false, result = result) }
+        }
+    }
+
+    fun dismissAiAnswer() {
+        aiLocal.update { it.copy(result = null) }
+    }
 
     /** The catalogue the add dialog picks from; loaded once, seeded on demand. */
     private val _pickable = MutableStateFlow<List<IngredientEntity>>(emptyList())
