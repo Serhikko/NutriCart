@@ -122,9 +122,11 @@ fun EditFridgeItemDialog(
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var gramsText by rememberSaveable(item.name) {
-        mutableStateOf(item.displayGrams.toString())
-    }
+    // The field shows the ROUNDED amount, so saving it untouched would quietly
+    // rewrite the real stock (247 g becomes 245 g). An unchanged field is
+    // therefore treated as "I changed my mind" and writes nothing.
+    val prefill = remember(item.name) { item.displayGrams.toString() }
+    var gramsText by rememberSaveable(item.name) { mutableStateOf(prefill) }
     val grams = gramsText.replace(',', '.').toDoubleOrNull()?.takeIf { it >= 0.0 }
 
     AlertDialog(
@@ -158,7 +160,9 @@ fun EditFridgeItemDialog(
         confirmButton = {
             TextButton(
                 enabled = grams != null,
-                onClick = { grams?.let(onConfirm) },
+                onClick = {
+                    if (gramsText == prefill) onDismiss() else grams?.let(onConfirm)
+                },
             ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {

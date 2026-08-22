@@ -5,7 +5,6 @@ import com.nutricart.app.data.local.entity.FridgeItemEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.remote.ClaudeApi
 import com.nutricart.app.data.remote.dto.ClaudeMessageDto
-import com.nutricart.app.data.remote.dto.ClaudeOutputConfigDto
 import com.nutricart.app.data.remote.dto.ClaudeRequestDto
 import com.nutricart.app.data.settings.SecretsDataStore
 import com.nutricart.app.domain.logic.ShoppingListBuilder
@@ -13,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 import java.io.IOException
 import java.io.InterruptedIOException
@@ -73,7 +73,6 @@ class FridgeAiRepository @Inject constructor(
             maxTokens = ClaudeApi.MAX_TOKENS,
             system = systemPrompt(profile),
             messages = listOf(ClaudeMessageDto(role = "user", content = fridgeList(items))),
-            outputConfig = ClaudeOutputConfigDto(),
         )
 
         return try {
@@ -111,6 +110,13 @@ class FridgeAiRepository @Inject constructor(
                     AiResult.Failed
                 }
             }
+        } catch (e: SerializationException) {
+            // Must come BEFORE IllegalArgumentException, which it extends:
+            // otherwise an unreadable 200 body would be reported to the user as
+            // "that key was rejected". Class name only — a decoding message can
+            // quote the response body back.
+            Log.w(TAG, "AI answer could not be read: ${e.javaClass.simpleName}")
+            AiResult.Failed
         } catch (e: IllegalArgumentException) {
             // A key pasted with a stray newline makes OkHttp reject the header
             // — and its message contains the key itself, so this must never be

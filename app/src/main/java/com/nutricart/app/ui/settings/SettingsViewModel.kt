@@ -76,6 +76,8 @@ data class SettingsUiState(
     /** The optional AI assistant's key, as typed. */
     val aiKeyText: String = "",
     val aiKeyStored: Boolean = false,
+    /** Shown right after a successful save; cleared as soon as the field changes. */
+    val aiKeySavedNotice: Boolean = false,
     val saved: Boolean = false,
     val showResetDialog: Boolean = false,
 ) {
@@ -357,7 +359,8 @@ class SettingsViewModel @Inject constructor(
     fun setShowResetDialog(show: Boolean) = _uiState.update { it.copy(showResetDialog = show) }
 
     /** Saves the profile and today's weight; the screen navigates back on `saved`. */
-    fun setAiKeyText(value: String) = _uiState.update { it.copy(aiKeyText = value) }
+    fun setAiKeyText(value: String) =
+        _uiState.update { it.copy(aiKeyText = value, aiKeySavedNotice = false) }
 
     /**
      * Writes immediately, like the reminder times and unlike the profile form:
@@ -369,7 +372,9 @@ class SettingsViewModel @Inject constructor(
         if (!_uiState.value.aiKeyValid) return
         viewModelScope.launch {
             secrets.setAiApiKey(key)
-            _uiState.update { it.copy(aiKeyText = key, aiKeyStored = true) }
+            _uiState.update {
+                it.copy(aiKeyText = key, aiKeyStored = true, aiKeySavedNotice = true)
+            }
         }
     }
 

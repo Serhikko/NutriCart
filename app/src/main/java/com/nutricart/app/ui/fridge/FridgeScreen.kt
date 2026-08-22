@@ -28,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -42,6 +43,7 @@ import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.common.aisleLabel
 import com.nutricart.app.ui.shopping.ShareListAction
 import com.nutricart.app.ui.shopping.ShoppingBody
+import kotlinx.coroutines.launch
 
 /**
  * Groceries in both of their states: what I HAVE (in stock) and what I still
@@ -57,6 +59,13 @@ fun FridgeScreen(
     var showStock by rememberSaveable { mutableStateOf(true) }
     val snackbarHostState = remember { SnackbarHostState() }
     val bodyState = rememberSaveableStateHolder()
+    // The scope lives HERE, next to the host: a scope remembered inside the
+    // swapped body dies with it, and switching halves would cut the snackbar
+    // off mid-sentence.
+    val scope = rememberCoroutineScope()
+    val showMessage: (String) -> Unit = { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -102,7 +111,7 @@ fun FridgeScreen(
                             onOpenSettings = onOpenSettings,
                         )
                     } else {
-                        ShoppingBody(snackbarHostState = snackbarHostState)
+                        ShoppingBody(onMessage = showMessage)
                     }
                 }
             }

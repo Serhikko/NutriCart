@@ -21,14 +21,12 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -43,7 +41,6 @@ import com.nutricart.app.R
 import com.nutricart.app.domain.model.Aisle
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.common.aisleLabel
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -54,12 +51,11 @@ import java.time.format.DateTimeFormatter
  */
 @Composable
 fun ShoppingBody(
-    snackbarHostState: SnackbarHostState,
+    onMessage: (String) -> Unit,
     viewModel: ShoppingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
     val clipboard = LocalClipboardManager.current
-    val scope = rememberCoroutineScope()
 
     LifecycleResumeEffect(Unit) {
         viewModel.refreshWeek()
@@ -141,7 +137,7 @@ fun ShoppingBody(
                 Button(
                     onClick = {
                         viewModel.moveBoughtToFridge()
-                        scope.launch { snackbarHostState.showSnackbar(movedMessage) }
+                        onMessage(movedMessage)
                     },
                     enabled = !state.moving,
                     modifier = Modifier.fillMaxWidth(),
@@ -164,7 +160,7 @@ fun ShoppingBody(
                                 )
                             )
                         )
-                        scope.launch { snackbarHostState.showSnackbar(copiedMessage) }
+                        onMessage(copiedMessage)
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {

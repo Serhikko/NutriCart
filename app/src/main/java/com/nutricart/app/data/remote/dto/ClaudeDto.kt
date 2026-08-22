@@ -4,11 +4,16 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * The request body of POST /v1/messages. Only the fields this app needs.
+ * The request body of POST /v1/messages. Only the fields this app needs, and
+ * that is the whole design: every optional parameter is one more thing that
+ * can be rejected by the model you happen to be pointing at.
  *
- * Deliberately NOT sent: `thinking` (on by default on current models and
- * rejected as a budget), `temperature`/`top_p`/`top_k` (removed on current
- * models, they return 400) and any assistant prefill (also removed).
+ * Deliberately NOT sent:
+ *  - `output_config.effort` — Haiku 4.5 does not accept it and answers 400;
+ *  - `thinking` — a budget is rejected on current models, and Haiku needs none
+ *    for a short piece of cooking prose;
+ *  - `temperature` / `top_p` / `top_k` and any assistant prefill — removed on
+ *    current models, they return 400.
  */
 @Serializable
 data class ClaudeRequestDto(
@@ -16,19 +21,12 @@ data class ClaudeRequestDto(
     @SerialName("max_tokens") val maxTokens: Int,
     val system: String,
     val messages: List<ClaudeMessageDto>,
-    @SerialName("output_config") val outputConfig: ClaudeOutputConfigDto,
 )
 
 @Serializable
 data class ClaudeMessageDto(
     val role: String,
     val content: String,
-)
-
-/** effort "low" is the documented setting for short, well-bounded tasks. */
-@Serializable
-data class ClaudeOutputConfigDto(
-    val effort: String = "low",
 )
 
 @Serializable

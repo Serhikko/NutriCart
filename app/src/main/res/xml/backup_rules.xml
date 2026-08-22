@@ -5,4 +5,5 @@
 -->
 <full-backup-content>
     <exclude domain="file" path="datastore/secrets.preferences_pb" />
+    <exclude domain="file" path="datastore/secrets.preferences_pb.tmp" />
 </full-backup-content>

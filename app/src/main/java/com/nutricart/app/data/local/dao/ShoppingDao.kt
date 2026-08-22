@@ -31,7 +31,20 @@ interface ShoppingDao {
         insertAll(items)
     }
 
-    @Query("UPDATE shopping_list_item SET isChecked = :checked WHERE id = :id")
+    /**
+     * Unticking a row means "it is NOT in my trolley after all", so it also
+     * drops the "already delivered to the fridge" mark — otherwise that mark
+     * is a one-way latch and the row can never be carried over again, not this
+     * week and not any week after (regenerate copies it by name).
+     */
+    @Query(
+        """
+        UPDATE shopping_list_item
+        SET isChecked = :checked,
+            movedToFridge = CASE WHEN :checked THEN movedToFridge ELSE 0 END
+        WHERE id = :id
+        """
+    )
     suspend fun setChecked(id: Long, checked: Boolean)
 
     @Query("UPDATE shopping_list_item SET alreadyHave = :alreadyHave WHERE id = :id")

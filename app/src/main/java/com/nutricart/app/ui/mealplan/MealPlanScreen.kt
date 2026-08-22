@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -32,7 +33,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -42,8 +46,10 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.nutricart.app.R
 import com.nutricart.app.domain.logic.MealPlanGenerator
 import com.nutricart.app.domain.logic.PlanFailureReason
+import com.nutricart.app.ui.common.CookedPortionsDialog
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.diary.mealSlotLabel
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -58,6 +64,21 @@ fun MealPlanScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    // Which meal is being confirmed as cooked; null = the dialog is closed.
+    var cookingMeal by remember { mutableStateOf<PlanMealUi?>(null) }
+    val cookedMessage = stringResource(R.string.fridge_cooked_toast)
+
+    cookingMeal?.let { meal ->
+        CookedPortionsDialog(
+            onConfirm = { portions ->
+                viewModel.cook(meal, portions)
+                cookingMeal = null
+                scope.launch { snackbarHostState.showSnackbar(cookedMessage) }
+            },
+            onDismiss = { cookingMeal = null },
+        )
+    }
 
     // Roll the week forward if the app slept past midnight.
     LifecycleResumeEffect(Unit) {
@@ -140,6 +161,7 @@ fun MealPlanScreen(
                         onToggleLock = viewModel::toggleLock,
                         onSwap = viewModel::swap,
                         onAddToDiary = viewModel::addToDiary,
+                        onCooked = { cookingMeal = it },
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
@@ -158,6 +180,7 @@ private fun DayCard(
     onToggleLock: (PlanMealUi) -> Unit,
     onSwap: (PlanMealUi) -> Unit,
     onAddToDiary: (PlanMealUi) -> Unit,
+    onCooked: (PlanMealUi) -> Unit,
 ) {
     val dateFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL) }
     Card {
@@ -193,6 +216,7 @@ private fun DayCard(
                     onToggleLock = { onToggleLock(meal) },
                     onSwap = { onSwap(meal) },
                     onAddToDiary = { onAddToDiary(meal) },
+                    onCooked = { onCooked(meal) },
                 )
             }
         }
@@ -208,6 +232,7 @@ private fun MealRow(
     onToggleLock: () -> Unit,
     onSwap: () -> Unit,
     onAddToDiary: () -> Unit,
+    onCooked: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -243,6 +268,14 @@ private fun MealRow(
             Icon(
                 Icons.Filled.Refresh,
                 contentDescription = stringResource(R.string.swap_meal),
+            )
+        }
+        // "I cooked this" belongs where the meal already is: cooking starts on
+        // the plan far more often than on the recipe screen.
+        IconButton(onClick = onCooked, enabled = actionsEnabled) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = stringResource(R.string.fridge_cooked_action),
             )
         }
         if (canLogToDiary) {

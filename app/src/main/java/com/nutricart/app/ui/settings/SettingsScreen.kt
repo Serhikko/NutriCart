@@ -660,6 +660,13 @@ private fun AiKeySection(state: SettingsUiState, viewModel: SettingsViewModel) {
         } else {
             PasswordVisualTransformation()
         },
+        // A password field is not only about the dots: it is what stops the
+        // keyboard from learning the key and later suggesting it inside other
+        // apps, and what stops autocorrect from quietly mangling it.
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            autoCorrectEnabled = false,
+        ),
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -687,6 +694,13 @@ private fun AiKeySection(state: SettingsUiState, viewModel: SettingsViewModel) {
                 )
             }
         }
+    }
+    if (state.aiKeySavedNotice) {
+        Text(
+            stringResource(R.string.ai_key_saved),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
     Text(
         stringResource(R.string.ai_key_hint),

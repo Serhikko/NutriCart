@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.repository.DiaryRepository
+import com.nutricart.app.data.repository.FridgeRepository
 import com.nutricart.app.data.repository.PlanRepository
 import com.nutricart.app.data.repository.ProfileRepository
 import com.nutricart.app.domain.logic.CalorieCalculator
@@ -64,6 +65,7 @@ data class MealPlanUiState(
 class MealPlanViewModel @Inject constructor(
     private val planRepository: PlanRepository,
     private val diaryRepository: DiaryRepository,
+    private val fridgeRepository: FridgeRepository,
     profileRepository: ProfileRepository,
 ) : ViewModel() {
 
@@ -197,6 +199,20 @@ class MealPlanViewModel @Inject constructor(
     }
 
     /** Copies the meal's scaled nutrition into that day's diary as a snapshot. */
+    /**
+     * "I cooked this", from the row where the meal already is — cooking starts
+     * on this screen far more often than on the recipe screen.
+     *
+     * It deducts stock and NOTHING else: the diary keeps its own separate "+",
+     * so cooking on Sunday for Monday can never create an entry on the wrong
+     * day. [portions] covers batch cooking, where one pot feeds several days.
+     */
+    fun cook(meal: PlanMealUi, portions: Int) {
+        viewModelScope.launch {
+            fridgeRepository.cook(meal.recipeId, meal.portionFactor, portions)
+        }
+    }
+
     fun addToDiary(meal: PlanMealUi) {
         viewModelScope.launch {
             // The diary can only browse up to today, so a FUTURE-day entry

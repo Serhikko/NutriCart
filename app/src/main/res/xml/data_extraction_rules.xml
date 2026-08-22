@@ -6,8 +6,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="datastore/secrets.preferences_pb" />
+        <exclude domain="file" path="datastore/secrets.preferences_pb.tmp" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="datastore/secrets.preferences_pb" />
+        <exclude domain="file" path="datastore/secrets.preferences_pb.tmp" />
     </device-transfer>
 </data-extraction-rules>

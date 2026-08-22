@@ -57,10 +57,14 @@ class ShoppingRepository @Inject constructor(
                 pieces = item.pieces,
                 isChecked = previous[item.name]?.isChecked ?: false,
                 alreadyHave = previous[item.name]?.alreadyHave ?: false,
-                // Carried with the tick, not reset: a row that is still ticked
-                // from the last trip and already sits in the fridge must not
-                // become movable again, or those groceries land there twice.
-                movedToFridge = previous[item.name]?.movedToFridge ?: false,
+                // Carried with the tick so groceries already carried over are
+                // not added twice — but ONLY while the amount is unchanged.
+                // The flag means "these grams are already in the fridge"; a new
+                // week that needs more of something must be movable again, or
+                // the extra grams would be stranded forever.
+                movedToFridge = previous[item.name]
+                    ?.let { it.movedToFridge && it.totalGrams == item.totalGrams }
+                    ?: false,
             )
         }
         shoppingDao.replaceAll(rows)
