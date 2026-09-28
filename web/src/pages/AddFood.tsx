@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useI18n } from '../lib/i18n';
 import { useMyTargets } from '../lib/myTargets';
 import { useLogFood } from '../lib/tracker';
-import { productByBarcode, searchProducts } from '../lib/openFoodFacts';
+import { OffError, productByBarcode, searchProducts } from '../lib/openFoodFacts';
 import type { FoodProduct } from '../domain/openFoodFacts';
 import type { MealSlot } from '../lib/diary';
 import { AmountDialog } from '../components/AmountDialog';
@@ -24,6 +24,11 @@ export function AddFood() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodProduct[] | null>(null);
   const [status, setStatus] = useState<'idle' | 'searching' | 'short' | 'offline' | 'not_found'>('idle');
+  const [detail, setDetail] = useState<string | null>(null);
+  const fail = (e: unknown) => {
+    setDetail(e instanceof OffError ? e.message : e instanceof Error ? e.message : String(e));
+    setStatus('offline');
+  };
   const [scanning, setScanning] = useState(false);
   const [barcode, setBarcode] = useState('');
   const [selected, setSelected] = useState<FoodProduct | null>(null);
@@ -33,17 +38,19 @@ export function AddFood() {
     const q = query.trim();
     if (q.length < 2) return setStatus('short');
     setStatus('searching');
+    setDetail(null);
     try {
       setResults(await searchProducts(q));
       setStatus('idle');
-    } catch {
-      setStatus('offline');
+    } catch (e) {
+      fail(e);
     }
   };
 
   const onCode = useCallback(async (code: string) => {
     setScanning(false);
     setStatus('searching');
+    setDetail(null);
     try {
       const product = await productByBarcode(code);
       if (product) {
@@ -52,8 +59,8 @@ export function AddFood() {
       } else {
         setStatus('not_found');
       }
-    } catch {
-      setStatus('offline');
+    } catch (e) {
+      fail(e);
     }
   }, []);
 
@@ -99,7 +106,12 @@ export function AddFood() {
 
           {status === 'short' && <p className="error">{t('add.min_chars')}</p>}
           {status === 'searching' && <p className="muted">{t('loading')}</p>}
-          {status === 'offline' && <p className="error">{t('add.offline')}</p>}
+          {status === 'offline' && (
+            <p className="error">
+              {t('add.offline')}
+              {detail && <span className="muted" style={{ display: 'block', fontSize: '0.8rem' }}>{detail}</span>}
+            </p>
+          )}
           {status === 'not_found' && <p className="error">{t('add.scan_not_found')}</p>}
           {results && results.length === 0 && status === 'idle' && <p className="muted">{t('add.none')}</p>}
 
