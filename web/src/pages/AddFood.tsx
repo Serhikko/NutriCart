@@ -109,7 +109,7 @@ export function AddFood() {
                 <strong>{p.name}</strong>
                 {p.brand && <span className="muted" style={{ fontSize: '0.85rem' }}>{p.brand}</span>}
               </span>
-              <span className="muted" style={{ whiteSpace: 'nowrap' }}>{Math.round(p.kcalPer100g)} {t('unit.kcal')}/100 {t('unit.g')}</span>
+              <span className="muted" style={{ whiteSpace: 'nowrap' }}>{Math.round(p.kcalPer100g)} {t('unit.kcal')}/100 {p.liquid ? t('unit.ml') : t('unit.g')}</span>
             </button>
           ))}
         </>

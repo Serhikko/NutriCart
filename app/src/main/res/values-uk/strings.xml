@@ -161,6 +161,10 @@
     <string name="barcode_scan_failed">Сканер недоступний — спробуй ще раз за мить.</string>
     <string name="offline_results_note">Офлайн — показані лише раніше завантажені продукти.</string>
     <string name="kcal_per_100g">%1$d ккал / 100 г</string>
+    <string name="kcal_per_100ml">%1$d ккал / 100 мл</string>
+    <string name="ml_mode">Мілілітри</string>
+    <string name="portion_size_note_ml">1 порція = %1$d мл</string>
+    <string name="per100ml_header">На 100 мл</string>
     <string name="grams_mode">Грами</string>
     <string name="portions_mode">Порції</string>
     <string name="portion_size_note">1 порція = %1$d г</string>

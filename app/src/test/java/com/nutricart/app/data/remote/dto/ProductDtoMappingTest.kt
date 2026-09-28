@@ -145,4 +145,18 @@ class ProductDtoMappingTest {
         assertNull(LenientDoubleSerializer.parse("<0.5"))
         assertNull(LenientDoubleSerializer.parse("NaN"))
     }
+
+    @Test
+    fun `a drink is flagged from its pack size or its per-100ml basis, food is not`() {
+        val drink = product(
+            """{"code":"3","product_name":"Energy drink","quantity":"500 ml","nutrition_data_per":"100ml",
+               "nutriments":{"energy-kcal_100g":3,"proteins_100g":0,"fat_100g":0,"carbohydrates_100g":0.7}}"""
+        ).toEntityOrNull(0L)!!
+        assertEquals(true, drink.isLiquid)
+        val food = product(
+            """{"code":"4","product_name":"Rice","quantity":"1 kg",
+               "nutriments":{"energy-kcal_100g":350,"proteins_100g":7,"fat_100g":1,"carbohydrates_100g":78}}"""
+        ).toEntityOrNull(0L)!!
+        assertEquals(false, food.isLiquid)
+    }
 }

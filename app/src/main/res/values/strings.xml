@@ -164,6 +164,10 @@
     <string name="barcode_scan_failed">Scanner unavailable — try again in a moment.</string>
     <string name="offline_results_note">Offline — showing previously loaded products only.</string>
     <string name="kcal_per_100g">%1$d kcal / 100 g</string>
+    <string name="kcal_per_100ml">%1$d kcal / 100 ml</string>
+    <string name="ml_mode">Millilitres</string>
+    <string name="portion_size_note_ml">1 portion = %1$d ml</string>
+    <string name="per100ml_header">Per 100 ml</string>
     <string name="grams_mode">Grams</string>
     <string name="portions_mode">Portions</string>
     <string name="portion_size_note">1 portion = %1$d g</string>

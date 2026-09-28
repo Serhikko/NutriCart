@@ -125,8 +125,8 @@
   "add.amount": "Amount",
   "add.grams": "Grams",
   "add.portions": "Portions",
-  "add.portion_size": "1 portion = {g} g",
-  "add.per100": "Per 100 g",
+  "add.portion_size": "1 portion = {g} {unit}",
+  "add.per100": "Per 100 {unit}",
   "add.confirm": "Add",
   "add.cancel": "Cancel",
   "week.adherence": "Days on plan: {good} of {logged}",
@@ -158,5 +158,6 @@
   "settings.target_carbs": "Carbs (g)",
   "add.scan_error": "The camera could not start ({error}). Check the browser's camera permission, or type the barcode below.",
   "add.barcode_manual": "Or type the barcode",
-  "add.barcode_go": "Look up"
+  "add.barcode_go": "Look up",
+  "add.ml": "Millilitres"
 }

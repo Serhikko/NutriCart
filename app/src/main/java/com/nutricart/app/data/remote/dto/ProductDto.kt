@@ -1,6 +1,7 @@
 package com.nutricart.app.data.remote.dto
 
 import com.nutricart.app.data.local.entity.FoodProductEntity
+import com.nutricart.app.domain.logic.LiquidDetector
 import com.nutricart.app.domain.logic.NutritionLabelMath
 import com.nutricart.app.domain.model.ProductSource
 import kotlinx.serialization.SerialName
@@ -35,6 +36,12 @@ data class ProductDto(
     // would make ONE bad product break decoding of the whole search response.
     // (With isLenient, bare JSON numbers also decode into String just fine.)
     @SerialName("serving_quantity") val servingQuantity: String? = null,
+    /** "250 ml", "1 can (330 ml)": the text form, read only to tell drinks from food. */
+    @SerialName("serving_size") val servingSize: String? = null,
+    /** Pack size as printed, e.g. "500 ml" or "400 g". */
+    val quantity: String? = null,
+    /** "100g" or "100ml": what the nutriment values refer to. */
+    @SerialName("nutrition_data_per") val nutritionDataPer: String? = null,
     /** OFF additive tags, e.g. ["en:e330", "en:e202"]. */
     @SerialName("additives_tags") val additivesTags: List<String>? = null,
 )
@@ -150,6 +157,7 @@ fun ProductDto.toEntityOrNull(cachedAtEpochMillis: Long): FoodProductEntity? {
         fatPer100g = fat ?: return null,
         carbsPer100g = carbs ?: return null,
         servingSizeG = servingSizeG,
+        isLiquid = LiquidDetector.isLiquid(nutritionDataPer, quantity, servingSize),
         fiberPer100g = core(n.fiberPer100g, n.fiberPerServing),
         sugarsPer100g = core(n.sugarsPer100g, n.sugarsPerServing),
         saltPer100g = core(n.saltPer100g, n.saltPerServing),

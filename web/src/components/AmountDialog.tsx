@@ -6,6 +6,7 @@ import { forGrams, servingsToGrams } from '../domain/food';
 /** The phone's AmountDialog: grams, or portions when the label states a portion size. */
 export function AmountDialog({ product, onConfirm, onCancel }: { product: FoodProduct; onConfirm: (grams: number, servings: number | null) => void; onCancel: () => void }) {
   const { t } = useI18n();
+  const unit = product.liquid ? t('unit.ml') : t('unit.g');
   const [usePortions, setUsePortions] = useState(false);
   const [text, setText] = useState('100');
   const amount = Number(text.replace(',', '.'));
@@ -27,18 +28,18 @@ export function AmountDialog({ product, onConfirm, onCancel }: { product: FoodPr
       {product.brand && <p className="muted" style={{ marginTop: -6 }}>{product.brand}</p>}
       {product.servingSizeG && (
         <div className="row" style={{ justifyContent: 'flex-start', marginBottom: 8 }}>
-          <button className={usePortions ? 'ghost' : ''} onClick={() => { setUsePortions(false); setText('100'); }}>{t('add.grams')}</button>
+          <button className={usePortions ? 'ghost' : ''} onClick={() => { setUsePortions(false); setText('100'); }}>{product.liquid ? t('add.ml') : t('add.grams')}</button>
           <button className={usePortions ? '' : 'ghost'} onClick={() => { setUsePortions(true); setText('1'); }}>{t('add.portions')}</button>
-          {usePortions && <span className="muted" style={{ fontSize: '0.85rem' }}>{t('add.portion_size', { g: Math.round(product.servingSizeG) })}</span>}
+          {usePortions && <span className="muted" style={{ fontSize: '0.85rem' }}>{t('add.portion_size', { g: Math.round(product.servingSizeG), unit })}</span>}
         </div>
       )}
-      <input type="text" inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} aria-label={usePortions ? t('add.portions') : t('add.grams')} />
+      <input type="text" inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} aria-label={usePortions ? t('add.portions') : product.liquid ? t('add.ml') : t('add.grams')} />
       {kcal !== null && (
         <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.2rem' }}>
           {Math.round(kcal)} {t('unit.kcal')}
         </p>
       )}
-      <p className="muted" style={{ fontSize: '0.85rem', marginBottom: 4 }}>{t('add.per100')}</p>
+      <p className="muted" style={{ fontSize: '0.85rem', marginBottom: 4 }}>{t('add.per100', { unit })}</p>
       {row(t('ob.protein'), product.proteinPer100g)}
       {row(t('ob.fat'), product.fatPer100g)}
       {row(t('ob.carbs'), product.carbsPer100g)}

@@ -61,7 +61,7 @@ import com.nutricart.app.data.local.entity.WorkoutEntryEntity
         RecurringWorkoutEntity::class,
         SyncOutboxEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)

@@ -29,6 +29,11 @@ data class FoodProductEntity(
     val carbsPer100g: Double,
     /** Label portion size in grams, when the producer stated one. */
     val servingSizeG: Double?,
+    /**
+     * A drink (v15): amounts are typed and shown in ml. The per-100 values are
+     * unchanged (1 ml of a drink is about 1 g), only the unit label differs.
+     */
+    val isLiquid: Boolean = false,
     // Detail nutrients (v0.11): null = the source didn't state them — never 0.
     val fiberPer100g: Double? = null,
     val sugarsPer100g: Double? = null,

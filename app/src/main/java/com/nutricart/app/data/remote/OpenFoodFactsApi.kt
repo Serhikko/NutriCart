@@ -38,6 +38,6 @@ interface OpenFoodFactsApi {
         // name is blank (see ProductDto). nutriments covers every _100g and
         // _serving column at once.
         const val FIELDS =
-            "code,product_name,product_name_en,brands,nutriments,serving_quantity,additives_tags"
+            "code,product_name,product_name_en,brands,nutriments,serving_quantity,serving_size,quantity,nutrition_data_per,additives_tags"
     }
 }

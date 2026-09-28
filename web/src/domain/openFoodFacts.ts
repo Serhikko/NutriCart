@@ -1,4 +1,5 @@
 import { per100gFromServing, resolveKcalPer100g } from './food';
+import { isLiquid } from './liquid';
 
 /**
  * Port of the phone's ProductDto mapping and LenientDoubleSerializer: an Open
@@ -17,6 +18,8 @@ export interface FoodProduct {
   fatPer100g: number;
   carbsPer100g: number;
   servingSizeG: number | null;
+  /** A drink: amounts are entered and shown in ml (1 ml ≈ 1 g, the numbers are unchanged). */
+  liquid: boolean;
   fiberPer100g: number | null;
   sugarsPer100g: number | null;
   saltPer100g: number | null;
@@ -36,7 +39,7 @@ type Raw = Record<string, unknown>;
 const num = (n: Raw | undefined, key: string) => (n ? lenientNumber(n[key]) : null);
 
 /** The fields the phone asks for; the same `fields` parameter keeps answers small. */
-export const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments,serving_quantity,additives_tags';
+export const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments,serving_quantity,serving_size,quantity,nutrition_data_per,additives_tags';
 
 export function toProduct(raw: Raw): FoodProduct | null {
   const barcode = typeof raw.code === 'string' ? raw.code.trim() : String(raw.code ?? '').trim();
@@ -88,6 +91,7 @@ export function toProduct(raw: Raw): FoodProduct | null {
     fatPer100g: fat,
     carbsPer100g: carbs,
     servingSizeG,
+    liquid: isLiquid(raw.nutrition_data_per, raw.quantity, raw.serving_size),
     fiberPer100g: core(num(n, 'fiber_100g'), num(n, 'fiber_serving')),
     sugarsPer100g: core(num(n, 'sugars_100g'), num(n, 'sugars_serving')),
     saltPer100g: core(num(n, 'salt_100g'), num(n, 'salt_serving')),
