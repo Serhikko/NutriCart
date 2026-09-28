@@ -3,8 +3,9 @@
 NutriCart is offline-first: Room on the phone is the primary copy, and nothing
 the user does waits for the network. Cloud sync adds a **mirror** of the diary
 in Supabase so the website can show it, to the user on any device and to a
-partner who redeems a pairing code. This document is the design; the schema is
-`supabase/migrations/0001_init.sql`.
+partner who redeems a pairing code. Since milestone 2 the website is also a
+**standalone tracker** for someone without an Android phone. This document is
+the design; the schema is `supabase/migrations/` (one file per milestone).
 
 ## Parts
 
@@ -68,10 +69,37 @@ Heart rate, sleep, per-sample steps, the AI key, the Telegram token. The
 `day_summaries` row carries only the day's totals: target, eaten, active
 kcal, steps, manual workout kcal.
 
-## Not in milestone 1
+## Milestone 2: the website as a tracker
+
+A user with an iPhone keeps the questionnaire on the website. The pages under
+`/me` (`Onboarding`, `MyDay`, `AddFood`, `MyWeek`) are the phone's screens in
+React; the maths is a line-for-line port in `web/src/domain/` (calories,
+macros, nutrient scaling, habit streaks) with the phone's own test vectors,
+so both clients print the same target for the same person.
+
+- `profile_details` (migration `0002`) holds the questionnaire. It is a
+  separate table from `profiles` because partners may read the display name
+  but never the birth date, height or goal. Its `primary_client` says who
+  publishes `day_summaries`: the phone, or, for a web-only account, the
+  website after every write (`web/src/lib/tracker.ts`).
+- Web writes use the same row shapes and the same soft-delete convention as
+  the phone; ids are `web:<f|w>:<uuid>`, so the two clients can never collide.
+- Food comes from Open Food Facts straight from the browser (search and
+  barcode), with the phone's barcode normalisation (UPC-E, EAN-8, UK codes
+  with a leading 0) and the same per-100 g label maths.
+- The barcode scanner is a camera view built on `@zxing/browser`, loaded only
+  when someone taps Scan.
+
+A partner sees a web-only account exactly like a phone account: same Day and
+Week pages, same nudge button (the nudge then has nowhere to land until
+milestone 3's web push).
+
+## Not in milestones 1–2
 
 - Pull: the phone never reads diary rows back. Web edits (milestone 3) will
   arrive through a watermark on `updated_at` with last-writer-wins per row.
 - Email on the account: an anonymous user dies with the phone (milestone 4).
 - Realtime on the phone: polling is enough while the app is closed; a live
   channel while it is open comes with the two-way sync.
+- Meal reminders and nudges for a web-only account need Web Push (a VAPID
+  key, a service-worker handler and a scheduled Edge Function); milestone 3.

@@ -8,7 +8,8 @@ phone talks to it over PostgREST and GoTrue (see `docs/cloud-sync.md`).
 
 1. Create a free project at supabase.com — region **EU Central (Frankfurt)**.
 2. Authentication → Providers → enable **Anonymous sign-ins**.
-3. SQL Editor → run `migrations/0001_init.sql`.
+3. SQL Editor → run `migrations/0001_init.sql`, then `migrations/0002_web_tracker.sql`
+   (in order; each file is one milestone).
 4. Project Settings → API → copy the **Project URL** and the **anon public key**.
 5. Put them in `local.properties` (not committed):
 

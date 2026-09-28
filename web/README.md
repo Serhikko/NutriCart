@@ -1,9 +1,17 @@
 # NutriCart website
 
-The partner view of NutriCart: enter a 6-character pairing code from the
-phone's Settings and see that person's day as they log it, plus a nudge
-button that becomes a notification on their phone. React 19, TypeScript,
-Vite, Supabase, installable as a PWA. Design and milestones: `docs/cloud-sync.md`.
+NutriCart in the browser, two ways:
+
+- **Partner view** — enter a 6-character pairing code from the phone's
+  Settings and see that person's day as they log it, plus a nudge button that
+  becomes a notification on their phone.
+- **Own tracker** — for someone without an Android phone: the same
+  questionnaire, targets, food search, barcode scanning, water, weight and
+  week statistics, under `/me`. The calorie maths is a port of the phone's,
+  checked against the same test vectors.
+
+React 19, TypeScript, Vite, Supabase, installable as a PWA. Design and
+milestones: `docs/cloud-sync.md`.
 
 ```
 cd web
@@ -22,6 +30,9 @@ What is where:
 
 - `src/lib/dates.ts` — epoch-day arithmetic identical to the phone's `LocalDate.toEpochDay()`
 - `src/lib/diary.ts` — row shapes and the small sums the screens need (the target itself comes from the phone)
-- `src/lib/queries.ts` — every read and write, as React Query hooks, plus the Realtime subscription
+- `src/lib/queries.ts` — the partner-side reads and writes, as React Query hooks, plus the Realtime subscription
+- `src/lib/tracker.ts` — the own-tracker writes (profile, food, water, weight) and the day-summary refresh
+- `src/lib/openFoodFacts.ts` — search and barcode lookup against Open Food Facts
+- `src/domain/` — the phone's `domain/logic` in TypeScript: calories and macros, nutrient scaling, barcode normalisation, habits
 - `src/lib/session.tsx` — anonymous sign-in, kept by supabase-js
-- `src/pages/` — Welcome (code entry), Day, Week, Settings
+- `src/pages/` — Welcome, Day, Week, Settings (partner view); Onboarding, MyDay, AddFood, MyWeek (own tracker)

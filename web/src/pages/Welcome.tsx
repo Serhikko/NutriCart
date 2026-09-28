@@ -4,6 +4,7 @@ import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { useFollowed, useMyProfile, useRedeemCode, useSaveMyName } from '../lib/queries';
 import { isWellFormedPairingCode, normalizePairingCode } from '../lib/pairing';
+import { useProfileDetails } from '../lib/tracker';
 
 /** Code entry, and the list of accounts already followed. */
 export function Welcome() {
@@ -13,6 +14,7 @@ export function Welcome() {
   const profile = useMyProfile(userId);
   const saveName = useSaveMyName(userId);
   const redeem = useRedeemCode(userId);
+  const details = useProfileDetails(userId);
   const navigate = useNavigate();
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -30,6 +32,14 @@ export function Welcome() {
 
   return (
     <>
+      <section className="card">
+        <h2 style={{ marginTop: 0 }}>{t('welcome.track_title')}</h2>
+        <p className="muted" style={{ marginTop: 0 }}>{t('welcome.track_intro')}</p>
+        <Link to={details.data ? '/me/day' : '/me/onboarding'}>
+          <button>{details.data ? t('welcome.track_open') : t('welcome.track_start')}</button>
+        </Link>
+      </section>
+
       <h1>{t('welcome.title')}</h1>
       <p className="muted">{t('welcome.intro')}</p>
 
