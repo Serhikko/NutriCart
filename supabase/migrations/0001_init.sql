@@ -43,6 +43,10 @@ create table partner_links (
     created_at  timestamptz not null default now(),
     constraint partner_links_unique unique (owner_id, partner_id),
     constraint partner_links_not_self check (owner_id <> partner_id),
+    -- Both sides also point at profiles, under explicit names, so PostgREST
+    -- can embed either display name: profiles!partner_links_owner_profile_fkey
+    -- and profiles!partner_links_partner_id_fkey.
+    constraint partner_links_owner_profile_fkey foreign key (owner_id) references profiles (user_id) on delete cascade,
     constraint partner_links_partner_id_fkey foreign key (partner_id) references profiles (user_id) on delete cascade
 );
 create index partner_links_partner_idx on partner_links (partner_id);
@@ -198,10 +202,13 @@ begin
         raise exception 'that is your own code' using errcode = '22023';
     end if;
 
-    -- The redeemer needs a profile row for the owner's partner list; the
-    -- website creates it on first visit, this is the safety net.
+    -- Both sides need a profile row (the link points at profiles). The phone
+    -- publishes the owner's real name on its next sync and the website asks
+    -- the partner for one on first visit; these are the safety nets.
     insert into profiles (user_id, display_name)
     values (v_me, 'Partner') on conflict (user_id) do nothing;
+    insert into profiles (user_id, display_name)
+    values (v_code.owner_id, 'NutriCart') on conflict (user_id) do nothing;
 
     insert into partner_links (owner_id, partner_id)
     values (v_code.owner_id, v_me) on conflict (owner_id, partner_id) do nothing;

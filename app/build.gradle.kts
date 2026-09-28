@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application) // includes built-in Kotlin since AGP 9
     alias(libs.plugins.kotlin.compose)      // Compose compiler ships with Kotlin since 2.0
@@ -9,7 +11,7 @@ plugins {
 // Cloud keys come from local.properties (never committed) or, on CI, from the
 // environment. An empty value builds fine: the app then hides the sync section
 // and says so, instead of failing at runtime with a broken URL.
-val localProperties = java.util.Properties().apply {
+val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
