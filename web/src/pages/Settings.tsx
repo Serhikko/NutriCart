@@ -154,6 +154,35 @@ export function Settings() {
     <>
       <h1>{t('settings.title')}</h1>
 
+      {userId && (
+        <section className="card">
+          <h2 style={{ marginTop: 0, fontSize: '1rem' }}>{t('settings.share')}</h2>
+          <p className="muted" style={{ marginTop: 0, fontSize: '0.85rem' }}>{t('settings.share_hint')}</p>
+          {pairing && minutesLeft > 0 ? (
+            <>
+              <p className="code" style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '0.2em', margin: '6px 0' }}>{pairing.code}</p>
+              <p className="muted" style={{ fontSize: '0.85rem', marginTop: 0 }}>{t('settings.code_hint', { min: minutesLeft })}</p>
+            </>
+          ) : pairing ? (
+            <p className="muted" style={{ fontSize: '0.85rem' }}>{t('settings.code_expired')}</p>
+          ) : null}
+          <button className="ghost" style={{ paddingLeft: 0 }} onClick={makeCode} disabled={newCode.isPending}>{t('settings.code_new')}</button>
+          {newCode.isError && <p className="error" style={{ fontSize: '0.85rem' }}>{t('welcome.failed')}</p>}
+          <h3 style={{ fontSize: '0.95rem', margin: '14px 0 6px' }}>{t('settings.partners')}</h3>
+          {partners.data?.length ? (
+            partners.data.map((p) => (
+              <div className="row" key={p.linkId} style={{ marginBottom: 6 }}>
+                <strong>{p.name}</strong>
+                <button className="danger" onClick={() => removePartner.mutate(p.linkId)} disabled={removePartner.isPending}>{t('settings.partner_remove')}</button>
+              </div>
+            ))
+          ) : (
+            <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>{t('settings.partners_none')}</p>
+          )}
+        </section>
+      )}
+
+
       <section className="card">
         <label htmlFor="myname" className="muted" style={{ fontSize: '0.85rem' }}>
           {t('settings.name')}
@@ -180,34 +209,6 @@ export function Settings() {
             <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>{t('settings.profile_phone')}</p>
           ) : (
             <Link to="/me/onboarding"><button className="ghost" style={{ paddingLeft: 0 }}>{t('settings.profile_edit')}</button></Link>
-          )}
-        </section>
-      )}
-
-      {details.data && (
-        <section className="card">
-          <h2 style={{ marginTop: 0, fontSize: '1rem' }}>{t('settings.share')}</h2>
-          <p className="muted" style={{ marginTop: 0, fontSize: '0.85rem' }}>{t('settings.share_hint')}</p>
-          {pairing && minutesLeft > 0 ? (
-            <>
-              <p className="code" style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '0.2em', margin: '6px 0' }}>{pairing.code}</p>
-              <p className="muted" style={{ fontSize: '0.85rem', marginTop: 0 }}>{t('settings.code_hint', { min: minutesLeft })}</p>
-            </>
-          ) : pairing ? (
-            <p className="muted" style={{ fontSize: '0.85rem' }}>{t('settings.code_expired')}</p>
-          ) : null}
-          <button className="ghost" style={{ paddingLeft: 0 }} onClick={makeCode} disabled={newCode.isPending}>{t('settings.code_new')}</button>
-          {newCode.isError && <p className="error" style={{ fontSize: '0.85rem' }}>{t('welcome.failed')}</p>}
-          <h3 style={{ fontSize: '0.95rem', margin: '14px 0 6px' }}>{t('settings.partners')}</h3>
-          {partners.data?.length ? (
-            partners.data.map((p) => (
-              <div className="row" key={p.linkId} style={{ marginBottom: 6 }}>
-                <strong>{p.name}</strong>
-                <button className="danger" onClick={() => removePartner.mutate(p.linkId)} disabled={removePartner.isPending}>{t('settings.partner_remove')}</button>
-              </div>
-            ))
-          ) : (
-            <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>{t('settings.partners_none')}</p>
           )}
         </section>
       )}
