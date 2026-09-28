@@ -8,6 +8,7 @@ import com.nutricart.app.data.local.entity.WeightEntryEntity
 import com.nutricart.app.data.settings.SecretsDataStore
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.WeightSource
+import com.nutricart.app.partner.PartnerScheduling
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -26,6 +27,7 @@ class ProfileRepository @Inject constructor(
     private val settings: SettingsDataStore,
     private val secrets: SecretsDataStore,
     private val db: AppDatabase,
+    private val partnerScheduling: PartnerScheduling,
 ) {
     fun observeProfile(): Flow<UserProfileEntity?> = profileDao.observeProfile()
 
@@ -69,6 +71,9 @@ class ProfileRepository @Inject constructor(
             // The second DataStore file is exactly the kind of store that gets
             // forgotten here — the same class of bug as per-DAO deletes.
             secrets.resetAll()
+            // The partner's queued and periodic jobs would otherwise run once
+            // more against an empty store and a missing token.
+            partnerScheduling.cancelAll()
         }
     }
 

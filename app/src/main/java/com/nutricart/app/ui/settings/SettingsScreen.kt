@@ -562,6 +562,11 @@ private fun SettingsForm(
         SectionTitle(R.string.ai_section)
         AiKeySection(state = state, viewModel = viewModel)
 
+        // --- Partner sharing (optional) ---
+        SectionSpace()
+        SectionTitle(R.string.partner_section)
+        PartnerSection(state = state, viewModel = viewModel)
+
         // --- Health Connect ---
         // Diagnostics, not daily numbers: they used to sit at the bottom of the
         // dashboard. The whole section is hidden when Health Connect is not
@@ -707,6 +712,154 @@ private fun AiKeySection(state: SettingsUiState, viewModel: SettingsViewModel) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+/**
+ * "Share with a partner": a Telegram bot the user creates, a partner who
+ * writes /start to it, and three switches. Set-up order on screen is the
+ * order things happen: token -> connect -> what to share.
+ *
+ * The token field copies the AI key field on purpose (masked, no autocorrect,
+ * Save/Delete, plain-text warning): both are the user's own secrets, and two
+ * different treatments would make one of them look less serious.
+ */
+@Composable
+private fun PartnerSection(state: SettingsUiState, viewModel: SettingsViewModel) {
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    val greeting = stringResource(R.string.partner_greeting)
+    val testText = stringResource(R.string.partner_test_text)
+    // Incoming nudges are notifications, so the same runtime permission the
+    // meal reminders need (Android 13+).
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { /* denied = messages are still fetched, just not shown; nothing to do */ }
+
+    Text(
+        stringResource(R.string.partner_intro),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(modifier = Modifier.height(12.dp))
+
+    OutlinedTextField(
+        value = state.botTokenText,
+        onValueChange = viewModel::setBotTokenText,
+        label = { Text(stringResource(R.string.partner_token_label)) },
+        isError = state.botTokenText.isNotBlank() && !state.botTokenValid,
+        supportingText = {
+            if (state.botTokenText.isNotBlank() && !state.botTokenValid) {
+                Text(stringResource(R.string.partner_token_invalid))
+            }
+        },
+        visualTransformation = if (revealed) {
+            VisualTransformation.None
+        } else {
+            PasswordVisualTransformation()
+        },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            autoCorrectEnabled = false,
+        ),
+        singleLine = true,
+        enabled = !state.partnerBusy,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = { revealed = !revealed }) {
+            Text(stringResource(if (revealed) R.string.ai_key_hide else R.string.ai_key_show))
+        }
+        TextButton(
+            onClick = viewModel::saveBotToken,
+            enabled = state.botTokenValid && !state.partnerBusy,
+        ) { Text(stringResource(R.string.save)) }
+        if (state.botTokenStored) {
+            TextButton(onClick = viewModel::deleteBotToken, enabled = !state.partnerBusy) {
+                Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+
+    // Step 2: the partner. Only reachable once the bot is verified.
+    if (state.botTokenStored) {
+        Spacer(modifier = Modifier.height(8.dp))
+        val partnerName = state.partnerName
+        if (partnerName == null) {
+            state.botUsername?.let { username ->
+                Text(
+                    stringResource(R.string.partner_connect_hint, username),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedButton(
+                onClick = { viewModel.connectPartner(greeting) },
+                enabled = !state.partnerBusy,
+            ) {
+                Text(stringResource(R.string.partner_connect_action))
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.partner_linked_label, partnerName),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                TextButton(onClick = viewModel::unlinkPartner, enabled = !state.partnerBusy) {
+                    Text(stringResource(R.string.partner_unlink_action))
+                }
+            }
+            // Step 3: what flows in each direction.
+            SwitchRow(R.string.partner_share_meals, state.partnerShareMeals, viewModel::setPartnerShareMeals)
+            SwitchRow(R.string.partner_notify_missed, state.partnerNotifyMissed, viewModel::setPartnerNotifyMissed)
+            SwitchRow(R.string.partner_inbox, state.partnerInboxEnabled) { enabled ->
+                if (enabled && Build.VERSION.SDK_INT >= 33) {
+                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                viewModel.setPartnerInboxEnabled(enabled)
+            }
+            TextButton(
+                onClick = { viewModel.sendPartnerTest(testText) },
+                enabled = !state.partnerBusy,
+            ) {
+                Text(stringResource(R.string.partner_test_action))
+            }
+        }
+    }
+
+    state.partnerNotice?.let { notice ->
+        val isGood = notice == PartnerNotice.BOT_SAVED || notice == PartnerNotice.LINKED ||
+            notice == PartnerNotice.TEST_SENT
+        Text(
+            partnerNoticeText(notice, state),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isGood) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        )
+    }
+    Text(
+        stringResource(R.string.partner_privacy_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun partnerNoticeText(notice: PartnerNotice, state: SettingsUiState): String = when (notice) {
+    PartnerNotice.BOT_SAVED -> stringResource(R.string.partner_bot_saved, state.botUsername ?: "")
+    PartnerNotice.LINKED -> stringResource(R.string.partner_notice_linked, state.partnerName ?: "")
+    PartnerNotice.TEST_SENT -> stringResource(R.string.partner_notice_test_sent)
+    PartnerNotice.NO_MESSAGE_YET -> stringResource(R.string.partner_notice_no_message)
+    PartnerNotice.BAD_TOKEN -> stringResource(R.string.partner_notice_bad_token)
+    PartnerNotice.OFFLINE -> stringResource(R.string.partner_notice_offline)
+    PartnerNotice.BUSY -> stringResource(R.string.partner_notice_busy)
+    PartnerNotice.BLOCKED -> stringResource(R.string.partner_notice_blocked)
+    PartnerNotice.FAILED -> stringResource(R.string.partner_notice_failed)
 }
 
 /** A timestamp in the phone's own short date + time format. */

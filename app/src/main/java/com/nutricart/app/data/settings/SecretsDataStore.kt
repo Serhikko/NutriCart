@@ -17,7 +17,8 @@ import javax.inject.Singleton
 private val Context.secretsDataStore by preferencesDataStore(name = "secrets")
 
 /**
- * The user's own API key for the optional AI assistant.
+ * The user's own secrets: the API key for the optional AI assistant and the
+ * Telegram bot token for the optional partner feature.
  *
  * Stored in plain text and that is a deliberate, written-down decision:
  * androidx.security is deprecated and not a dependency here, and for a
@@ -30,6 +31,7 @@ class SecretsDataStore @Inject constructor(
 ) {
     private object Keys {
         val AI_API_KEY = stringPreferencesKey("ai_api_key")
+        val TELEGRAM_BOT_TOKEN = stringPreferencesKey("telegram_bot_token")
     }
 
     /** null = never set. */
@@ -43,6 +45,18 @@ class SecretsDataStore @Inject constructor(
     /** remove(), not "": a blank value would be indistinguishable from unset. */
     suspend fun clearAiApiKey() {
         context.secretsDataStore.edit { prefs -> prefs.remove(Keys.AI_API_KEY) }
+    }
+
+    /** The partner feature's bot token (created by the user in @BotFather). null = never set. */
+    val telegramBotToken: Flow<String?> =
+        context.secretsDataStore.data.map { prefs -> prefs[Keys.TELEGRAM_BOT_TOKEN] }
+
+    suspend fun setTelegramBotToken(value: String) {
+        context.secretsDataStore.edit { prefs -> prefs[Keys.TELEGRAM_BOT_TOKEN] = value }
+    }
+
+    suspend fun clearTelegramBotToken() {
+        context.secretsDataStore.edit { prefs -> prefs.remove(Keys.TELEGRAM_BOT_TOKEN) }
     }
 
     /**

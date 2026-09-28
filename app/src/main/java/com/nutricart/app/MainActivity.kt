@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.lifecycleScope
 import com.nutricart.app.data.settings.SettingsDataStore
+import com.nutricart.app.partner.PartnerScheduling
 import com.nutricart.app.reminders.MealReminderScheduling
 import com.nutricart.app.ui.navigation.AppRoot
 import com.nutricart.app.ui.theme.NutriCartTheme
@@ -22,6 +23,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var settings: SettingsDataStore
 
+    @Inject
+    lateinit var partnerScheduling: PartnerScheduling
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -34,6 +38,9 @@ class MainActivity : ComponentActivity() {
         // back to life on the next app open.
         lifecycleScope.launch {
             MealReminderScheduling.reanchorAll(this@MainActivity, settings)
+            // Same idea for the partner inbox — and it also polls right away,
+            // so a nudge sent while the phone was in a drawer shows up now.
+            partnerScheduling.reanchor()
         }
     }
 

@@ -403,4 +403,40 @@
     <string name="ai_error_refused">The assistant declined to answer this one.</string>
     <string name="ai_error_empty">No answer came back — try again.</string>
     <string name="ai_error_failed">Something went wrong.</string>
+
+    <!-- Share with a partner (Telegram) -->
+    <string name="partner_section">Share with a partner (optional)</string>
+    <string name="partner_intro">Let someone you trust follow what you eat and nudge you, through Telegram. Create a bot with @BotFather, paste its token below, then ask your partner to open the bot and send /start.</string>
+    <string name="partner_token_label">Bot token</string>
+    <string name="partner_token_invalid">That does not look like a bot token.</string>
+    <string name="partner_bot_saved">Bot @%1$s is ready</string>
+    <string name="partner_connect_hint">Your partner opens t.me/%1$s in Telegram and sends /start — then tap Connect.</string>
+    <string name="partner_connect_action">Connect partner</string>
+    <string name="partner_linked_label">Partner: %1$s</string>
+    <string name="partner_unlink_action">Unlink</string>
+    <string name="partner_share_meals">Send my meals as I log them</string>
+    <string name="partner_notify_missed">Tell my partner when I skip a meal</string>
+    <string name="partner_inbox">Show my partner\'s messages as notifications</string>
+    <string name="partner_test_action">Send a test message</string>
+    <string name="partner_test_text">👋 Test from NutriCart — the connection works.</string>
+    <string name="partner_greeting">✅ NutriCart connected. Meals will show up here as they are logged. Send /today for the day so far, or write anything to nudge.</string>
+    <string name="partner_notice_linked">Connected to %1$s</string>
+    <string name="partner_notice_test_sent">Test message sent.</string>
+    <string name="partner_notice_no_message">No message from your partner yet. Ask them to open the bot and send /start, then try again.</string>
+    <string name="partner_notice_bad_token">Telegram rejected this token.</string>
+    <string name="partner_notice_offline">You are offline.</string>
+    <string name="partner_notice_busy">Telegram is busy — try again in a moment.</string>
+    <string name="partner_notice_blocked">Your partner blocked the bot in Telegram.</string>
+    <string name="partner_notice_failed">Something went wrong.</string>
+    <string name="partner_privacy_hint">Messages travel through Telegram\'s servers. Only meal names and calories are sent — never weight, steps or heart rate. Replies are checked about every 15 minutes and whenever you open the app.</string>
+    <string name="partner_channel_name">Partner messages</string>
+    <string name="partner_nudge_default">Time to eat 🍽</string>
+    <string name="partner_missed_meal">⏰ %1$s is not logged yet. Send /nudge or write anything — it will pop up on the phone.</string>
+    <string name="partner_day_title">NutriCart — %1$s</string>
+    <string name="partner_day_total_left">Today: %1$d / %2$d kcal, %3$d left</string>
+    <string name="partner_day_total_over">Today: %1$d / %2$d kcal, %3$d over</string>
+    <string name="partner_day_total">Today: %1$d kcal</string>
+    <string name="partner_more_items">…and %1$d more</string>
+    <string name="partner_nothing_yet">Nothing logged yet today.</string>
+    <string name="share_day_action">Share today</string>
 </resources>

@@ -7,14 +7,23 @@ import com.nutricart.app.data.local.entity.FoodProductEntity
 import com.nutricart.app.data.local.entity.SavedMealItemEntity
 import com.nutricart.app.domain.logic.FoodMath
 import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.partner.PartnerScheduling
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** The food diary: what was eaten, when, and the day's running totals. */
+/**
+ * The food diary: what was eaten, when, and the day's running totals.
+ *
+ * Every write path ends with [PartnerScheduling.onMealLogged]: it lives here
+ * and not in the four ViewModels that log food, so a fifth way to log added
+ * later can never forget to tell the partner. The scheduler decides whether
+ * anything is actually sent.
+ */
 @Singleton
 class DiaryRepository @Inject constructor(
     private val foodLogDao: FoodLogDao,
+    private val partnerScheduling: PartnerScheduling,
 ) {
 
     fun observeDay(epochDay: Long): Flow<List<FoodLogEntryEntity>> =
@@ -42,6 +51,7 @@ class DiaryRepository @Inject constructor(
         foodLogDao.insert(
             entryFor(product, grams, servings, meal, epochDay, System.currentTimeMillis())
         )
+        partnerScheduling.onMealLogged(meal, epochDay)
     }
 
     /** The one place that turns a product + grams into a diary snapshot row. */
@@ -115,6 +125,7 @@ class DiaryRepository @Inject constructor(
                 )
             }
         )
+        partnerScheduling.onMealLogged(meal, epochDay)
     }
 
     /**
@@ -132,6 +143,7 @@ class DiaryRepository @Inject constructor(
                 entryFor(product, grams, servings = null, meal, epochDay, now)
             }
         )
+        partnerScheduling.onMealLogged(meal, epochDay)
     }
 
     /**
@@ -162,5 +174,6 @@ class DiaryRepository @Inject constructor(
                 loggedAtEpochMillis = System.currentTimeMillis(),
             )
         )
+        partnerScheduling.onMealLogged(meal, epochDay)
     }
 }

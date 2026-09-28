@@ -12,6 +12,10 @@ import com.nutricart.app.data.repository.WorkoutRepository
 import com.nutricart.app.data.settings.SecretsDataStore
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.data.remote.TelegramApi
+import com.nutricart.app.partner.PartnerRepository
+import com.nutricart.app.partner.PartnerResult
+import com.nutricart.app.partner.PartnerScheduling
 import com.nutricart.app.reminders.MealReminderScheduling
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.nutricart.app.domain.logic.CalorieCalculator
@@ -78,6 +82,21 @@ data class SettingsUiState(
     val aiKeyStored: Boolean = false,
     /** Shown right after a successful save; cleared as soon as the field changes. */
     val aiKeySavedNotice: Boolean = false,
+    // --- Partner sharing (Telegram) ---
+    /** The bot token as typed (masked on screen). */
+    val botTokenText: String = "",
+    val botTokenStored: Boolean = false,
+    /** The bot's @username once Telegram confirmed the token. */
+    val botUsername: String? = null,
+    /** The linked partner's name; null = not connected. */
+    val partnerName: String? = null,
+    val partnerShareMeals: Boolean = true,
+    val partnerNotifyMissed: Boolean = true,
+    val partnerInboxEnabled: Boolean = true,
+    /** True while a Telegram call is in flight — the buttons wait. */
+    val partnerBusy: Boolean = false,
+    /** One-shot outcome of the last partner action, shown under the section. */
+    val partnerNotice: PartnerNotice? = null,
     val saved: Boolean = false,
     val showResetDialog: Boolean = false,
 ) {
@@ -119,6 +138,14 @@ data class SettingsUiState(
         get() = aiKeyText.trim().let { key ->
             key.isNotEmpty() && key.all { it in ' '..'~' }
         }
+
+    val botTokenValid: Boolean
+        get() = TelegramApi.TOKEN_PATTERN.matches(botTokenText.trim())
+}
+
+/** What the partner section reports after an action; each maps to one string. */
+enum class PartnerNotice {
+    BOT_SAVED, LINKED, TEST_SENT, NO_MESSAGE_YET, BAD_TOKEN, OFFLINE, BUSY, BLOCKED, FAILED,
 }
 
 /** One reminder row: the meal, on/off, and the time in minutes from midnight. */
@@ -134,6 +161,8 @@ class SettingsViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val settings: SettingsDataStore,
     private val secrets: SecretsDataStore,
+    private val partnerRepository: PartnerRepository,
+    private val partnerScheduling: PartnerScheduling,
     healthConnectManager: HealthConnectManager,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -160,6 +189,34 @@ class SettingsViewModel @Inject constructor(
             _uiState.update {
                 it.copy(aiKeyText = stored.orEmpty(), aiKeyStored = !stored.isNullOrBlank())
             }
+        }
+        // Same rule for the bot token field…
+        viewModelScope.launch {
+            val stored = secrets.telegramBotToken.first()
+            _uiState.update {
+                it.copy(botTokenText = stored.orEmpty(), botTokenStored = !stored.isNullOrBlank())
+            }
+        }
+        // …while the link, the bot name and the toggles are not typed into,
+        // so they can follow the store live.
+        viewModelScope.launch {
+            partnerRepository.link.collect { link ->
+                _uiState.update { it.copy(partnerName = link?.name) }
+            }
+        }
+        viewModelScope.launch {
+            partnerRepository.botUsername.collect { username ->
+                _uiState.update { it.copy(botUsername = username) }
+            }
+        }
+        viewModelScope.launch {
+            settings.partnerShareMeals.collect { on -> _uiState.update { it.copy(partnerShareMeals = on) } }
+        }
+        viewModelScope.launch {
+            settings.partnerNotifyMissed.collect { on -> _uiState.update { it.copy(partnerNotifyMissed = on) } }
+        }
+        viewModelScope.launch {
+            settings.partnerInboxEnabled.collect { on -> _uiState.update { it.copy(partnerInboxEnabled = on) } }
         }
 
         // Load the saved profile and latest weight once into the editable form.
@@ -382,6 +439,96 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             secrets.clearAiApiKey()
             _uiState.update { it.copy(aiKeyText = "", aiKeyStored = false) }
+        }
+    }
+
+    // --- Partner sharing ---
+
+    fun setBotTokenText(value: String) =
+        _uiState.update { it.copy(botTokenText = value, partnerNotice = null) }
+
+    fun clearPartnerNotice() = _uiState.update { it.copy(partnerNotice = null) }
+
+    /** Runs one partner action with the busy flag and turns its result into a notice. */
+    private fun partnerAction(onOk: PartnerNotice, block: suspend () -> PartnerResult) {
+        if (_uiState.value.partnerBusy) return // one call at a time
+        _uiState.update { it.copy(partnerBusy = true, partnerNotice = null) }
+        viewModelScope.launch {
+            val result = try {
+                block()
+            } finally {
+                _uiState.update { it.copy(partnerBusy = false) }
+            }
+            _uiState.update { it.copy(partnerNotice = noticeFor(result, onOk)) }
+        }
+    }
+
+    private fun noticeFor(result: PartnerResult, onOk: PartnerNotice): PartnerNotice = when (result) {
+        PartnerResult.Ok -> onOk
+        PartnerResult.NoMessageYet -> PartnerNotice.NO_MESSAGE_YET
+        PartnerResult.BadToken, PartnerResult.NoToken -> PartnerNotice.BAD_TOKEN
+        PartnerResult.Offline -> PartnerNotice.OFFLINE
+        PartnerResult.Busy -> PartnerNotice.BUSY
+        PartnerResult.Blocked -> PartnerNotice.BLOCKED
+        PartnerResult.NotLinked, PartnerResult.Failed -> PartnerNotice.FAILED
+    }
+
+    /** Verifies the token with Telegram and stores it only if accepted. */
+    fun saveBotToken() {
+        val token = _uiState.value.botTokenText.trim()
+        if (!_uiState.value.botTokenValid) return
+        partnerAction(PartnerNotice.BOT_SAVED) {
+            partnerRepository.saveToken(token).also { result ->
+                if (result == PartnerResult.Ok) {
+                    _uiState.update { it.copy(botTokenText = token, botTokenStored = true) }
+                    partnerScheduling.reanchor()
+                }
+            }
+        }
+    }
+
+    fun deleteBotToken() {
+        viewModelScope.launch {
+            partnerRepository.deleteToken()
+            partnerScheduling.cancelAll()
+            _uiState.update { it.copy(botTokenText = "", botTokenStored = false, partnerNotice = null) }
+        }
+    }
+
+    /** Links whoever last wrote to the bot, then greets them (string from the UI language). */
+    fun connectPartner(greeting: String) {
+        partnerAction(PartnerNotice.LINKED) {
+            partnerRepository.connectPartner(greeting).also { result ->
+                if (result == PartnerResult.Ok) partnerScheduling.reanchor()
+            }
+        }
+    }
+
+    fun unlinkPartner() {
+        viewModelScope.launch {
+            partnerRepository.unlinkPartner()
+            partnerScheduling.cancelAll()
+            _uiState.update { it.copy(partnerNotice = null) }
+        }
+    }
+
+    fun sendPartnerTest(text: String) {
+        partnerAction(PartnerNotice.TEST_SENT) { partnerRepository.sendText(text) }
+    }
+
+    fun setPartnerShareMeals(enabled: Boolean) {
+        viewModelScope.launch { settings.setPartnerShareMeals(enabled) }
+    }
+
+    fun setPartnerNotifyMissed(enabled: Boolean) {
+        viewModelScope.launch { settings.setPartnerNotifyMissed(enabled) }
+    }
+
+    /** The inbox toggle also starts or stops the polling cycle. */
+    fun setPartnerInboxEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settings.setPartnerInboxEnabled(enabled)
+            partnerScheduling.reanchor()
         }
     }
 

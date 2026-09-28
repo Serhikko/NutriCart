@@ -2,6 +2,7 @@ package com.nutricart.app.di
 
 import com.nutricart.app.data.remote.ClaudeApi
 import com.nutricart.app.data.remote.OpenFoodFactsApi
+import com.nutricart.app.data.remote.TelegramApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -87,5 +88,33 @@ object NetworkModule {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(ClaudeApi::class.java)
+    }
+
+    /**
+     * Telegram Bot API for the partner feature. Its own client for the same
+     * reason as the AI assistant above: a different host with its own rules,
+     * and no wish to introduce qualifiers for one more service. The bot token
+     * is a per-call path parameter (see TelegramApi), so nothing here caches
+     * a secret.
+     */
+    @Provides
+    @Singleton
+    fun provideTelegramApi(): TelegramApi {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
+            .build()
+        val json = Json {
+            ignoreUnknownKeys = true // Telegram objects carry dozens of fields we don't map
+            isLenient = true
+            coerceInputValues = true
+        }
+        return Retrofit.Builder()
+            .baseUrl(TelegramApi.BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(TelegramApi::class.java)
     }
 }
