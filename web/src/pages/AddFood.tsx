@@ -25,6 +25,7 @@ export function AddFood() {
   const [results, setResults] = useState<FoodProduct[] | null>(null);
   const [status, setStatus] = useState<'idle' | 'searching' | 'short' | 'offline' | 'not_found'>('idle');
   const [scanning, setScanning] = useState(false);
+  const [barcode, setBarcode] = useState('');
   const [selected, setSelected] = useState<FoodProduct | null>(null);
 
   const search = async (e: FormEvent) => {
@@ -84,6 +85,17 @@ export function AddFood() {
               <BarcodeScanner onCode={onCode} onClose={() => setScanning(false)} />
             </Suspense>
           )}
+          <form
+            className="row"
+            style={{ marginTop: 8 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (barcode.replace(/\D/g, '').length >= 8) void onCode(barcode);
+            }}
+          >
+            <input type="text" inputMode="numeric" value={barcode} placeholder={t('add.barcode_manual')} onChange={(e) => setBarcode(e.target.value)} aria-label={t('add.barcode_manual')} />
+            <button type="submit" className="ghost" disabled={status === 'searching' || barcode.replace(/\D/g, '').length < 8}>{t('add.barcode_go')}</button>
+          </form>
 
           {status === 'short' && <p className="error">{t('add.min_chars')}</p>}
           {status === 'searching' && <p className="muted">{t('loading')}</p>}

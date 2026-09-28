@@ -148,5 +148,15 @@
   "settings.account_error": "Не вдалося надіслати лист. Перевір адресу і спробуй ще раз.",
   "settings.signout_hint_email": "Виходить із цього браузера. Дані залишаються в акаунті; увійди знову з email.",
   "welcome.track_signin": "Уже користуєшся NutriCart на телефоні? Увійди з email у розділі",
-  "me.activity": "{steps} кроків · {active} ккал активності (з телефона)"
+  "me.activity": "{steps} кроків · {active} ккал активності (з телефона)",
+  "ob.edit_title": "Твій профіль",
+  "ob.update": "Зберегти зміни",
+  "settings.profile_edit": "Змінити профіль і цілі",
+  "settings.profile_phone": "Цим профілем керує застосунок NutriCart на телефоні. Зміни його там; сайт підхопить.",
+  "settings.target_protein": "Білки (г)",
+  "settings.target_fat": "Жири (г)",
+  "settings.target_carbs": "Вуглеводи (г)",
+  "add.scan_error": "Камера не запустилася ({error}). Перевір дозвіл на камеру в браузері або введи штрихкод нижче.",
+  "add.barcode_manual": "Або введи штрихкод",
+  "add.barcode_go": "Знайти"
 }

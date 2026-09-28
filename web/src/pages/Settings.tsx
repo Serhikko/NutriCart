@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useI18n, type Locale } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { useFollowed, useMyProfile, useSaveMyName, useUnfollow } from '../lib/queries';
+import { useProfileDetails } from '../lib/tracker';
+import { ageYears } from '../domain/calories';
 import { supabase } from '../lib/supabase';
 
 type AccountNotice = { key: string; email?: string; error?: boolean } | null;
@@ -15,6 +17,7 @@ export function Settings() {
   const saveName = useSaveMyName(userId);
   const followed = useFollowed(userId);
   const unfollow = useUnfollow(userId);
+  const details = useProfileDetails(userId);
   const [name, setName] = useState('');
   const [emailText, setEmailText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -71,6 +74,21 @@ export function Settings() {
           </button>
         </div>
       </section>
+
+      {details.data && (
+        <section className="card">
+          <h2 style={{ marginTop: 0, fontSize: '1rem' }}>{t('settings.profile')}</h2>
+          <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.9rem' }}>
+            {t(details.data.sex === 'MALE' ? 'ob.male' : 'ob.female')} · {ageYears(new Date(details.data.birth_date), new Date())} · {details.data.height_cm} cm · {t(`ob.goal.${details.data.goal}`)}
+            {details.data.custom_kcal_target != null ? ` · ${details.data.custom_kcal_target} kcal` : ''}
+          </p>
+          {details.data.primary_client === 'phone' ? (
+            <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>{t('settings.profile_phone')}</p>
+          ) : (
+            <Link to="/me/onboarding"><button className="ghost" style={{ paddingLeft: 0 }}>{t('settings.profile_edit')}</button></Link>
+          )}
+        </section>
+      )}
 
       <section className="card">
         <h2 style={{ marginTop: 0, fontSize: '1rem' }}>{t('settings.account')}</h2>

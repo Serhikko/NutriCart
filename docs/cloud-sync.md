@@ -87,9 +87,11 @@ so both clients print the same target for the same person.
   website after every write (`web/src/lib/tracker.ts`).
 - Web writes use the same row shapes and the same soft-delete convention as
   the phone; ids are `web:<f|w>:<uuid>`, so the two clients can never collide.
-- Food comes from Open Food Facts straight from the browser (search and
-  barcode), with the phone's barcode normalisation (UPC-E, EAN-8, UK codes
-  with a leading 0) and the same per-100 g label maths.
+- Food comes from Open Food Facts (search and barcode) through a small
+  same-origin Vercel function (`web/api/off.ts`) that sets the User-Agent
+  OFF asks for and caches answers; the mapping uses the phone's barcode
+  normalisation (UPC-E, EAN-8, UK codes with a leading 0) and the same
+  per-100 g label maths. A typed barcode works when the camera does not.
 - The barcode scanner is a camera view built on `@zxing/browser`, loaded only
   when someone taps Scan.
 
