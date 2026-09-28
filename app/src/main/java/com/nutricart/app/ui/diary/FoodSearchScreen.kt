@@ -380,7 +380,7 @@ private fun BasketDialog(
                         OutlinedTextField(
                             value = item.gramsText,
                             onValueChange = { onGramsChange(item.product.id, it) },
-                            label = { Text(stringResource(if (product.isLiquid) R.string.ml_mode else R.string.grams_mode)) },
+                            label = { Text(stringResource(if (item.product.isLiquid) R.string.ml_mode else R.string.grams_mode)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             modifier = Modifier.width(96.dp),
