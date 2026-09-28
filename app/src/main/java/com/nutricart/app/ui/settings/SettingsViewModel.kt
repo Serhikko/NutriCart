@@ -17,6 +17,7 @@ import com.nutricart.app.cloud.CloudAccount
 import com.nutricart.app.cloud.CloudPartner
 import com.nutricart.app.cloud.CloudRepository
 import com.nutricart.app.cloud.CloudResult
+import com.nutricart.app.domain.logic.PasswordGenerator
 import com.nutricart.app.partner.PartnerRepository
 import com.nutricart.app.partner.PartnerResult
 import com.nutricart.app.partner.PartnerScheduling
@@ -119,6 +120,7 @@ data class SettingsUiState(
     val cloudNotice: CloudNotice? = null,
     /** The email field, and what the server says about the account's email (null = not asked yet). */
     val cloudEmailText: String = "",
+    val cloudPasswordText: String = "",
     val cloudAccount: CloudAccount? = null,
     /** The switch was turned on but no name is stored yet: ask for one first. */
     val showCloudNameDialog: Boolean = false,
@@ -172,6 +174,9 @@ data class SettingsUiState(
 
     val cloudEmailValid: Boolean
         get() = cloudEmailText.trim().let { it.contains('@') && it.substringAfter('@').contains('.') }
+
+    val cloudPasswordValid: Boolean
+        get() = PasswordGenerator.isAcceptable(cloudPasswordText)
 }
 
 /** What the cloud section reports after an action. */
@@ -663,6 +668,11 @@ class SettingsViewModel @Inject constructor(
 
     fun setCloudEmailText(value: String) = _uiState.update { it.copy(cloudEmailText = value, cloudNotice = null) }
 
+    fun setCloudPasswordText(value: String) = _uiState.update { it.copy(cloudPasswordText = value, cloudNotice = null) }
+
+    /** Fills the password field with a made-up one, shown in clear so it can be copied down. */
+    fun generateCloudPassword() = _uiState.update { it.copy(cloudPasswordText = PasswordGenerator.generate(), cloudNotice = null) }
+
     /** Asks the server whether the account has an email yet; the field defaults to the one typed last. */
     fun refreshCloudAccount() {
         viewModelScope.launch {
@@ -678,10 +688,11 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun linkCloudEmail() {
-        val email = _uiState.value.cloudEmailText.trim()
-        if (!_uiState.value.cloudEmailValid) return
+        val state = _uiState.value
+        val email = state.cloudEmailText.trim()
+        if (!state.cloudEmailValid || !state.cloudPasswordValid) return
         cloudAction(CloudNotice.EMAIL_SENT) {
-            cloudRepository.linkEmail(email).also { result ->
+            cloudRepository.linkEmail(email, state.cloudPasswordText).also { result ->
                 if (result == CloudResult.Ok) refreshCloudAccount()
             }
         }

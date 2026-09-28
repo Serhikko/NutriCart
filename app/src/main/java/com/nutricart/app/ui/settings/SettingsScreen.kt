@@ -942,6 +942,27 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
                 enabled = !state.cloudBusy,
                 modifier = Modifier.fillMaxWidth(),
             )
+            // The password is shown in clear on purpose: the user reads it off
+            // this screen to type it into the website, and it is never stored here.
+            OutlinedTextField(
+                value = state.cloudPasswordText,
+                onValueChange = viewModel::setCloudPasswordText,
+                label = { Text(stringResource(R.string.cloud_password_label)) },
+                singleLine = true,
+                isError = state.cloudPasswordText.isNotEmpty() && !state.cloudPasswordValid,
+                enabled = !state.cloudBusy,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = viewModel::generateCloudPassword, enabled = !state.cloudBusy) {
+                    Text(stringResource(R.string.cloud_password_generate))
+                }
+                TextButton(
+                    onClick = viewModel::linkCloudEmail,
+                    enabled = state.cloudEmailValid && state.cloudPasswordValid && !state.cloudBusy,
+                ) { Text(stringResource(R.string.cloud_email_link)) }
+            }
             account?.pendingEmail?.let { pending ->
                 Text(
                     stringResource(R.string.cloud_email_pending, pending),
@@ -949,10 +970,6 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(
-                onClick = viewModel::linkCloudEmail,
-                enabled = state.cloudEmailValid && !state.cloudBusy,
-            ) { Text(stringResource(R.string.cloud_email_link)) }
         }
 
         // Pairing code

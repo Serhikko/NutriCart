@@ -102,11 +102,17 @@ milestone 3's web push).
 ## Milestone 3: one account everywhere, two-way sync
 
 The phone user's account is anonymous, so nothing could open it elsewhere.
-Now Settings → Cloud sync → **Account email** links an address: GoTrue mails
-one confirmation, and from then on the website's Settings → **Sign in with
-email** sends a magic link that opens the same account there. The phone's
-session is untouched; a lost phone is recovered the same way (milestone 4's
-"email on the account" moved here, since the web sign-in needs it).
+Now Settings → Cloud sync → **Account email** links an address and a
+password (typed, or made up by the app: 14 symbols without look-alikes,
+`PasswordGenerator`): GoTrue mails one confirmation, and from then on the
+website's Settings signs in with that email and password from any browser.
+A password rather than only a magic link because the link opens in whatever
+browser the mail app hands it to, not the one the person wants to use; the
+confirmation link still arrives, but it only confirms the address. A
+sign-in link by email stays as the fallback for a forgotten password. The
+phone's session is untouched; a lost phone is recovered the same way
+(milestone 4's "email on the account" moved here, since the web sign-in
+needs it). The password is never stored on the phone.
 
 For that to be useful the website must know the phone user's targets, so the
 worker now also publishes `profile_details` with `primary_client = 'phone'`.

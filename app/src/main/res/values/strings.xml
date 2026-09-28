@@ -476,11 +476,13 @@
     <string name="cloud_notice_failed">Something went wrong.</string>
     <string name="cloud_partner_default_name">Partner</string>
     <string name="cloud_email_title">Account email</string>
-    <string name="cloud_email_hint">Add an email to open this account on the website and to keep it if you lose the phone. We send one confirmation link; nothing else.</string>
+    <string name="cloud_email_hint">Add an email and a password to open this account on the website from any browser, and to keep it if you lose the phone. We send one confirmation link; nothing else.</string>
+    <string name="cloud_password_label">Password (8+ characters)</string>
+    <string name="cloud_password_generate">Generate</string>
     <string name="cloud_email_label">Email</string>
     <string name="cloud_email_link">Send confirmation</string>
     <string name="cloud_email_pending">Confirmation sent to %1$s. Open the link in that email, then come back.</string>
-    <string name="cloud_email_linked">Signed in as %1$s. On the website, choose “Sign in with email” to open this account.</string>
-    <string name="cloud_notice_email_sent">Check your inbox for the confirmation link.</string>
+    <string name="cloud_email_linked">Signed in as %1$s. On the website, open Settings and sign in with this email and your password.</string>
+    <string name="cloud_notice_email_sent">Check your inbox for the confirmation link. Write the password down: it is not stored on the phone.</string>
     <string name="cloud_privacy_hint">What leaves the phone: meal names and calories, water, weight and your daily activity totals. Never heart rate, sleep or the AI key. Stored in the EU; delete it any time by turning sync off.</string>
 </resources>

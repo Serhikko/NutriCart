@@ -7,6 +7,7 @@ import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.logic.PairingCode
+import com.nutricart.app.domain.logic.PasswordGenerator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -112,17 +113,22 @@ class CloudRepository @Inject constructor(
     }
 
     /**
-     * Links an email to the (anonymous) account. GoTrue mails a confirmation
-     * link; once clicked, the same address signs in on the website and opens
-     * this account there, and the account survives a lost phone.
+     * Links an email and a password to the (anonymous) account. GoTrue mails a
+     * confirmation link; once clicked, the same address and password sign in
+     * on the website from any browser and open this account there, and the
+     * account survives a lost phone. The password is never stored on the phone.
      */
-    suspend fun linkEmail(email: String): CloudResult {
+    suspend fun linkEmail(email: String, password: String): CloudResult {
         if (!isConfigured) return CloudResult.NotConfigured
         val address = email.trim().lowercase()
-        if (!EMAIL.matches(address)) return CloudResult.Failed
+        if (!EMAIL.matches(address) || !PasswordGenerator.isAcceptable(password)) return CloudResult.Failed
         return call {
             auth.ensureSignedIn()
-            authApi.updateUser(bearerOrThrow(), SbUpdateUserRequest(address))
+            val body = buildJsonObject {
+                put("email", address)
+                put("password", password)
+            }
+            authApi.updateUser(bearerOrThrow(), body)
             settings.setCloudEmail(address)
             CloudResult.Ok
         }

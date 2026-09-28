@@ -37,12 +37,13 @@ interface SupabaseAuthApi {
     suspend fun user(@Header("Authorization") bearer: String): SbUserDto
 
     /**
-     * Links an email to the anonymous account. GoTrue sends a confirmation
-     * to that address; once clicked, the account is permanent and the same
-     * email signs in on the website with a magic link.
+     * Links an email (and a password) to the anonymous account. GoTrue sends a
+     * confirmation to that address; once clicked, the account is permanent and
+     * the same email and password sign in on the website from any browser.
+     * The body is built by the caller so an absent password is absent, not null.
      */
     @PUT("auth/v1/user")
-    suspend fun updateUser(@Header("Authorization") bearer: String, @Body body: SbUpdateUserRequest): SbUserDto
+    suspend fun updateUser(@Header("Authorization") bearer: String, @Body body: JsonObject): SbUserDto
 }
 
 /**

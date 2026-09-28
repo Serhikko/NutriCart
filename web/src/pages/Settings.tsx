@@ -6,6 +6,7 @@ import { useFollowed, useMyPartners, useMyProfile, useNewPairingCode, useRemoveP
 import { useProfileDetails } from '../lib/tracker';
 import { ageYears } from '../domain/calories';
 import { supabase } from '../lib/supabase';
+import { generatePassword, isAcceptablePassword } from '../lib/password';
 
 type AccountNotice = { key: string; email?: string; error?: boolean } | null;
 
@@ -62,6 +63,8 @@ export function Settings() {
     });
   const minutesLeft = pairing ? Math.max(0, Math.ceil((pairing.expiresAt - now) / 60_000)) : 0;
   const [emailText, setEmailText] = useState('');
+  const [passwordText, setPasswordText] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<AccountNotice>(null);
 
@@ -76,17 +79,40 @@ export function Settings() {
 
   const address = emailText.trim().toLowerCase();
   const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address);
+  const passwordValid = isAcceptablePassword(passwordText);
 
-  /** Links the address to this (anonymous) account; GoTrue mails a confirmation. */
+  const fillPassword = () => {
+    setPasswordText(generatePassword());
+    setShowPassword(true);
+    setNotice(null);
+  };
+
+  /**
+   * Links the address and password to this (anonymous) account; GoTrue mails
+   * a confirmation. The link may open in any browser (Gmail's own, say):
+   * that only confirms the address. Signing in where you want is then a
+   * matter of the password, no link involved.
+   */
   const keepAccount = async () => {
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({ email: address }, { emailRedirectTo: window.location.origin });
+    const { error } = await supabase.auth.updateUser({ email: address, password: passwordText }, { emailRedirectTo: window.location.origin });
     setBusy(false);
     setNotice(error ? { key: 'settings.account_error', error: true } : { key: 'settings.account_sent', email: address });
   };
 
-  /** A magic link for an account that already has this email (linked on the phone or here). */
+  /** Email and password, for an account linked on the phone or here. */
   const signIn = async () => {
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: address, password: passwordText });
+    setBusy(false);
+    if (!error) setNotice({ key: 'settings.account_signed_in_now', email: address });
+    else if (/not confirmed/i.test(error.message)) setNotice({ key: 'settings.account_unconfirmed', error: true });
+    else if (/invalid login/i.test(error.message)) setNotice({ key: 'settings.account_bad_password', error: true });
+    else setNotice({ key: 'settings.account_error', error: true });
+  };
+
+  /** The fallback for a forgotten password: a sign-in link by email. */
+  const sendLink = async () => {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOtp({
       email: address,
@@ -97,6 +123,32 @@ export function Settings() {
     else if (/signups? not allowed/i.test(error.message)) setNotice({ key: 'settings.account_unknown', error: true });
     else setNotice({ key: 'settings.account_error', error: true });
   };
+
+  /** A signed-in account without a password (magic link) can set one here. */
+  const setPassword = async () => {
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: passwordText });
+    setBusy(false);
+    setNotice(error ? { key: 'settings.account_error', error: true } : { key: 'settings.account_password_set' });
+  };
+
+  const passwordField = (
+    <>
+      <label htmlFor="password" className="muted" style={{ fontSize: '0.85rem' }}>{t('settings.account_password')}</label>
+      <div className="row" style={{ gap: 6, margin: '6px 0 10px' }}>
+        <input
+          id="password"
+          type={showPassword ? 'text' : 'password'}
+          autoComplete="new-password"
+          value={passwordText}
+          onChange={(e) => { setPasswordText(e.target.value); setNotice(null); }}
+          style={{ flex: 1, fontFamily: showPassword ? 'ui-monospace, monospace' : undefined }}
+        />
+        <button type="button" className="ghost" onClick={() => setShowPassword((v) => !v)} aria-label={t('settings.account_show')}>{showPassword ? '🙈' : '👁'}</button>
+        <button type="button" className="ghost" onClick={fillPassword}>{t('settings.account_generate')}</button>
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -163,15 +215,22 @@ export function Settings() {
       <section className="card">
         <h2 style={{ marginTop: 0, fontSize: '1rem' }}>{t('settings.account')}</h2>
         {!isAnonymous && email ? (
-          <p style={{ margin: 0 }}>{t('settings.account_signed_in', { email })}</p>
+          <>
+            <p style={{ margin: '0 0 10px' }}>{t('settings.account_signed_in', { email })}</p>
+            <p className="muted" style={{ marginTop: 0, fontSize: '0.85rem' }}>{t('settings.account_password_hint')}</p>
+            {passwordField}
+            <button className="ghost" onClick={setPassword} disabled={!passwordValid || busy} style={{ paddingLeft: 0 }}>{t('settings.account_password_save')}</button>
+          </>
         ) : (
           <>
             <p className="muted" style={{ marginTop: 0, fontSize: '0.85rem' }}>{t('settings.account_hint')}</p>
             <label htmlFor="email" className="muted" style={{ fontSize: '0.85rem' }}>{t('settings.account_email')}</label>
             <input id="email" type="email" autoComplete="email" inputMode="email" value={emailText} onChange={(e) => { setEmailText(e.target.value); setNotice(null); }} style={{ margin: '6px 0 10px' }} />
-            <div className="row" style={{ justifyContent: 'flex-start' }}>
-              <button onClick={keepAccount} disabled={!emailValid || busy}>{t('settings.account_keep')}</button>
-              <button className="ghost" onClick={signIn} disabled={!emailValid || busy}>{t('settings.account_signin')}</button>
+            {passwordField}
+            <div className="row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 6 }}>
+              <button onClick={signIn} disabled={!emailValid || !passwordValid || busy}>{t('settings.account_signin')}</button>
+              <button className="ghost" onClick={keepAccount} disabled={!emailValid || !passwordValid || busy}>{t('settings.account_keep')}</button>
+              <button className="ghost" onClick={sendLink} disabled={!emailValid || busy}>{t('settings.account_link')}</button>
             </div>
           </>
         )}

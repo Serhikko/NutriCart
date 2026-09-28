@@ -9,8 +9,8 @@ NutriCart in the browser, two ways:
   questionnaire, targets, food search, barcode scanning, water, weight and
   week statistics, under `/me`. The calorie maths is a port of the phone's,
   checked against the same test vectors. A phone user opens the same account
-  here by linking an email on the phone and choosing "Sign in with email" in
-  Settings; what they log here comes back to the phone.
+  here by linking an email and a password on the phone and signing in with
+  them under Settings; what they log here comes back to the phone.
 
 React 19, TypeScript, Vite, Supabase, installable as a PWA. Design and
 milestones: `docs/cloud-sync.md`.

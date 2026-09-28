@@ -28,12 +28,6 @@ data class SbUserDto(
     @SerialName("is_anonymous") val isAnonymous: Boolean = true,
 )
 
-/** PUT /auth/v1/user: links an email to the account; GoTrue mails a confirmation. */
-@Serializable
-data class SbUpdateUserRequest(
-    val email: String,
-)
-
 /*
  * Rows the phone PULLS (milestone 3). Only the columns the phone needs to
  * apply a change locally; ignoreUnknownKeys covers the rest.
