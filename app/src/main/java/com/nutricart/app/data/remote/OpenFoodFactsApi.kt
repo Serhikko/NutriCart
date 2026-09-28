@@ -34,6 +34,10 @@ interface OpenFoodFactsApi {
         // OFF returns ONLY the requested fields — a field missing here is
         // silently absent from every response (review-caught: the additives
         // feature shipped dead because additives_tags wasn't listed).
-        const val FIELDS = "code,product_name,brands,nutriments,serving_quantity,additives_tags"
+        // product_name_en: the fallback name for products whose main-language
+        // name is blank (see ProductDto). nutriments covers every _100g and
+        // _serving column at once.
+        const val FIELDS =
+            "code,product_name,product_name_en,brands,nutriments,serving_quantity,additives_tags"
     }
 }
