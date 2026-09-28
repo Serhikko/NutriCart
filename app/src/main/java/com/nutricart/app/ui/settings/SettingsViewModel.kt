@@ -13,6 +13,7 @@ import com.nutricart.app.data.settings.SecretsDataStore
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.data.remote.TelegramApi
+import com.nutricart.app.cloud.CloudAccount
 import com.nutricart.app.cloud.CloudPartner
 import com.nutricart.app.cloud.CloudRepository
 import com.nutricart.app.cloud.CloudResult
@@ -116,6 +117,9 @@ data class SettingsUiState(
     val cloudPendingCount: Int = 0,
     val cloudBusy: Boolean = false,
     val cloudNotice: CloudNotice? = null,
+    /** The email field, and what the server says about the account's email (null = not asked yet). */
+    val cloudEmailText: String = "",
+    val cloudAccount: CloudAccount? = null,
     /** The switch was turned on but no name is stored yet: ask for one first. */
     val showCloudNameDialog: Boolean = false,
     val saved: Boolean = false,
@@ -165,10 +169,13 @@ data class SettingsUiState(
 
     val cloudNameValid: Boolean
         get() = cloudNameText.trim().length in 1..40
+
+    val cloudEmailValid: Boolean
+        get() = cloudEmailText.trim().let { it.contains('@') && it.substringAfter('@').contains('.') }
 }
 
 /** What the cloud section reports after an action. */
-enum class CloudNotice { ENABLED, NAME_SAVED, CODE_READY, UNLINKED, NOT_CONFIGURED, OFFLINE, AUTH, FAILED }
+enum class CloudNotice { ENABLED, NAME_SAVED, CODE_READY, UNLINKED, EMAIL_SENT, NOT_CONFIGURED, OFFLINE, AUTH, FAILED }
 
 /** What the partner section reports after an action; each maps to one string. */
 enum class PartnerNotice {
@@ -257,7 +264,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             cloudRepository.isEnabled.collect { on ->
                 _uiState.update { it.copy(cloudEnabled = on) }
-                if (on) refreshCloudPartners()
+                if (on) {
+                    refreshCloudPartners()
+                    refreshCloudAccount()
+                }
             }
         }
         viewModelScope.launch {
@@ -646,6 +656,34 @@ class SettingsViewModel @Inject constructor(
     fun refreshCloudPartners() {
         viewModelScope.launch {
             _uiState.update { it.copy(cloudPartners = cloudRepository.partners()) }
+        }
+    }
+
+    // --- Account email (milestone 3) ---
+
+    fun setCloudEmailText(value: String) = _uiState.update { it.copy(cloudEmailText = value, cloudNotice = null) }
+
+    /** Asks the server whether the account has an email yet; the field defaults to the one typed last. */
+    fun refreshCloudAccount() {
+        viewModelScope.launch {
+            val stored = cloudRepository.linkedEmail.first()
+            val account = cloudRepository.account()
+            _uiState.update {
+                it.copy(
+                    cloudAccount = account,
+                    cloudEmailText = it.cloudEmailText.ifEmpty { stored ?: account?.pendingEmail.orEmpty() },
+                )
+            }
+        }
+    }
+
+    fun linkCloudEmail() {
+        val email = _uiState.value.cloudEmailText.trim()
+        if (!_uiState.value.cloudEmailValid) return
+        cloudAction(CloudNotice.EMAIL_SENT) {
+            cloudRepository.linkEmail(email).also { result ->
+                if (result == CloudResult.Ok) refreshCloudAccount()
+            }
         }
     }
 

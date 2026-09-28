@@ -38,6 +38,11 @@ export function Welcome() {
         <Link to={details.data ? '/me/day' : '/me/onboarding'}>
           <button>{details.data ? t('welcome.track_open') : t('welcome.track_start')}</button>
         </Link>
+        {!details.data && (
+          <p className="muted" style={{ fontSize: '0.85rem', marginBottom: 0 }}>
+            {t('welcome.track_signin')} <Link to="/settings">{t('nav.settings')}</Link>
+          </p>
+        )}
       </section>
 
       <h1>{t('welcome.title')}</h1>

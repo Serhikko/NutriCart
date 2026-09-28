@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -161,4 +162,21 @@ interface FoodLogDao {
 
     @Delete
     suspend fun delete(entry: FoodLogEntryEntity)
+
+    // --- Cloud pull (v13 -> v14): rows another client wrote, keyed by their cloud id ---
+
+    @Query("SELECT * FROM food_log_entry WHERE cloudId = :cloudId LIMIT 1")
+    suspend fun byCloudId(cloudId: String): FoodLogEntryEntity?
+
+    @Query("SELECT * FROM food_log_entry WHERE id = :id LIMIT 1")
+    suspend fun byId(id: Long): FoodLogEntryEntity?
+
+    @Update
+    suspend fun update(entry: FoodLogEntryEntity)
+
+    @Query("DELETE FROM food_log_entry WHERE cloudId = :cloudId")
+    suspend fun deleteByCloudId(cloudId: String)
+
+    @Query("DELETE FROM food_log_entry WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

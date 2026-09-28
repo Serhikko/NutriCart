@@ -135,5 +135,18 @@
   "settings.targets_manual": "Set targets manually",
   "settings.target_kcal": "Calories",
   "settings.target_invalid": "Out of the sane range",
-  "settings.profile_saved": "Profile saved."
+  "settings.profile_saved": "Profile saved.",
+  "settings.account": "Account",
+  "settings.account_signed_in": "Signed in as {email}. Your phone and this browser share one account.",
+  "settings.account_hint": "Add an email to open this account on another device and keep it if you lose this one. Already use NutriCart on your phone? Sign in with the email you linked there.",
+  "settings.account_email": "Email",
+  "settings.account_keep": "Keep this account",
+  "settings.account_signin": "Sign in with email",
+  "settings.account_sent": "Confirmation sent to {email}. Open the link in that email on this device.",
+  "settings.account_magic_sent": "Sign-in link sent to {email}. Open it on this device.",
+  "settings.account_unknown": "No account has that email yet. Link it on your phone under Settings → Cloud sync, or choose Keep this account here.",
+  "settings.account_error": "Could not send the email. Check the address and try again.",
+  "settings.signout_hint_email": "Signs this browser out. Your data stays in the account; sign in again with your email.",
+  "welcome.track_signin": "Already use NutriCart on your phone? Sign in with your email under",
+  "me.activity": "{steps} steps · {active} kcal active (from your phone)"
 }

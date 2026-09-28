@@ -59,7 +59,7 @@ export function AddFood() {
   const confirm = (grams: number, servings: number | null) => {
     if (!selected) return;
     logFood.mutate(
-      { product: selected, grams, servings, meal, epochDay, targetKcal: me.targets?.kcal ?? null },
+      { product: selected, grams, servings, meal, epochDay, summary: me.summary },
       { onSuccess: () => navigate('/me/day') },
     );
   };

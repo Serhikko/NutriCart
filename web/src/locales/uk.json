@@ -135,5 +135,18 @@
   "settings.targets_manual": "Задати цілі вручну",
   "settings.target_kcal": "Калорії",
   "settings.target_invalid": "Поза розумними межами",
-  "settings.profile_saved": "Профіль збережено."
+  "settings.profile_saved": "Профіль збережено.",
+  "settings.account": "Акаунт",
+  "settings.account_signed_in": "Ти увійшов як {email}. Телефон і цей браузер працюють з одним акаунтом.",
+  "settings.account_hint": "Додай email, щоб відкривати цей акаунт на іншому пристрої й не втратити його разом із цим. Уже користуєшся NutriCart на телефоні? Увійди з email, який прив'язав там.",
+  "settings.account_email": "Email",
+  "settings.account_keep": "Зберегти цей акаунт",
+  "settings.account_signin": "Увійти з email",
+  "settings.account_sent": "Підтвердження надіслано на {email}. Відкрий посилання з листа на цьому пристрої.",
+  "settings.account_magic_sent": "Посилання для входу надіслано на {email}. Відкрий його на цьому пристрої.",
+  "settings.account_unknown": "Акаунта з таким email ще немає. Прив'яжи його на телефоні в Налаштування → Хмарна синхронізація або натисни «Зберегти цей акаунт» тут.",
+  "settings.account_error": "Не вдалося надіслати лист. Перевір адресу і спробуй ще раз.",
+  "settings.signout_hint_email": "Виходить із цього браузера. Дані залишаються в акаунті; увійди знову з email.",
+  "welcome.track_signin": "Уже користуєшся NutriCart на телефоні? Увійди з email у розділі",
+  "me.activity": "{steps} кроків · {active} ккал активності (з телефона)"
 }

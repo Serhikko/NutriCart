@@ -418,6 +418,21 @@ private val MIGRATION_12_13 = object : Migration(12, 13) {
     }
 }
 
+/**
+ * v14 (cloud milestone 3): the phone pulls rows the website wrote. Those rows
+ * keep their cloud id in a new nullable, unique column so a later pull can
+ * update or delete the same local row, and a phone-side delete can send the
+ * right tombstone. Rows the phone logged itself leave it null.
+ */
+private val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `food_log_entry` ADD COLUMN `cloudId` TEXT")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_food_log_entry_cloudId` ON `food_log_entry` (`cloudId`)")
+        db.execSQL("ALTER TABLE `water_entry` ADD COLUMN `cloudId` TEXT")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_water_entry_cloudId` ON `water_entry` (`cloudId`)")
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -431,6 +446,7 @@ object DatabaseModule {
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
                 MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+                MIGRATION_13_14,
             )
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.

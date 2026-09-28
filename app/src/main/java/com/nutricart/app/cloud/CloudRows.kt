@@ -1,9 +1,11 @@
 package com.nutricart.app.cloud
 
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
+import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WaterEntryEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
 import com.nutricart.app.widget.DayNumbers
+import java.time.LocalDate
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -17,7 +19,9 @@ import java.time.Instant
  *
  * Row ids are minted here from the install's device id and the Room id, so a
  * retried upload upserts instead of duplicating, and a second phone on the
- * same account can never collide with this one.
+ * same account can never collide with this one. A row another client wrote
+ * (pulled in milestone 3) keeps that client's id in the entity's cloudId,
+ * and that id wins, so the phone's later delete hits the same server row.
  */
 object CloudRows {
 
@@ -26,15 +30,23 @@ object CloudRows {
     const val TABLE_WEIGHT = "weight_entries"
     const val TABLE_DAYS = "day_summaries"
     const val TABLE_PROFILES = "profiles"
+    const val TABLE_PROFILE_DETAILS = "profile_details"
     const val TABLE_PAIRING_CODES = "pairing_codes"
 
-    fun foodId(deviceId: String, localId: Long) = "$deviceId:f:$localId"
-    fun waterId(deviceId: String, localId: Long) = "$deviceId:w:$localId"
+    fun foodId(deviceId: String, e: FoodLogEntryEntity) = e.cloudId ?: "$deviceId:f:${e.id}"
+    fun waterId(deviceId: String, e: WaterEntryEntity) = e.cloudId ?: "$deviceId:w:${e.id}"
+
+    /** True for an id this install minted (as opposed to the website's "web:..." ids). */
+    fun isOwnId(deviceId: String, cloudId: String) = cloudId.startsWith("$deviceId:")
+
+    /** The Room id inside one of this install's ids, or null for any other id. */
+    fun localIdOf(deviceId: String, cloudId: String): Long? =
+        if (isOwnId(deviceId, cloudId)) cloudId.substringAfterLast(':').toLongOrNull() else null
 
     /** A diary line, or its tombstone when [deletedAtEpochMillis] is set. */
     fun foodEntry(deviceId: String, e: FoodLogEntryEntity, deletedAtEpochMillis: Long? = null): JsonObject =
         buildJsonObject {
-            put("id", foodId(deviceId, e.id))
+            put("id", foodId(deviceId, e))
             put("epoch_day", e.epochDay)
             put("meal", e.meal.name)
             put("name", e.name)
@@ -54,7 +66,7 @@ object CloudRows {
 
     fun waterEntry(deviceId: String, e: WaterEntryEntity, deletedAtEpochMillis: Long? = null): JsonObject =
         buildJsonObject {
-            put("id", waterId(deviceId, e.id))
+            put("id", waterId(deviceId, e))
             put("epoch_day", e.epochDay)
             put("ml", e.ml)
             put("logged_at", iso(e.loggedAtEpochMillis))
@@ -82,13 +94,33 @@ object CloudRows {
         put("display_name", displayName)
     }
 
+    /**
+     * The questionnaire, so the website computes the same target for this
+     * account with the same math (web/src/domain/calories.ts) and knows the
+     * phone publishes day_summaries. Keyed by user_id like profiles.
+     */
+    fun profileDetails(p: UserProfileEntity): JsonObject = buildJsonObject {
+        put("sex", p.sex.name)
+        put("birth_date", LocalDate.ofEpochDay(p.birthDateEpochDay).toString())
+        put("height_cm", p.heightCm)
+        put("activity_level", p.activityLevel.name)
+        put("goal", p.goal.name)
+        put("target_kg_per_week", p.targetKgPerWeek)
+        put("custom_kcal_target", p.customKcalTarget)
+        put("custom_protein_g", p.customProteinG)
+        put("custom_fat_g", p.customFatG)
+        put("custom_carbs_g", p.customCarbsG)
+        put("primary_client", "phone")
+    }
+
     fun pairingCode(codeHash: String, expiresAtEpochMillis: Long): JsonObject = buildJsonObject {
         put("code_hash", codeHash)
         put("expires_at", iso(expiresAtEpochMillis))
     }
 
-    /** The owner column each table uses; only profiles differs. */
-    fun ownerColumn(table: String): String = if (table == TABLE_PROFILES) "user_id" else "owner_id"
+    /** The owner column each table uses; the two profile tables differ. */
+    fun ownerColumn(table: String): String =
+        if (table == TABLE_PROFILES || table == TABLE_PROFILE_DETAILS) "user_id" else "owner_id"
 
     fun iso(epochMillis: Long): String = Instant.ofEpochMilli(epochMillis).toString()
 }

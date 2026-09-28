@@ -4,8 +4,10 @@ NutriCart is offline-first: Room on the phone is the primary copy, and nothing
 the user does waits for the network. Cloud sync adds a **mirror** of the diary
 in Supabase so the website can show it, to the user on any device and to a
 partner who redeems a pairing code. Since milestone 2 the website is also a
-**standalone tracker** for someone without an Android phone. This document is
-the design; the schema is `supabase/migrations/` (one file per milestone).
+**standalone tracker** for someone without an Android phone, and since
+milestone 3 the phone user's own account opens on the website too, with edits
+flowing both ways. This document is the design; the schema is
+`supabase/migrations/` (one file per milestone).
 
 ## Parts
 
@@ -14,7 +16,8 @@ the design; the schema is `supabase/migrations/` (one file per milestone).
 | `SyncOutboxEntity` / `SyncOutboxDao` | Room (schema v13) | Pending cloud writes, appended in the same flow as the Room write |
 | `CloudMirror` | `cloud/` | The door repositories call after a write: builds the row, queues it, asks for a drain |
 | `CloudRows` | `cloud/` | Entity → PostgREST row, one function per table; the column names in one place |
-| `CloudSyncWorker` | WorkManager | Drains the outbox online, then publishes `day_summaries` and the profile |
+| `CloudSyncWorker` | WorkManager | Drains the outbox online, pulls the website's edits, then publishes `day_summaries` and the profile |
+| `CloudPull` / `PullRules` | `cloud/` | The other direction: applies rows another client wrote, by the rules in `PullRules` (pure, tested) |
 | `CloudAuth` | `cloud/` | Anonymous Supabase user; refreshes the JWT; session in `SecretsDataStore` |
 | `CloudRepository` | `cloud/` | What Settings does: enable, backfill, pairing codes, partners, nudges |
 | `SupabaseAuthApi` / `SupabaseRestApi` | Retrofit | GoTrue and PostgREST, no SDK |
@@ -94,12 +97,49 @@ A partner sees a web-only account exactly like a phone account: same Day and
 Week pages, same nudge button (the nudge then has nowhere to land until
 milestone 3's web push).
 
-## Not in milestones 1–2
+## Milestone 3: one account everywhere, two-way sync
 
-- Pull: the phone never reads diary rows back. Web edits (milestone 3) will
-  arrive through a watermark on `updated_at` with last-writer-wins per row.
-- Email on the account: an anonymous user dies with the phone (milestone 4).
-- Realtime on the phone: polling is enough while the app is closed; a live
-  channel while it is open comes with the two-way sync.
+The phone user's account is anonymous, so nothing could open it elsewhere.
+Now Settings → Cloud sync → **Account email** links an address: GoTrue mails
+one confirmation, and from then on the website's Settings → **Sign in with
+email** sends a magic link that opens the same account there. The phone's
+session is untouched; a lost phone is recovered the same way (milestone 4's
+"email on the account" moved here, since the web sign-in needs it).
+
+For that to be useful the website must know the phone user's targets, so the
+worker now also publishes `profile_details` with `primary_client = 'phone'`.
+The web pages under `/me` then show the phone's own numbers: the target from
+the phone's `day_summaries` row (it includes the day's activity, which the
+website cannot know), the eaten total from the live rows.
+
+**Pull.** After draining the outbox, `CloudPull` asks each of the three synced
+tables for rows with `updated_at` past a per-table watermark, oldest first,
+500 at a time, and applies them through the DAOs (never the repositories, so
+nothing is mirrored back up or announced to the Telegram partner). The rules
+in `PullRules`:
+
+- A row this install minted (`<device>:f:<id>`) is only ever *deleted* by a
+  pull, when the website set its `deleted_at`; the phone stays the author.
+- A row another client minted (`web:f:<uuid>`) is inserted or updated, and
+  keeps that id in a new `cloudId` column (Room v14), so the phone's own later
+  delete sends a tombstone with the right id.
+- A row whose id is still waiting in the outbox is skipped: the phone's newer
+  write is on its way up and the server copy would undo it. Last writer wins
+  per row, decided by the order of upload.
+- Weight has no row id (one per day and source): the server value is applied
+  when it differs and nothing newer is queued for that day.
+
+The pull runs on every drain, on app open, and every 15 minutes in the
+background (WorkManager's minimum), so a lunch logged on the website is on the
+phone by the time it is opened. The website's writes to a phone account touch
+only `eaten_kcal` in `day_summaries` (`web/src/domain/summary.ts`); the phone
+republishes the full row, activity included, on its next sync.
+
+## Not in milestones 1–3
+
+- Realtime on the phone: the 15-minute pull is enough while the app is
+  closed; a live channel while it is open would make web edits instant.
 - Meal reminders and nudges for a web-only account need Web Push (a VAPID
-  key, a service-worker handler and a scheduled Edge Function); milestone 3.
+  key, a service-worker handler and a scheduled Edge Function).
+- The meal plan, shopping list and fridge on the website.
+- Purging old tombstones on the server (a nightly job).

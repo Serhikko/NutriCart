@@ -435,7 +435,7 @@
 
     <!-- Cloud sync and the website (Supabase) -->
     <string name="cloud_section">Хмарна синхронізація та сайт (необов\'язково)</string>
-    <string name="cloud_intro">Зберігай копію щоденника в хмарі, щоб сайт NutriCart міг її показати: тобі на будь-якому пристрої й партнеру, який введе твій код. Телефон залишається основною копією і повністю працює без інтернету.</string>
+    <string name="cloud_intro">Зберігай копію щоденника в хмарі, щоб сайт NutriCart міг її показати: тобі на будь-якому пристрої й партнеру, який введе твій код. Записане на сайті повертається на телефон. Телефон залишається основною копією і повністю працює без інтернету.</string>
     <string name="cloud_not_configured">У цій збірці немає ключів хмари, тож синхронізація недоступна. Див. supabase/README.md у проєкті.</string>
     <string name="cloud_switch">Синхронізувати в хмару</string>
     <string name="cloud_switch_on">Увімкнути</string>
@@ -464,5 +464,12 @@
     <string name="cloud_notice_auth">Хмара відхилила сесію цього телефона. Вимкни й знову увімкни синхронізацію.</string>
     <string name="cloud_notice_failed">Щось пішло не так.</string>
     <string name="cloud_partner_default_name">Партнер</string>
+    <string name="cloud_email_title">Email акаунта</string>
+    <string name="cloud_email_hint">Додай email, щоб відкривати цей акаунт на сайті і не втратити його разом із телефоном. Ми надішлемо один лист із підтвердженням, більше нічого.</string>
+    <string name="cloud_email_label">Email</string>
+    <string name="cloud_email_link">Надіслати підтвердження</string>
+    <string name="cloud_email_pending">Підтвердження надіслано на %1$s. Відкрий посилання з листа й повернися сюди.</string>
+    <string name="cloud_email_linked">Ти увійшов як %1$s. На сайті вибери «Увійти з email», щоб відкрити цей акаунт.</string>
+    <string name="cloud_notice_email_sent">Перевір пошту: там посилання для підтвердження.</string>
     <string name="cloud_privacy_hint">Що залишає телефон: назви страв і калорії, вода, вага та денні підсумки активності. Ніколи не пульс, сон чи ключ AI. Зберігається в ЄС; видалити можна будь-коли, вимкнувши синхронізацію.</string>
 </resources>

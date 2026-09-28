@@ -20,6 +20,62 @@ data class SbSessionDto(
 @Serializable
 data class SbUserDto(
     val id: String,
+    /** Set once an email is linked to the (originally anonymous) account. */
+    val email: String? = null,
+    @SerialName("email_confirmed_at") val emailConfirmedAt: String? = null,
+    /** The address waiting for its confirmation click, if any. */
+    @SerialName("new_email") val newEmail: String? = null,
+    @SerialName("is_anonymous") val isAnonymous: Boolean = true,
+)
+
+/** PUT /auth/v1/user: links an email to the account; GoTrue mails a confirmation. */
+@Serializable
+data class SbUpdateUserRequest(
+    val email: String,
+)
+
+/*
+ * Rows the phone PULLS (milestone 3). Only the columns the phone needs to
+ * apply a change locally; ignoreUnknownKeys covers the rest.
+ */
+
+@Serializable
+data class SbFoodRowDto(
+    val id: String,
+    @SerialName("epoch_day") val epochDay: Long,
+    val meal: String,
+    val name: String,
+    val grams: Double? = null,
+    val servings: Double? = null,
+    val kcal: Double,
+    @SerialName("protein_g") val proteinG: Double,
+    @SerialName("fat_g") val fatG: Double,
+    @SerialName("carbs_g") val carbsG: Double,
+    @SerialName("fiber_g") val fiberG: Double? = null,
+    @SerialName("sugars_g") val sugarsG: Double? = null,
+    @SerialName("salt_g") val saltG: Double? = null,
+    @SerialName("saturated_fat_g") val saturatedFatG: Double? = null,
+    @SerialName("logged_at") val loggedAt: String,
+    @SerialName("deleted_at") val deletedAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String,
+)
+
+@Serializable
+data class SbWaterRowDto(
+    val id: String,
+    @SerialName("epoch_day") val epochDay: Long,
+    val ml: Int,
+    @SerialName("logged_at") val loggedAt: String,
+    @SerialName("deleted_at") val deletedAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String,
+)
+
+@Serializable
+data class SbWeightRowDto(
+    @SerialName("epoch_day") val epochDay: Long,
+    val source: String,
+    @SerialName("weight_kg") val weightKg: Double,
+    @SerialName("updated_at") val updatedAt: String,
 )
 
 @Serializable

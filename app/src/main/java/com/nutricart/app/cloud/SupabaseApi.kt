@@ -10,6 +10,7 @@ import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
@@ -30,6 +31,18 @@ interface SupabaseAuthApi {
 
     @POST("auth/v1/token?grant_type=refresh_token")
     suspend fun refresh(@Body body: SbRefreshRequest): SbSessionDto
+
+    /** The signed-in user, with the email state after a link request. */
+    @GET("auth/v1/user")
+    suspend fun user(@Header("Authorization") bearer: String): SbUserDto
+
+    /**
+     * Links an email to the anonymous account. GoTrue sends a confirmation
+     * to that address; once clicked, the account is permanent and the same
+     * email signs in on the website with a magic link.
+     */
+    @PUT("auth/v1/user")
+    suspend fun updateUser(@Header("Authorization") bearer: String, @Body body: SbUpdateUserRequest): SbUserDto
 }
 
 /**
@@ -76,6 +89,17 @@ interface SupabaseRestApi {
         @Query("id") idFilter: String,
         @Body body: JsonObject,
     ): Response<Unit>
+
+    // --- Pull (milestone 3): "everything of mine changed since", oldest first ---
+
+    @GET("rest/v1/food_log_entries")
+    suspend fun foodRows(@Header("Authorization") bearer: String, @QueryMap filters: Map<String, String>): List<SbFoodRowDto>
+
+    @GET("rest/v1/water_entries")
+    suspend fun waterRows(@Header("Authorization") bearer: String, @QueryMap filters: Map<String, String>): List<SbWaterRowDto>
+
+    @GET("rest/v1/weight_entries")
+    suspend fun weightRows(@Header("Authorization") bearer: String, @QueryMap filters: Map<String, String>): List<SbWeightRowDto>
 
     /** The owner's partners with their display names, embedded via the named FK. */
     @GET("rest/v1/partner_links")

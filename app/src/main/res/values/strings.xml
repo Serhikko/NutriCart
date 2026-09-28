@@ -442,7 +442,7 @@
 
     <!-- Cloud sync and the website (Supabase) -->
     <string name="cloud_section">Cloud sync &amp; website (optional)</string>
-    <string name="cloud_intro">Keep a copy of your diary in the cloud so the NutriCart website can show it: to you on any device, and to a partner who enters your pairing code. Your phone stays the primary copy and works fully offline.</string>
+    <string name="cloud_intro">Keep a copy of your diary in the cloud so the NutriCart website can show it: to you on any device, and to a partner who enters your pairing code. What you log on the website comes back to the phone. Your phone stays the primary copy and works fully offline.</string>
     <string name="cloud_not_configured">This build has no cloud keys, so sync is unavailable. See supabase/README.md in the project.</string>
     <string name="cloud_switch">Sync to the cloud</string>
     <string name="cloud_switch_on">Turn on</string>
@@ -471,5 +471,12 @@
     <string name="cloud_notice_auth">The cloud rejected this phone\'s session. Turn sync off and on again.</string>
     <string name="cloud_notice_failed">Something went wrong.</string>
     <string name="cloud_partner_default_name">Partner</string>
+    <string name="cloud_email_title">Account email</string>
+    <string name="cloud_email_hint">Add an email to open this account on the website and to keep it if you lose the phone. We send one confirmation link; nothing else.</string>
+    <string name="cloud_email_label">Email</string>
+    <string name="cloud_email_link">Send confirmation</string>
+    <string name="cloud_email_pending">Confirmation sent to %1$s. Open the link in that email, then come back.</string>
+    <string name="cloud_email_linked">Signed in as %1$s. On the website, choose “Sign in with email” to open this account.</string>
+    <string name="cloud_notice_email_sent">Check your inbox for the confirmation link.</string>
     <string name="cloud_privacy_hint">What leaves the phone: meal names and calories, water, weight and your daily activity totals. Never heart rate, sleep or the AI key. Stored in the EU; delete it any time by turning sync off.</string>
 </resources>

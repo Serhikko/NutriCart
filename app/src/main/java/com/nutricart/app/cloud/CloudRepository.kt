@@ -34,6 +34,14 @@ sealed interface CloudResult {
     data object Failed : CloudResult
 }
 
+/** The email state of the cloud account, for Settings. */
+data class CloudAccount(
+    /** The confirmed address, or null while the account is anonymous. */
+    val email: String?,
+    /** An address whose confirmation mail has been sent but not clicked yet. */
+    val pendingEmail: String?,
+)
+
 /** One person who redeemed this account's pairing code. */
 data class CloudPartner(
     val linkId: String,
@@ -49,6 +57,7 @@ data class CloudPartner(
 @Singleton
 class CloudRepository @Inject constructor(
     private val auth: CloudAuth,
+    private val authApi: SupabaseAuthApi,
     private val rest: SupabaseRestApi,
     private val settings: SettingsDataStore,
     private val outbox: SyncOutboxDao,
@@ -66,6 +75,8 @@ class CloudRepository @Inject constructor(
     val lastSyncEpochMillis: Flow<Long?> = settings.cloudLastSyncEpochMillis
     val lastError: Flow<String?> = settings.cloudLastError
     val pendingCount: Flow<Int> = outbox.observeCount()
+    /** The address the user typed when linking; shown until the server confirms it. */
+    val linkedEmail: Flow<String?> = settings.cloudEmail
 
     /**
      * Switches sync on: signs in (anonymously, once), stores the name, queues
@@ -81,8 +92,13 @@ class CloudRepository @Inject constructor(
             settings.setCloudDisplayName(name)
             val wasEnabled = settings.cloudSyncEnabled.first()
             settings.setCloudSyncEnabled(true)
-            if (!wasEnabled) backfill()
+            if (!wasEnabled) {
+                backfill()
+                // Pull everything the website may already hold for this account.
+                settings.clearCloudPullWatermarks(listOf(CloudRows.TABLE_FOOD, CloudRows.TABLE_WATER, CloudRows.TABLE_WEIGHT))
+            }
             scheduling.requestSync(delaySeconds = 0)
+            scheduling.ensurePeriodic()
             CloudResult.Ok
         }
     }
@@ -93,6 +109,39 @@ class CloudRepository @Inject constructor(
         scheduling.cancel()
         outbox.clear()
         settings.setCloudPairingCode(null, null)
+    }
+
+    /**
+     * Links an email to the (anonymous) account. GoTrue mails a confirmation
+     * link; once clicked, the same address signs in on the website and opens
+     * this account there, and the account survives a lost phone.
+     */
+    suspend fun linkEmail(email: String): CloudResult {
+        if (!isConfigured) return CloudResult.NotConfigured
+        val address = email.trim().lowercase()
+        if (!EMAIL.matches(address)) return CloudResult.Failed
+        return call {
+            auth.ensureSignedIn()
+            authApi.updateUser(bearerOrThrow(), SbUpdateUserRequest(address))
+            settings.setCloudEmail(address)
+            CloudResult.Ok
+        }
+    }
+
+    /** What the server says about the account's email; null when it cannot be asked right now. */
+    suspend fun account(): CloudAccount? {
+        if (!isConfigured) return null
+        if (auth.userId() == null) return null
+        return try {
+            val user = authApi.user(bearerOrThrow())
+            val confirmed = user.email?.takeIf { it.isNotBlank() && user.emailConfirmedAt != null && !user.isAnonymous }
+            CloudAccount(email = confirmed, pendingEmail = user.newEmail ?: user.email?.takeIf { confirmed == null && it.isNotBlank() })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not read the account: ${e.javaClass.simpleName}")
+            null
+        }
     }
 
     suspend fun setDisplayName(displayName: String): CloudResult {
@@ -183,10 +232,10 @@ class CloudRepository @Inject constructor(
         val device = mirror.deviceId()
         val rows = buildList {
             foodLogDao.entriesBetween(from, today).forEach { e ->
-                add(mirror.row(CloudRows.TABLE_FOOD, CloudRows.foodId(device, e.id), CloudRows.foodEntry(device, e)))
+                add(mirror.row(CloudRows.TABLE_FOOD, CloudRows.foodId(device, e), CloudRows.foodEntry(device, e)))
             }
             waterDao.entriesBetween(from, today).forEach { e ->
-                add(mirror.row(CloudRows.TABLE_WATER, CloudRows.waterId(device, e.id), CloudRows.waterEntry(device, e)))
+                add(mirror.row(CloudRows.TABLE_WATER, CloudRows.waterId(device, e), CloudRows.waterEntry(device, e)))
             }
             weightDao.all().filter { it.epochDay >= from }.forEach { e ->
                 add(mirror.row(CloudRows.TABLE_WEIGHT, "${e.epochDay}:${e.source.name}", CloudRows.weightEntry(e)))
@@ -226,5 +275,6 @@ class CloudRepository @Inject constructor(
     private companion object {
         const val TAG = "Cloud"
         const val BACKFILL_DAYS = 90L
+        val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
     }
 }

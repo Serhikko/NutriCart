@@ -62,6 +62,10 @@ class SettingsDataStore @Inject constructor(
         val CLOUD_LAST_ERROR = stringPreferencesKey("cloud_last_error")
         val CLOUD_PAIRING_CODE = stringPreferencesKey("cloud_pairing_code")
         val CLOUD_PAIRING_EXPIRES_AT = longPreferencesKey("cloud_pairing_expires_at_epoch_millis")
+        /** The email linked to the cloud account (milestone 3); null = anonymous. */
+        val CLOUD_EMAIL = stringPreferencesKey("cloud_email")
+        /** Pull watermarks are keyed per table: "cloud_pull_<table>". */
+        fun cloudPullKey(table: String) = stringPreferencesKey("cloud_pull_$table")
     }
 
     val onboardingCompleted: Flow<Boolean> =
@@ -281,6 +285,29 @@ class SettingsDataStore @Inject constructor(
                 prefs[Keys.CLOUD_PAIRING_EXPIRES_AT] = expiresAtEpochMillis
             }
         }
+    }
+
+    /** The address the user linked to the account, as typed; null until then. */
+    val cloudEmail: Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[Keys.CLOUD_EMAIL] }
+
+    suspend fun setCloudEmail(email: String?) {
+        context.dataStore.edit { prefs ->
+            if (email == null) prefs.remove(Keys.CLOUD_EMAIL) else prefs[Keys.CLOUD_EMAIL] = email
+        }
+    }
+
+    /** The newest server `updated_at` the pull has applied for [table]; null = never pulled. */
+    fun cloudPullWatermark(table: String): Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[Keys.cloudPullKey(table)] }
+
+    suspend fun setCloudPullWatermark(table: String, value: String) {
+        context.dataStore.edit { prefs -> prefs[Keys.cloudPullKey(table)] = value }
+    }
+
+    /** Forgets the pull watermarks of [tables], so the next pull starts from the beginning. */
+    suspend fun clearCloudPullWatermarks(tables: List<String>) {
+        context.dataStore.edit { prefs -> tables.forEach { prefs.remove(Keys.cloudPullKey(it)) } }
     }
 
     /**

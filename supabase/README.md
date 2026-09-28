@@ -8,10 +8,14 @@ phone talks to it over PostgREST and GoTrue (see `docs/cloud-sync.md`).
 
 1. Create a free project at supabase.com — region **EU Central (Frankfurt)**.
 2. Authentication → Providers → enable **Anonymous sign-ins**.
-3. SQL Editor → run `migrations/0001_init.sql`, then `migrations/0002_web_tracker.sql`
-   (in order; each file is one milestone).
-4. Project Settings → API → copy the **Project URL** and the **anon public key**.
-5. Put them in `local.properties` (not committed):
+3. SQL Editor → run `migrations/0001_init.sql`, then `0002_web_tracker.sql`,
+   then `0003_two_way_sync.sql` (in order; each file is one milestone).
+4. Authentication → Providers → enable **Email** (magic links; a password is
+   never used). Authentication → URL Configuration → set the **Site URL** to
+   the website (the Vercel URL) and add it to the redirect list, so the
+   confirmation and sign-in emails land back on the site.
+5. Project Settings → API → copy the **Project URL** and the **anon public key**.
+6. Put them in `local.properties` (not committed):
 
    ```
    SUPABASE_URL=https://xxxx.supabase.co

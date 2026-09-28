@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.SyncOutboxDao
 import com.nutricart.app.data.local.entity.SyncOutboxEntity
 import com.nutricart.app.data.settings.SettingsDataStore
@@ -22,11 +23,13 @@ import java.io.IOException
 import java.time.LocalDate
 
 /**
- * Drains the outbox to Supabase, then publishes today's and yesterday's
- * day_summaries and the profile. Runs only online (constraint) and only when
- * sync is on; retries with backoff on network and server trouble; drops a
- * batch the server rejects as malformed (400) after logging it, so one bad
- * row can never block every later write.
+ * Drains the outbox to Supabase, pulls what the website wrote since the last
+ * run, then publishes today's and yesterday's day_summaries and the profile.
+ * Runs only online (constraint) and only when sync is on; retries with
+ * backoff on network and server trouble; drops a batch the server rejects as
+ * malformed (400) after logging it, so one bad row can never block every
+ * later write. The order matters: the phone's own writes go up first, so the
+ * pull never applies a stale server copy over them.
  */
 @HiltWorker
 class CloudSyncWorker @AssistedInject constructor(
@@ -37,6 +40,9 @@ class CloudSyncWorker @AssistedInject constructor(
     private val rest: SupabaseRestApi,
     private val settings: SettingsDataStore,
     private val widgetDataSource: WidgetDataSource,
+    private val pull: CloudPull,
+    private val mirror: CloudMirror,
+    private val profileDao: ProfileDao,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -48,6 +54,7 @@ class CloudSyncWorker @AssistedInject constructor(
 
         return try {
             drainOutbox(userId)
+            pull.run(userId, mirror.deviceId()) { auth.bearer() ?: throw Unauthorized() }
             publishSummaries(userId)
             settings.recordCloudSync(System.currentTimeMillis(), null)
             Result.success()
@@ -114,6 +121,14 @@ class CloudSyncWorker @AssistedInject constructor(
             upsert(
                 CloudRows.TABLE_PROFILES,
                 JsonArray(listOf(addOwner(CloudRows.profile(name), "user_id", userId))),
+            )
+        }
+        // The questionnaire, so the website shows this account's own targets
+        // once the user signs in there with the linked email (milestone 3).
+        profileDao.observeProfile().first()?.let { profile ->
+            upsert(
+                CloudRows.TABLE_PROFILE_DETAILS,
+                JsonArray(listOf(addOwner(CloudRows.profileDetails(profile), "user_id", userId))),
             )
         }
     }

@@ -29,7 +29,7 @@ import com.nutricart.app.domain.model.MealSlot
             onDelete = ForeignKey.SET_NULL,
         )
     ],
-    indices = [Index("epochDay"), Index("productId")],
+    indices = [Index("epochDay"), Index("productId"), Index(value = ["cloudId"], unique = true)],
 )
 data class FoodLogEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -50,4 +50,11 @@ data class FoodLogEntryEntity(
     val saltG: Double? = null,
     val saturatedFatG: Double? = null,
     val loggedAtEpochMillis: Long,
+    /**
+     * The row's id in the cloud when ANOTHER client wrote it (the website:
+     * "web:f:<uuid>"). null for rows this phone logged itself: their cloud id
+     * is derived from the device id and [id] (see CloudRows.foodId), so the
+     * column stays empty for everything the phone writes.
+     */
+    val cloudId: String? = null,
 )

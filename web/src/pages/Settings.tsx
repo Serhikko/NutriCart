@@ -5,15 +5,20 @@ import { useSession } from '../lib/session';
 import { useFollowed, useMyProfile, useSaveMyName, useUnfollow } from '../lib/queries';
 import { supabase } from '../lib/supabase';
 
-/** Name, language, the accounts followed, and the way out. */
+type AccountNotice = { key: string; email?: string; error?: boolean } | null;
+
+/** Name, language, the account's email, the accounts followed, and the way out. */
 export function Settings() {
   const { t, locale, setLocale } = useI18n();
-  const { userId } = useSession();
+  const { userId, email, isAnonymous } = useSession();
   const profile = useMyProfile(userId);
   const saveName = useSaveMyName(userId);
   const followed = useFollowed(userId);
   const unfollow = useUnfollow(userId);
   const [name, setName] = useState('');
+  const [emailText, setEmailText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<AccountNotice>(null);
 
   useEffect(() => {
     if (profile.data !== undefined) setName(profile.data);
@@ -22,6 +27,30 @@ export function Settings() {
   const forget = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
+  };
+
+  const address = emailText.trim().toLowerCase();
+  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address);
+
+  /** Links the address to this (anonymous) account; GoTrue mails a confirmation. */
+  const keepAccount = async () => {
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ email: address }, { emailRedirectTo: window.location.origin });
+    setBusy(false);
+    setNotice(error ? { key: 'settings.account_error', error: true } : { key: 'settings.account_sent', email: address });
+  };
+
+  /** A magic link for an account that already has this email (linked on the phone or here). */
+  const signIn = async () => {
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: address,
+      options: { emailRedirectTo: window.location.origin, shouldCreateUser: false },
+    });
+    setBusy(false);
+    if (!error) setNotice({ key: 'settings.account_magic_sent', email: address });
+    else if (/signups? not allowed/i.test(error.message)) setNotice({ key: 'settings.account_unknown', error: true });
+    else setNotice({ key: 'settings.account_error', error: true });
   };
 
   return (
@@ -41,6 +70,28 @@ export function Settings() {
             {t('settings.save')}
           </button>
         </div>
+      </section>
+
+      <section className="card">
+        <h2 style={{ marginTop: 0, fontSize: '1rem' }}>{t('settings.account')}</h2>
+        {!isAnonymous && email ? (
+          <p style={{ margin: 0 }}>{t('settings.account_signed_in', { email })}</p>
+        ) : (
+          <>
+            <p className="muted" style={{ marginTop: 0, fontSize: '0.85rem' }}>{t('settings.account_hint')}</p>
+            <label htmlFor="email" className="muted" style={{ fontSize: '0.85rem' }}>{t('settings.account_email')}</label>
+            <input id="email" type="email" autoComplete="email" inputMode="email" value={emailText} onChange={(e) => { setEmailText(e.target.value); setNotice(null); }} style={{ margin: '6px 0 10px' }} />
+            <div className="row" style={{ justifyContent: 'flex-start' }}>
+              <button onClick={keepAccount} disabled={!emailValid || busy}>{t('settings.account_keep')}</button>
+              <button className="ghost" onClick={signIn} disabled={!emailValid || busy}>{t('settings.account_signin')}</button>
+            </div>
+          </>
+        )}
+        {notice && (
+          <p className={notice.error ? 'error' : 'muted'} style={{ fontSize: '0.85rem', marginBottom: 0 }}>
+            {t(notice.key, notice.email ? { email: notice.email } : undefined)}
+          </p>
+        )}
       </section>
 
       <section className="card">
@@ -76,7 +127,7 @@ export function Settings() {
         {t('settings.signout')}
       </button>
       <p className="muted" style={{ fontSize: '0.8rem' }}>
-        {t('settings.signout_hint')}
+        {t(isAnonymous ? 'settings.signout_hint' : 'settings.signout_hint_email')}
       </p>
     </>
   );

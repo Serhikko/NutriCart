@@ -37,7 +37,13 @@ export function MyDay() {
 
   const groups = day.data ? groupByMeal(day.data.entries) : null;
   const eaten = day.data ? sumKcal(day.data.entries) : 0;
-  const summary = targetKcal !== null ? { epoch_day: epochDay, target_kcal: targetKcal, eaten_kcal: Math.round(eaten), active_kcal: null, steps: null, workout_kcal: 0 } : null;
+  // A phone account's target includes the day's activity, which only the
+  // phone knows: its published row wins there. Eaten is always the live sum.
+  const published = day.data?.summary ?? null;
+  const target = me.primaryClient === 'phone' && published ? published.target_kcal : targetKcal;
+  const summary = target !== null
+    ? { epoch_day: epochDay, target_kcal: target, eaten_kcal: Math.round(eaten), active_kcal: published?.active_kcal ?? null, steps: published?.steps ?? null, workout_kcal: published?.workout_kcal ?? 0 }
+    : null;
 
   return (
     <>
@@ -53,6 +59,11 @@ export function MyDay() {
         {me.targets && (
           <p className="muted" style={{ fontSize: '0.85rem', margin: '4px 0 0' }}>
             {t('me.macros', { p: me.targets.proteinG, f: me.targets.fatG, c: me.targets.carbsG })}
+          </p>
+        )}
+        {published && (published.steps != null || published.active_kcal != null) && (
+          <p className="muted" style={{ fontSize: '0.85rem', margin: '4px 0 0' }}>
+            {t('me.activity', { steps: published.steps ?? '—', active: published.active_kcal != null ? Math.round(published.active_kcal) : '—' })}
           </p>
         )}
       </section>
@@ -71,7 +82,7 @@ export function MyDay() {
                 <span className="detail">
                   {e.grams !== null ? `${Math.round(e.grams)} ${t('unit.g')} · ` : ''}{Math.round(e.kcal)} {t('unit.kcal')} · {formatTime(e.logged_at, tag)}
                 </span>
-                <button className="danger" aria-label={t('me.delete')} onClick={() => deleteFood.mutate({ id: e.id, epochDay, targetKcal })} style={{ padding: '2px 8px' }}>×</button>
+                <button className="danger" aria-label={t('me.delete')} onClick={() => deleteFood.mutate({ id: e.id, epochDay, summary: me.summary })} style={{ padding: '2px 8px' }}>×</button>
               </div>
             ))}
             <Link to={`/me/add/${epochDay}/${slot}`}>

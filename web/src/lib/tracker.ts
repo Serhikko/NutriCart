@@ -6,6 +6,7 @@ import type { FoodProduct } from '../domain/openFoodFacts';
 import { forGrams, scalePer100g } from '../domain/food';
 import { ageYears, dayTargetKcal, macroTargets, type TargetProfile } from '../domain/calories';
 import type { ActivityLevel, Goal, Sex } from '../domain/model';
+import { daySummaryPayload, type SummaryPolicy } from '../domain/summary';
 
 /**
  * The website as a tracker for the signed-in user: their profile details,
@@ -107,29 +108,23 @@ export function targetsFor(profile: TargetProfile | null, details: ProfileDetail
 
 /**
  * After every write, the day summary is recomputed from the server's own rows
- * and upserted, so a partner's Day page shows the same line for a web-only
- * account as for a phone account. The phone never reads this back.
+ * and merged into day_summaries, so a partner's Day page shows the same line
+ * for a web-only account as for a phone account. Which columns move depends
+ * on who owns the row (see domain/summary.ts): for a phone account only the
+ * eaten total, never its steps or active kcal.
  */
-async function refreshDaySummary(userId: string, epochDay: number, targetKcal: number | null) {
-  const { data, error } = await supabase
-    .from('food_log_entries')
-    .select('kcal')
-    .eq('owner_id', userId)
-    .eq('epoch_day', epochDay)
-    .is('deleted_at', null);
+async function refreshDaySummary(userId: string, epochDay: number, policy: SummaryPolicy) {
+  const [entries, existing] = await Promise.all([
+    supabase.from('food_log_entries').select('kcal').eq('owner_id', userId).eq('epoch_day', epochDay).is('deleted_at', null),
+    supabase.from('day_summaries').select('target_kcal').eq('owner_id', userId).eq('epoch_day', epochDay).maybeSingle(),
+  ]);
+  if (entries.error) throw entries.error;
+  if (existing.error) throw existing.error;
+  const eaten = ((entries.data ?? []) as { kcal: number }[]).reduce((a, r) => a + r.kcal, 0);
+  const payload = daySummaryPayload(policy, eaten, (existing.data as { target_kcal: number } | null) ?? null);
+  if (!payload) return;
+  const { error } = await supabase.from('day_summaries').upsert({ owner_id: userId, epoch_day: epochDay, ...payload });
   if (error) throw error;
-  const eaten = Math.round(((data ?? []) as { kcal: number }[]).reduce((a, r) => a + r.kcal, 0));
-  if (targetKcal === null) return;
-  const { error: upsertError } = await supabase.from('day_summaries').upsert({
-    owner_id: userId,
-    epoch_day: epochDay,
-    target_kcal: Math.round(targetKcal),
-    eaten_kcal: eaten,
-    active_kcal: null,
-    steps: null,
-    workout_kcal: 0,
-  });
-  if (upsertError) throw upsertError;
 }
 
 function invalidateDay(qc: ReturnType<typeof useQueryClient>, userId: string) {
@@ -145,14 +140,14 @@ export interface LogFoodInput {
   servings: number | null;
   meal: MealSlot;
   epochDay: number;
-  targetKcal: number | null;
+  summary: SummaryPolicy;
 }
 
 /** The web equivalent of DiaryRepository.logProduct: nutrition snapshotted at log time. */
 export function useLogFood(userId: string | null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ product: p, grams, servings, meal, epochDay, targetKcal }: LogFoodInput) => {
+    mutationFn: async ({ product: p, grams, servings, meal, epochDay, summary }: LogFoodInput) => {
       const n = forGrams(p.kcalPer100g, p.proteinPer100g, p.fatPer100g, p.carbsPer100g, grams);
       const { error } = await supabase.from('food_log_entries').insert({
         id: newId('f'),
@@ -173,7 +168,7 @@ export function useLogFood(userId: string | null) {
         logged_at: new Date().toISOString(),
       });
       if (error) throw error;
-      await refreshDaySummary(userId!, epochDay, targetKcal);
+      await refreshDaySummary(userId!, epochDay, summary);
     },
     onSuccess: () => invalidateDay(qc, userId!),
   });
@@ -182,10 +177,10 @@ export function useLogFood(userId: string | null) {
 export function useDeleteFood(userId: string | null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, epochDay, targetKcal }: { id: string; epochDay: number; targetKcal: number | null }) => {
+    mutationFn: async ({ id, epochDay, summary }: { id: string; epochDay: number; summary: SummaryPolicy }) => {
       const { error } = await supabase.from('food_log_entries').update({ deleted_at: new Date().toISOString() }).eq('id', id);
       if (error) throw error;
-      await refreshDaySummary(userId!, epochDay, targetKcal);
+      await refreshDaySummary(userId!, epochDay, summary);
     },
     onSuccess: () => invalidateDay(qc, userId!),
   });
@@ -246,6 +241,7 @@ export function useLogWeight(userId: string | null) {
 /** Ensures today's summary exists for a web-only account (e.g. after onboarding). */
 export function useEnsureTodaySummary(userId: string | null) {
   return useMutation({
-    mutationFn: async (targetKcal: number) => refreshDaySummary(userId!, todayEpochDay(), targetKcal),
+    mutationFn: async (targetKcal: number) =>
+      refreshDaySummary(userId!, todayEpochDay(), { targetKcal, primaryClient: 'web' }),
   });
 }

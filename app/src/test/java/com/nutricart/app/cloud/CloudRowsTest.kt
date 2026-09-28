@@ -1,9 +1,13 @@
 package com.nutricart.app.cloud
 
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
+import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WaterEntryEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
+import com.nutricart.app.domain.model.ActivityLevel
+import com.nutricart.app.domain.model.Goal
 import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.domain.model.Sex
 import com.nutricart.app.domain.model.WeightSource
 import com.nutricart.app.widget.DayNumbers
 import kotlinx.serialization.json.JsonNull
@@ -41,6 +45,42 @@ class CloudRowsTest {
             ),
             row.keys,
         )
+    }
+
+    @Test
+    fun `a row the website wrote keeps the website's id, so a phone delete hits the same server row`() {
+        val pulled = entry.copy(cloudId = "web:f:0b5c3f8e")
+        assertEquals("web:f:0b5c3f8e", CloudRows.foodId("ab12cd34", pulled))
+        assertEquals("web:f:0b5c3f8e", CloudRows.foodEntry("ab12cd34", pulled)["id"]!!.jsonPrimitive.content)
+        assertEquals("ab12cd34:f:42", CloudRows.foodId("ab12cd34", entry))
+    }
+
+    @Test
+    fun `own ids are recognised and parsed, foreign ones are not`() {
+        assertTrue(CloudRows.isOwnId("ab12cd34", "ab12cd34:f:42"))
+        assertEquals(42L, CloudRows.localIdOf("ab12cd34", "ab12cd34:f:42"))
+        assertEquals(null, CloudRows.localIdOf("ab12cd34", "web:f:0b5c3f8e"))
+        assertEquals(null, CloudRows.localIdOf("ab12cd34", "ab12cd34x:f:42"))
+    }
+
+    @Test
+    fun `profile details carry the questionnaire in the web schema's names`() {
+        val profile = UserProfileEntity(
+            sex = Sex.MALE, birthDateEpochDay = java.time.LocalDate.of(1996, 5, 17).toEpochDay(), heightCm = 182,
+            activityLevel = ActivityLevel.MODERATE, goal = Goal.LOSE, targetKgPerWeek = 0.5,
+            snacksPerDay = 1, cookingSessionsPerWeek = 4, isVegetarian = false, noPork = false,
+            allergies = emptyList(), createdAtEpochMillis = 0L, customKcalTarget = 2100,
+        )
+        val row = CloudRows.profileDetails(profile)
+        assertEquals("MALE", row["sex"]!!.jsonPrimitive.content)
+        assertEquals("1996-05-17", row["birth_date"]!!.jsonPrimitive.content)
+        assertEquals("182", row["height_cm"]!!.jsonPrimitive.content)
+        assertEquals("MODERATE", row["activity_level"]!!.jsonPrimitive.content)
+        assertEquals("LOSE", row["goal"]!!.jsonPrimitive.content)
+        assertEquals("2100", row["custom_kcal_target"]!!.jsonPrimitive.content)
+        assertEquals(JsonNull, row["custom_protein_g"])
+        assertEquals("phone", row["primary_client"]!!.jsonPrimitive.content)
+        assertEquals("user_id", CloudRows.ownerColumn(CloudRows.TABLE_PROFILE_DETAILS))
     }
 
     @Test

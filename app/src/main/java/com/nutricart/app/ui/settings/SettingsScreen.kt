@@ -918,6 +918,43 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
             ) { Text(stringResource(R.string.save)) }
         }
 
+        // Account email: the way into this account from the website and from a new phone.
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.cloud_email_title), style = MaterialTheme.typography.titleMedium)
+        val account = state.cloudAccount
+        if (account?.email != null) {
+            Text(
+                stringResource(R.string.cloud_email_linked, account.email),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            Text(
+                stringResource(R.string.cloud_email_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = state.cloudEmailText,
+                onValueChange = viewModel::setCloudEmailText,
+                label = { Text(stringResource(R.string.cloud_email_label)) },
+                singleLine = true,
+                isError = state.cloudEmailText.isNotEmpty() && !state.cloudEmailValid,
+                enabled = !state.cloudBusy,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            account?.pendingEmail?.let { pending ->
+                Text(
+                    stringResource(R.string.cloud_email_pending, pending),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(
+                onClick = viewModel::linkCloudEmail,
+                enabled = state.cloudEmailValid && !state.cloudBusy,
+            ) { Text(stringResource(R.string.cloud_email_link)) }
+        }
+
         // Pairing code
         Spacer(modifier = Modifier.height(12.dp))
         Text(stringResource(R.string.cloud_code_title), style = MaterialTheme.typography.titleMedium)
@@ -1001,7 +1038,7 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
 
     state.cloudNotice?.let { notice ->
         val isGood = notice == CloudNotice.ENABLED || notice == CloudNotice.NAME_SAVED ||
-            notice == CloudNotice.CODE_READY || notice == CloudNotice.UNLINKED
+            notice == CloudNotice.CODE_READY || notice == CloudNotice.UNLINKED || notice == CloudNotice.EMAIL_SENT
         Text(
             stringResource(
                 when (notice) {
@@ -1009,6 +1046,7 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
                     CloudNotice.NAME_SAVED -> R.string.cloud_notice_name_saved
                     CloudNotice.CODE_READY -> R.string.cloud_notice_code_ready
                     CloudNotice.UNLINKED -> R.string.cloud_notice_unlinked
+                    CloudNotice.EMAIL_SENT -> R.string.cloud_notice_email_sent
                     CloudNotice.NOT_CONFIGURED -> R.string.cloud_not_configured
                     CloudNotice.OFFLINE -> R.string.cloud_notice_offline
                     CloudNotice.AUTH -> R.string.cloud_notice_auth

@@ -44,4 +44,15 @@ interface WaterDao {
     /** Every entry in a day range — the cloud backfill when sync is switched on. */
     @Query("SELECT * FROM water_entry WHERE epochDay BETWEEN :from AND :to ORDER BY id")
     suspend fun entriesBetween(from: Long, to: Long): List<WaterEntryEntity>
+
+    // --- Cloud pull (v13 -> v14) ---
+
+    @Query("SELECT * FROM water_entry WHERE cloudId = :cloudId LIMIT 1")
+    suspend fun byCloudId(cloudId: String): WaterEntryEntity?
+
+    @Query("DELETE FROM water_entry WHERE cloudId = :cloudId")
+    suspend fun deleteByCloudId(cloudId: String)
+
+    @Query("DELETE FROM water_entry WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }
