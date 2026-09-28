@@ -137,6 +137,14 @@ fun SettingsScreen(
         )
     }
 
+    if (state.showCloudNameDialog) {
+        CloudNameDialog(
+            initialName = state.cloudNameText,
+            onConfirm = viewModel::enableCloudSync,
+            onDismiss = viewModel::dismissCloudNameDialog,
+        )
+    }
+
     if (state.showRecurringDialog) {
         RecurringDialog(
             onConfirm = viewModel::addRecurring,
@@ -562,6 +570,16 @@ private fun SettingsForm(
         SectionTitle(R.string.ai_section)
         AiKeySection(state = state, viewModel = viewModel)
 
+        // --- Partner sharing (optional) ---
+        SectionSpace()
+        SectionTitle(R.string.partner_section)
+        PartnerSection(state = state, viewModel = viewModel)
+
+        // --- Cloud sync and the website (optional) ---
+        SectionSpace()
+        SectionTitle(R.string.cloud_section)
+        CloudSection(state = state, viewModel = viewModel)
+
         // --- Health Connect ---
         // Diagnostics, not daily numbers: they used to sit at the bottom of the
         // dashboard. The whole section is hidden when Health Connect is not
@@ -706,6 +724,410 @@ private fun AiKeySection(state: SettingsUiState, viewModel: SettingsViewModel) {
         stringResource(R.string.ai_key_hint),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * "Share with a partner": a Telegram bot the user creates, a partner who
+ * writes /start to it, and three switches. Set-up order on screen is the
+ * order things happen: token -> connect -> what to share.
+ *
+ * The token field copies the AI key field on purpose (masked, no autocorrect,
+ * Save/Delete, plain-text warning): both are the user's own secrets, and two
+ * different treatments would make one of them look less serious.
+ */
+@Composable
+private fun PartnerSection(state: SettingsUiState, viewModel: SettingsViewModel) {
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    val greeting = stringResource(R.string.partner_greeting)
+    val testText = stringResource(R.string.partner_test_text)
+    // Incoming nudges are notifications, so the same runtime permission the
+    // meal reminders need (Android 13+).
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { /* denied = messages are still fetched, just not shown; nothing to do */ }
+
+    Text(
+        stringResource(R.string.partner_intro),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(modifier = Modifier.height(12.dp))
+
+    OutlinedTextField(
+        value = state.botTokenText,
+        onValueChange = viewModel::setBotTokenText,
+        label = { Text(stringResource(R.string.partner_token_label)) },
+        isError = state.botTokenText.isNotBlank() && !state.botTokenValid,
+        supportingText = {
+            if (state.botTokenText.isNotBlank() && !state.botTokenValid) {
+                Text(stringResource(R.string.partner_token_invalid))
+            }
+        },
+        visualTransformation = if (revealed) {
+            VisualTransformation.None
+        } else {
+            PasswordVisualTransformation()
+        },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            autoCorrectEnabled = false,
+        ),
+        singleLine = true,
+        enabled = !state.partnerBusy,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = { revealed = !revealed }) {
+            Text(stringResource(if (revealed) R.string.ai_key_hide else R.string.ai_key_show))
+        }
+        TextButton(
+            onClick = viewModel::saveBotToken,
+            enabled = state.botTokenValid && !state.partnerBusy,
+        ) { Text(stringResource(R.string.save)) }
+        if (state.botTokenStored) {
+            TextButton(onClick = viewModel::deleteBotToken, enabled = !state.partnerBusy) {
+                Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+
+    // Step 2: the partner. Only reachable once the bot is verified.
+    if (state.botTokenStored) {
+        Spacer(modifier = Modifier.height(8.dp))
+        val partnerName = state.partnerName
+        if (partnerName == null) {
+            state.botUsername?.let { username ->
+                Text(
+                    stringResource(R.string.partner_connect_hint, username),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedButton(
+                onClick = { viewModel.connectPartner(greeting) },
+                enabled = !state.partnerBusy,
+            ) {
+                Text(stringResource(R.string.partner_connect_action))
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.partner_linked_label, partnerName),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                TextButton(onClick = viewModel::unlinkPartner, enabled = !state.partnerBusy) {
+                    Text(stringResource(R.string.partner_unlink_action))
+                }
+            }
+            // Step 3: what flows in each direction.
+            SwitchRow(R.string.partner_share_meals, state.partnerShareMeals, viewModel::setPartnerShareMeals)
+            SwitchRow(R.string.partner_notify_missed, state.partnerNotifyMissed, viewModel::setPartnerNotifyMissed)
+            SwitchRow(R.string.partner_inbox, state.partnerInboxEnabled) { enabled ->
+                if (enabled && Build.VERSION.SDK_INT >= 33) {
+                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                viewModel.setPartnerInboxEnabled(enabled)
+            }
+            TextButton(
+                onClick = { viewModel.sendPartnerTest(testText) },
+                enabled = !state.partnerBusy,
+            ) {
+                Text(stringResource(R.string.partner_test_action))
+            }
+        }
+    }
+
+    state.partnerNotice?.let { notice ->
+        val isGood = notice == PartnerNotice.BOT_SAVED || notice == PartnerNotice.LINKED ||
+            notice == PartnerNotice.TEST_SENT
+        Text(
+            partnerNoticeText(notice, state),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isGood) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        )
+    }
+    Text(
+        stringResource(R.string.partner_privacy_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun partnerNoticeText(notice: PartnerNotice, state: SettingsUiState): String = when (notice) {
+    PartnerNotice.BOT_SAVED -> stringResource(R.string.partner_bot_saved, state.botUsername ?: "")
+    PartnerNotice.LINKED -> stringResource(R.string.partner_notice_linked, state.partnerName ?: "")
+    PartnerNotice.TEST_SENT -> stringResource(R.string.partner_notice_test_sent)
+    PartnerNotice.NO_MESSAGE_YET -> stringResource(R.string.partner_notice_no_message)
+    PartnerNotice.BAD_TOKEN -> stringResource(R.string.partner_notice_bad_token)
+    PartnerNotice.OFFLINE -> stringResource(R.string.partner_notice_offline)
+    PartnerNotice.BUSY -> stringResource(R.string.partner_notice_busy)
+    PartnerNotice.BLOCKED -> stringResource(R.string.partner_notice_blocked)
+    PartnerNotice.FAILED -> stringResource(R.string.partner_notice_failed)
+}
+
+/**
+ * "Cloud sync & website": one switch, a name, a pairing code, the people who
+ * can read the account. Everything the website needs from the phone is set
+ * up here; the schema and policies are in supabase/.
+ */
+@Composable
+private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
+    if (!state.cloudConfigured) {
+        // A build without keys (see supabase/README.md): say so, offer nothing.
+        Text(
+            stringResource(R.string.cloud_not_configured),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+
+    Text(
+        stringResource(R.string.cloud_intro),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    SwitchRow(R.string.cloud_switch, state.cloudEnabled, viewModel::toggleCloudSync)
+
+    if (state.cloudEnabled) {
+        // Name
+        OutlinedTextField(
+            value = state.cloudNameText,
+            onValueChange = viewModel::setCloudNameText,
+            label = { Text(stringResource(R.string.cloud_name_label)) },
+            singleLine = true,
+            isError = state.cloudNameText.isNotEmpty() && !state.cloudNameValid,
+            enabled = !state.cloudBusy,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (state.cloudNameText.trim() != state.cloudNameStored.orEmpty()) {
+            TextButton(
+                onClick = viewModel::saveCloudName,
+                enabled = state.cloudNameValid && !state.cloudBusy,
+            ) { Text(stringResource(R.string.save)) }
+        }
+
+        // Account email: the way into this account from the website and from a new phone.
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.cloud_email_title), style = MaterialTheme.typography.titleMedium)
+        val account = state.cloudAccount
+        if (account?.email != null) {
+            Text(
+                stringResource(R.string.cloud_email_linked, account.email),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            Text(
+                stringResource(R.string.cloud_email_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = state.cloudEmailText,
+                onValueChange = viewModel::setCloudEmailText,
+                label = { Text(stringResource(R.string.cloud_email_label)) },
+                singleLine = true,
+                isError = state.cloudEmailText.isNotEmpty() && !state.cloudEmailValid,
+                enabled = !state.cloudBusy,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            // The password is shown in clear on purpose: the user reads it off
+            // this screen to type it into the website, and it is never stored here.
+            OutlinedTextField(
+                value = state.cloudPasswordText,
+                onValueChange = viewModel::setCloudPasswordText,
+                label = { Text(stringResource(R.string.cloud_password_label)) },
+                singleLine = true,
+                isError = state.cloudPasswordText.isNotEmpty() && !state.cloudPasswordValid,
+                enabled = !state.cloudBusy,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = viewModel::generateCloudPassword, enabled = !state.cloudBusy) {
+                    Text(stringResource(R.string.cloud_password_generate))
+                }
+                TextButton(
+                    onClick = viewModel::linkCloudEmail,
+                    enabled = state.cloudEmailValid && state.cloudPasswordValid && !state.cloudBusy,
+                ) { Text(stringResource(R.string.cloud_email_link)) }
+            }
+            account?.pendingEmail?.let { pending ->
+                Text(
+                    stringResource(R.string.cloud_email_pending, pending),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        // Pairing code
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.cloud_code_title), style = MaterialTheme.typography.titleMedium)
+        val code = state.cloudPairingCode
+        val now = System.currentTimeMillis()
+        if (code != null && code.second > now) {
+            Text(
+                code.first,
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                stringResource(R.string.cloud_code_hint, ((code.second - now) / 60_000L + 1).toInt()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (code != null) {
+            Text(
+                stringResource(R.string.cloud_code_expired),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        OutlinedButton(onClick = viewModel::newPairingCode, enabled = !state.cloudBusy) {
+            Text(stringResource(R.string.cloud_code_new))
+        }
+
+        // Partners
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.cloud_partners_title), style = MaterialTheme.typography.titleMedium)
+        if (state.cloudPartners.isEmpty()) {
+            Text(
+                stringResource(R.string.cloud_partners_none),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            state.cloudPartners.forEach { partner ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(partner.name, style = MaterialTheme.typography.bodyLarge)
+                    TextButton(
+                        onClick = { viewModel.unlinkCloudPartner(partner.linkId) },
+                        enabled = !state.cloudBusy,
+                    ) {
+                        Text(stringResource(R.string.cloud_unlink), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+
+        // Status
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            stringResource(
+                R.string.cloud_last_sync,
+                state.cloudLastSyncEpochMillis?.let { formattedDateTime(it) }
+                    ?: stringResource(R.string.no_data_dash),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (state.cloudPendingCount > 0) {
+            Text(
+                stringResource(R.string.cloud_pending, state.cloudPendingCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        state.cloudLastError?.let { error ->
+            Text(
+                cloudErrorText(error),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+
+    state.cloudNotice?.let { notice ->
+        val isGood = notice == CloudNotice.ENABLED || notice == CloudNotice.NAME_SAVED ||
+            notice == CloudNotice.CODE_READY || notice == CloudNotice.UNLINKED || notice == CloudNotice.EMAIL_SENT
+        Text(
+            stringResource(
+                when (notice) {
+                    CloudNotice.ENABLED -> R.string.cloud_notice_enabled
+                    CloudNotice.NAME_SAVED -> R.string.cloud_notice_name_saved
+                    CloudNotice.CODE_READY -> R.string.cloud_notice_code_ready
+                    CloudNotice.UNLINKED -> R.string.cloud_notice_unlinked
+                    CloudNotice.EMAIL_SENT -> R.string.cloud_notice_email_sent
+                    CloudNotice.NOT_CONFIGURED -> R.string.cloud_not_configured
+                    CloudNotice.OFFLINE -> R.string.cloud_notice_offline
+                    CloudNotice.AUTH -> R.string.cloud_notice_auth
+                    CloudNotice.FAILED -> R.string.cloud_notice_failed
+                }
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isGood) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        )
+    }
+    Text(
+        stringResource(R.string.cloud_privacy_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/** The error codes CloudSyncWorker records, in the user's words. */
+@Composable
+private fun cloudErrorText(code: String): String = stringResource(
+    when (code) {
+        "offline" -> R.string.cloud_error_offline
+        "auth" -> R.string.cloud_error_auth
+        "server" -> R.string.cloud_error_server
+        "rejected" -> R.string.cloud_error_rejected
+        else -> R.string.cloud_error_failed
+    }
+)
+
+/** Asked once, when the switch is turned on without a stored name. */
+@Composable
+private fun CloudNameDialog(
+    initialName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf(initialName) }
+    val valid = name.trim().length in 1..40
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.cloud_name_dialog_title)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.cloud_name_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(40) },
+                    label = { Text(stringResource(R.string.cloud_name_label)) },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name.trim()) }, enabled = valid) {
+                Text(stringResource(R.string.cloud_switch_on))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
     )
 }
 

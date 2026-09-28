@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application) // includes built-in Kotlin since AGP 9
     alias(libs.plugins.kotlin.compose)      // Compose compiler ships with Kotlin since 2.0
@@ -5,6 +7,16 @@ plugins {
     alias(libs.plugins.ksp)                 // annotation processing for Room + Hilt
     alias(libs.plugins.hilt)
 }
+
+// Cloud keys come from local.properties (never committed) or, on CI, from the
+// environment. An empty value builds fine: the app then hides the sync section
+// and says so, instead of failing at runtime with a broken URL.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+fun configValue(name: String): String =
+    localProperties.getProperty(name) ?: System.getenv(name) ?: ""
 
 android {
     namespace = "com.nutricart.app"
@@ -16,6 +28,11 @@ android {
         targetSdk = 37
         versionCode = 100
         versionName = "1.0"
+
+        // Supabase project URL and anon key (safe in a client: row-level
+        // security decides what it may do). See supabase/README.md.
+        buildConfigField("String", "SUPABASE_URL", "\"${configValue("SUPABASE_URL")}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${configValue("SUPABASE_ANON_KEY")}\"")
     }
 
     buildTypes {
@@ -32,6 +49,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true // for the Supabase keys above
     }
 }
 // Kotlin's jvmTarget automatically follows compileOptions.targetCompatibility (17).

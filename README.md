@@ -11,8 +11,10 @@ ready-to-shop grocery list. Offline-first, ad-free, in English and Ukrainian.
   WHO-based daily limits for sugar, salt and saturated fat, and a manual
   override for custom (e.g. nutritionist-prescribed) targets.
 - **Food diary** — Open Food Facts search with an offline cache, barcode
-  scanning, custom foods, favorites, frequency-ranked search, one-tap saved
-  meals and a multi-add basket.
+  scanning (EAN-13/8, UPC-A/E, with the code forms the database actually
+  stores), custom foods, favorites, frequency-ranked search, one-tap saved
+  meals and a multi-add basket. Labels entered per portion or in kJ only are
+  converted instead of dropped.
 - **Full nutrition label** — fiber, sugars, salt, saturated fat and E-number
   additives per product; "green numbers" feedback on the dashboard.
 - **7-day meal plan generator** — hits the calorie target within ±5% by scaling
@@ -31,6 +33,16 @@ ready-to-shop grocery list. Offline-first, ad-free, in English and Ukrainian.
   nutrient.
 - **Habits** — day notes, smart meal reminders (silent when the meal is already
   logged), and a home-screen widget.
+- **Cloud sync & website** — optional: an anonymous Supabase account mirrors
+  the diary, water, weight and daily totals so the NutriCart website can show
+  them; a 6-character pairing code lets a partner follow along and nudge back.
+  Offline-first stays intact: Room is the primary copy, an outbox drains when
+  online. Design in `docs/cloud-sync.md`, schema in `supabase/`.
+- **Share with a partner** — optional, through a Telegram bot you own: each
+  meal is sent as you log it, a skipped meal is flagged, `/today` answers with
+  the day so far, and anything your partner writes back pops up on your phone.
+  Only meal names and calories leave the phone. Any day can also be shared as
+  plain text from the diary, with no setup at all.
 - **32 built-in recipes** (Ukrainian cuisine) with step-by-step instructions.
 
 ## Tech stack
@@ -58,6 +70,10 @@ cd NutriCart
 
 Requires JDK 17+ and the Android SDK (compileSdk 37, minSdk 28). Or just grab
 the latest APK from [Releases](https://github.com/Serhikko/NutriCart/releases).
+
+Cloud sync is optional and off in a plain build. To enable it, create a free
+Supabase project and put its URL and anon key in `local.properties` as
+described in [supabase/README.md](supabase/README.md).
 
 ## License
 

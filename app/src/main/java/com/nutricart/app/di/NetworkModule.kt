@@ -1,7 +1,11 @@
 package com.nutricart.app.di
 
+import com.nutricart.app.cloud.CloudConfig
+import com.nutricart.app.cloud.SupabaseAuthApi
+import com.nutricart.app.cloud.SupabaseRestApi
 import com.nutricart.app.data.remote.ClaudeApi
 import com.nutricart.app.data.remote.OpenFoodFactsApi
+import com.nutricart.app.data.remote.TelegramApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -88,4 +92,75 @@ object NetworkModule {
             .build()
             .create(ClaudeApi::class.java)
     }
+
+    /**
+     * Telegram Bot API for the partner feature. Its own client for the same
+     * reason as the AI assistant above: a different host with its own rules,
+     * and no wish to introduce qualifiers for one more service. The bot token
+     * is a per-call path parameter (see TelegramApi), so nothing here caches
+     * a secret.
+     */
+    @Provides
+    @Singleton
+    fun provideTelegramApi(): TelegramApi {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
+            .build()
+        val json = Json {
+            ignoreUnknownKeys = true // Telegram objects carry dozens of fields we don't map
+            isLenient = true
+            coerceInputValues = true
+        }
+        return Retrofit.Builder()
+            .baseUrl(TelegramApi.BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(TelegramApi::class.java)
+    }
+
+    /**
+     * Supabase: one Retrofit for both Auth and PostgREST, since they share a
+     * host and the `apikey` header. Not a @Provides of its own: the module
+     * already provides a Retrofit for Open Food Facts, and a second binding of
+     * the same type would be a duplicate-binding compile error. Built even
+     * when the app has no keys (the base URL is then a placeholder) so Hilt's
+     * graph is the same in every build; CloudConfig.isConfigured gates every
+     * call site.
+     */
+    private val supabaseRetrofit: Retrofit by lazy {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("apikey", CloudConfig.anonKey)
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
+        val json = Json {
+            ignoreUnknownKeys = true // PostgREST rows and GoTrue sessions carry more than we map
+            isLenient = true
+            coerceInputValues = true
+        }
+        Retrofit.Builder()
+            .baseUrl(CloudConfig.baseUrl)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSupabaseAuthApi(): SupabaseAuthApi =
+        supabaseRetrofit.create(SupabaseAuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSupabaseRestApi(): SupabaseRestApi =
+        supabaseRetrofit.create(SupabaseRestApi::class.java)
 }

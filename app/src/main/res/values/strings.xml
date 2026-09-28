@@ -164,6 +164,10 @@
     <string name="barcode_scan_failed">Scanner unavailable — try again in a moment.</string>
     <string name="offline_results_note">Offline — showing previously loaded products only.</string>
     <string name="kcal_per_100g">%1$d kcal / 100 g</string>
+    <string name="kcal_per_100ml">%1$d kcal / 100 ml</string>
+    <string name="ml_mode">Millilitres</string>
+    <string name="portion_size_note_ml">1 portion = %1$d ml</string>
+    <string name="per100ml_header">Per 100 ml</string>
     <string name="grams_mode">Grams</string>
     <string name="portions_mode">Portions</string>
     <string name="portion_size_note">1 portion = %1$d g</string>
@@ -403,4 +407,82 @@
     <string name="ai_error_refused">The assistant declined to answer this one.</string>
     <string name="ai_error_empty">No answer came back — try again.</string>
     <string name="ai_error_failed">Something went wrong.</string>
+
+    <!-- Share with a partner (Telegram) -->
+    <string name="partner_section">Share with a partner (optional)</string>
+    <string name="partner_intro">Let someone you trust follow what you eat and nudge you, through Telegram. Create a bot with @BotFather, paste its token below, then ask your partner to open the bot and send /start.</string>
+    <string name="partner_token_label">Bot token</string>
+    <string name="partner_token_invalid">That does not look like a bot token.</string>
+    <string name="partner_bot_saved">Bot @%1$s is ready</string>
+    <string name="partner_connect_hint">Your partner opens t.me/%1$s in Telegram and sends /start — then tap Connect.</string>
+    <string name="partner_connect_action">Connect partner</string>
+    <string name="partner_linked_label">Partner: %1$s</string>
+    <string name="partner_unlink_action">Unlink</string>
+    <string name="partner_share_meals">Send my meals as I log them</string>
+    <string name="partner_notify_missed">Tell my partner when I skip a meal</string>
+    <string name="partner_inbox">Show my partner\'s messages as notifications</string>
+    <string name="partner_test_action">Send a test message</string>
+    <string name="partner_test_text">👋 Test from NutriCart — the connection works.</string>
+    <string name="partner_greeting">✅ NutriCart connected. Meals will show up here as they are logged. Send /today for the day so far, or write anything to nudge.</string>
+    <string name="partner_notice_linked">Connected to %1$s</string>
+    <string name="partner_notice_test_sent">Test message sent.</string>
+    <string name="partner_notice_no_message">No message from your partner yet. Ask them to open the bot and send /start, then try again.</string>
+    <string name="partner_notice_bad_token">Telegram rejected this token.</string>
+    <string name="partner_notice_offline">You are offline.</string>
+    <string name="partner_notice_busy">Telegram is busy — try again in a moment.</string>
+    <string name="partner_notice_blocked">Your partner blocked the bot in Telegram.</string>
+    <string name="partner_notice_failed">Something went wrong.</string>
+    <string name="partner_privacy_hint">Messages travel through Telegram\'s servers. Only meal names and calories are sent — never weight, steps or heart rate. Replies are checked about every 15 minutes and whenever you open the app.</string>
+    <string name="partner_channel_name">Partner messages</string>
+    <string name="partner_nudge_default">Time to eat 🍽</string>
+    <string name="partner_missed_meal">⏰ %1$s is not logged yet. Send /nudge or write anything — it will pop up on the phone.</string>
+    <string name="partner_day_title">NutriCart — %1$s</string>
+    <string name="partner_day_total_left">Today: %1$d / %2$d kcal, %3$d left</string>
+    <string name="partner_day_total_over">Today: %1$d / %2$d kcal, %3$d over</string>
+    <string name="partner_day_total">Today: %1$d kcal</string>
+    <string name="partner_more_items">…and %1$d more</string>
+    <string name="partner_nothing_yet">Nothing logged yet today.</string>
+    <string name="share_day_action">Share today</string>
+
+    <!-- Cloud sync and the website (Supabase) -->
+    <string name="cloud_section">Cloud sync &amp; website (optional)</string>
+    <string name="cloud_intro">Keep a copy of your diary in the cloud so the NutriCart website can show it: to you on any device, and to a partner who enters your pairing code. What you log on the website comes back to the phone. Your phone stays the primary copy and works fully offline.</string>
+    <string name="cloud_not_configured">This build has no cloud keys, so sync is unavailable. See supabase/README.md in the project.</string>
+    <string name="cloud_switch">Sync to the cloud</string>
+    <string name="cloud_switch_on">Turn on</string>
+    <string name="cloud_name_label">Your name on the website</string>
+    <string name="cloud_name_dialog_title">What should the website call you?</string>
+    <string name="cloud_name_hint">Your partner will see “your name’s day” on the website. A first name is enough.</string>
+    <string name="cloud_code_title">Pairing code</string>
+    <string name="cloud_code_hint">Your partner enters this on the website. It works once and for another %1$d minutes.</string>
+    <string name="cloud_code_expired">The last code has expired.</string>
+    <string name="cloud_code_new">New code</string>
+    <string name="cloud_partners_title">Who can see your day</string>
+    <string name="cloud_partners_none">Nobody yet. Make a code and have your partner enter it on the website.</string>
+    <string name="cloud_unlink">Remove</string>
+    <string name="cloud_last_sync">Last upload: %1$s</string>
+    <string name="cloud_pending">%1$d changes waiting to upload</string>
+    <string name="cloud_error_offline">Waiting for a connection.</string>
+    <string name="cloud_error_auth">Signed out of the cloud. Turn sync off and on again.</string>
+    <string name="cloud_error_server">The cloud is having trouble; will retry.</string>
+    <string name="cloud_error_rejected">Some changes were rejected by the cloud and skipped.</string>
+    <string name="cloud_error_failed">The last upload failed; will retry.</string>
+    <string name="cloud_notice_enabled">Sync is on. The last 90 days are uploading.</string>
+    <string name="cloud_notice_name_saved">Name saved.</string>
+    <string name="cloud_notice_code_ready">Code ready.</string>
+    <string name="cloud_notice_unlinked">Access removed.</string>
+    <string name="cloud_notice_offline">You are offline.</string>
+    <string name="cloud_notice_auth">The cloud rejected this phone\'s session. Turn sync off and on again.</string>
+    <string name="cloud_notice_failed">Something went wrong.</string>
+    <string name="cloud_partner_default_name">Partner</string>
+    <string name="cloud_email_title">Account email</string>
+    <string name="cloud_email_hint">Add an email and a password to open this account on the website from any browser, and to keep it if you lose the phone. We send one confirmation link; nothing else.</string>
+    <string name="cloud_password_label">Password (8+ characters)</string>
+    <string name="cloud_password_generate">Generate</string>
+    <string name="cloud_email_label">Email</string>
+    <string name="cloud_email_link">Send confirmation</string>
+    <string name="cloud_email_pending">Confirmation sent to %1$s. Open the link in that email, then come back.</string>
+    <string name="cloud_email_linked">Signed in as %1$s. On the website, open Settings and sign in with this email and your password.</string>
+    <string name="cloud_notice_email_sent">Check your inbox for the confirmation link. Write the password down: it is not stored on the phone.</string>
+    <string name="cloud_privacy_hint">What leaves the phone: meal names and calories, water, weight and your daily activity totals. Never heart rate, sleep or the AI key. Stored in the EU; delete it any time by turning sync off.</string>
 </resources>

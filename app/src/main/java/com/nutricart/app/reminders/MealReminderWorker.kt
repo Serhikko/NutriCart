@@ -22,6 +22,7 @@ import com.nutricart.app.data.local.dao.FoodLogDao
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.logic.ReminderTimes
 import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.partner.PartnerScheduling
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -93,6 +94,7 @@ class MealReminderWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val settings: SettingsDataStore,
     private val foodLogDao: FoodLogDao,
+    private val partnerScheduling: PartnerScheduling,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -118,6 +120,10 @@ class MealReminderWorker @AssistedInject constructor(
             ) {
                 showNotification(slot)
                 settings.setReminderLastNotifiedDay(slot, today)
+                // The partner hears about it too (if linked and allowed) — and
+                // OUTSIDE the notification-permission check: a denied
+                // permission silences this phone, not the partner's.
+                partnerScheduling.onMealMissed(slot)
             }
 
             // Chain the next run (tomorrow, or today if the time moved forward).

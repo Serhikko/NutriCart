@@ -161,6 +161,10 @@
     <string name="barcode_scan_failed">Сканер недоступний — спробуй ще раз за мить.</string>
     <string name="offline_results_note">Офлайн — показані лише раніше завантажені продукти.</string>
     <string name="kcal_per_100g">%1$d ккал / 100 г</string>
+    <string name="kcal_per_100ml">%1$d ккал / 100 мл</string>
+    <string name="ml_mode">Мілілітри</string>
+    <string name="portion_size_note_ml">1 порція = %1$d мл</string>
+    <string name="per100ml_header">На 100 мл</string>
     <string name="grams_mode">Грами</string>
     <string name="portions_mode">Порції</string>
     <string name="portion_size_note">1 порція = %1$d г</string>
@@ -396,4 +400,82 @@
     <string name="ai_error_refused">Асистент відмовився відповідати на це.</string>
     <string name="ai_error_empty">Відповідь порожня — спробуй ще раз.</string>
     <string name="ai_error_failed">Щось пішло не так.</string>
+
+    <!-- Share with a partner (Telegram) -->
+    <string name="partner_section">Поділитися з партнером (необов\'язково)</string>
+    <string name="partner_intro">Дозволь близькій людині бачити, що ти їси, і нагадувати тобі про їжу — через Telegram. Створи бота в @BotFather, встав його токен нижче, а партнер хай відкриє бота й надішле /start.</string>
+    <string name="partner_token_label">Токен бота</string>
+    <string name="partner_token_invalid">Це не схоже на токен бота.</string>
+    <string name="partner_bot_saved">Бот @%1$s готовий</string>
+    <string name="partner_connect_hint">Партнер відкриває t.me/%1$s у Telegram і надсилає /start — потім натисни «Підключити».</string>
+    <string name="partner_connect_action">Підключити партнера</string>
+    <string name="partner_linked_label">Партнер: %1$s</string>
+    <string name="partner_unlink_action">Відключити</string>
+    <string name="partner_share_meals">Надсилати мої прийоми їжі, щойно я їх записую</string>
+    <string name="partner_notify_missed">Повідомляти партнеру, коли я пропускаю прийом</string>
+    <string name="partner_inbox">Показувати повідомлення партнера як сповіщення</string>
+    <string name="partner_test_action">Надіслати тестове повідомлення</string>
+    <string name="partner_test_text">👋 Тест із NutriCart — зв\'язок працює.</string>
+    <string name="partner_greeting">✅ NutriCart підключено. Прийоми їжі з\'являтимуться тут, щойно їх запишуть. Надішли /today, щоб побачити день, або напиши будь-що, щоб нагадати про їжу.</string>
+    <string name="partner_notice_linked">Підключено: %1$s</string>
+    <string name="partner_notice_test_sent">Тестове повідомлення надіслано.</string>
+    <string name="partner_notice_no_message">Від партнера ще немає повідомлень. Попроси відкрити бота й надіслати /start, потім спробуй ще раз.</string>
+    <string name="partner_notice_bad_token">Telegram відхилив цей токен.</string>
+    <string name="partner_notice_offline">Немає інтернету.</string>
+    <string name="partner_notice_busy">Telegram зайнятий — спробуй за хвилину.</string>
+    <string name="partner_notice_blocked">Партнер заблокував бота в Telegram.</string>
+    <string name="partner_notice_failed">Щось пішло не так.</string>
+    <string name="partner_privacy_hint">Повідомлення йдуть через сервери Telegram. Надсилаються лише назви страв і калорії — ніколи вага, кроки чи пульс. Відповіді перевіряються приблизно кожні 15 хвилин і щоразу, коли ти відкриваєш застосунок.</string>
+    <string name="partner_channel_name">Повідомлення партнера</string>
+    <string name="partner_nudge_default">Час поїсти 🍽</string>
+    <string name="partner_missed_meal">⏰ %1$s ще не записано. Надішли /nudge або напиши будь-що — це з\'явиться на телефоні.</string>
+    <string name="partner_day_title">NutriCart — %1$s</string>
+    <string name="partner_day_total_left">За день: %1$d / %2$d ккал, залишилось %3$d</string>
+    <string name="partner_day_total_over">За день: %1$d / %2$d ккал, перевищено на %3$d</string>
+    <string name="partner_day_total">За день: %1$d ккал</string>
+    <string name="partner_more_items">…і ще %1$d</string>
+    <string name="partner_nothing_yet">Сьогодні ще нічого не записано.</string>
+    <string name="share_day_action">Поділитися днем</string>
+
+    <!-- Cloud sync and the website (Supabase) -->
+    <string name="cloud_section">Хмарна синхронізація та сайт (необов\'язково)</string>
+    <string name="cloud_intro">Зберігай копію щоденника в хмарі, щоб сайт NutriCart міг її показати: тобі на будь-якому пристрої й партнеру, який введе твій код. Записане на сайті повертається на телефон. Телефон залишається основною копією і повністю працює без інтернету.</string>
+    <string name="cloud_not_configured">У цій збірці немає ключів хмари, тож синхронізація недоступна. Див. supabase/README.md у проєкті.</string>
+    <string name="cloud_switch">Синхронізувати в хмару</string>
+    <string name="cloud_switch_on">Увімкнути</string>
+    <string name="cloud_name_label">Твоє ім\'я на сайті</string>
+    <string name="cloud_name_dialog_title">Як сайту тебе називати?</string>
+    <string name="cloud_name_hint">Партнер побачить на сайті «день» з твоїм ім\'ям. Достатньо імені.</string>
+    <string name="cloud_code_title">Код підключення</string>
+    <string name="cloud_code_hint">Партнер вводить його на сайті. Код спрацює один раз і діє ще %1$d хв.</string>
+    <string name="cloud_code_expired">Останній код уже недійсний.</string>
+    <string name="cloud_code_new">Новий код</string>
+    <string name="cloud_partners_title">Хто бачить твій день</string>
+    <string name="cloud_partners_none">Поки нікого. Створи код і попроси партнера ввести його на сайті.</string>
+    <string name="cloud_unlink">Прибрати</string>
+    <string name="cloud_last_sync">Останнє завантаження: %1$s</string>
+    <string name="cloud_pending">%1$d змін чекають на завантаження</string>
+    <string name="cloud_error_offline">Чекаю на з\'єднання.</string>
+    <string name="cloud_error_auth">Хмара розлогінила телефон. Вимкни й знову увімкни синхронізацію.</string>
+    <string name="cloud_error_server">У хмари негаразди; спробую ще.</string>
+    <string name="cloud_error_rejected">Частину змін хмара відхилила, їх пропущено.</string>
+    <string name="cloud_error_failed">Останнє завантаження не вдалося; спробую ще.</string>
+    <string name="cloud_notice_enabled">Синхронізацію увімкнено. Останні 90 днів завантажуються.</string>
+    <string name="cloud_notice_name_saved">Ім\'я збережено.</string>
+    <string name="cloud_notice_code_ready">Код готовий.</string>
+    <string name="cloud_notice_unlinked">Доступ прибрано.</string>
+    <string name="cloud_notice_offline">Немає інтернету.</string>
+    <string name="cloud_notice_auth">Хмара відхилила сесію цього телефона. Вимкни й знову увімкни синхронізацію.</string>
+    <string name="cloud_notice_failed">Щось пішло не так.</string>
+    <string name="cloud_partner_default_name">Партнер</string>
+    <string name="cloud_email_title">Email акаунта</string>
+    <string name="cloud_email_hint">Додай email і пароль, щоб відкривати цей акаунт на сайті з будь-якого браузера і не втратити його разом із телефоном. Ми надішлемо один лист із підтвердженням, більше нічого.</string>
+    <string name="cloud_password_label">Пароль (8+ символів)</string>
+    <string name="cloud_password_generate">Згенерувати</string>
+    <string name="cloud_email_label">Email</string>
+    <string name="cloud_email_link">Надіслати підтвердження</string>
+    <string name="cloud_email_pending">Підтвердження надіслано на %1$s. Відкрий посилання з листа й повернися сюди.</string>
+    <string name="cloud_email_linked">Ти увійшов як %1$s. На сайті відкрий Налаштування і увійди з цим email та своїм паролем.</string>
+    <string name="cloud_notice_email_sent">Перевір пошту: там посилання для підтвердження. Запиши пароль: на телефоні він не зберігається.</string>
+    <string name="cloud_privacy_hint">Що залишає телефон: назви страв і калорії, вода, вага та денні підсумки активності. Ніколи не пульс, сон чи ключ AI. Зберігається в ЄС; видалити можна будь-коли, вимкнувши синхронізацію.</string>
 </resources>

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -143,16 +144,39 @@ interface FoodLogDao {
     )
     suspend fun topSugarSources(from: Long, to: Long): List<FoodContribution>
 
+    /** Returns the new row id — the cloud mirror needs it for the row's remote id. */
     @Insert
-    suspend fun insert(entry: FoodLogEntryEntity)
+    suspend fun insert(entry: FoodLogEntryEntity): Long
 
     /**
      * Room wraps a list insert in ONE transaction — a multi-item write (saved
      * meal, basket) lands complete or not at all, never half a meal.
+     * Returns the new ids in input order.
      */
     @Insert
-    suspend fun insertAll(entries: List<FoodLogEntryEntity>)
+    suspend fun insertAll(entries: List<FoodLogEntryEntity>): List<Long>
+
+    /** Every entry in a day range — the cloud backfill when sync is switched on. */
+    @Query("SELECT * FROM food_log_entry WHERE epochDay BETWEEN :from AND :to ORDER BY id")
+    suspend fun entriesBetween(from: Long, to: Long): List<FoodLogEntryEntity>
 
     @Delete
     suspend fun delete(entry: FoodLogEntryEntity)
+
+    // --- Cloud pull (v13 -> v14): rows another client wrote, keyed by their cloud id ---
+
+    @Query("SELECT * FROM food_log_entry WHERE cloudId = :cloudId LIMIT 1")
+    suspend fun byCloudId(cloudId: String): FoodLogEntryEntity?
+
+    @Query("SELECT * FROM food_log_entry WHERE id = :id LIMIT 1")
+    suspend fun byId(id: Long): FoodLogEntryEntity?
+
+    @Update
+    suspend fun update(entry: FoodLogEntryEntity)
+
+    @Query("DELETE FROM food_log_entry WHERE cloudId = :cloudId")
+    suspend fun deleteByCloudId(cloudId: String)
+
+    @Query("DELETE FROM food_log_entry WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

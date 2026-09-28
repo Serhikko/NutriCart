@@ -380,7 +380,7 @@ private fun BasketDialog(
                         OutlinedTextField(
                             value = item.gramsText,
                             onValueChange = { onGramsChange(item.product.id, it) },
-                            label = { Text(stringResource(R.string.grams_mode)) },
+                            label = { Text(stringResource(if (item.product.isLiquid) R.string.ml_mode else R.string.grams_mode)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             modifier = Modifier.width(96.dp),
@@ -482,7 +482,7 @@ private fun ProductRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    stringResource(R.string.kcal_per_100g, product.kcalPer100g.roundToInt()),
+                    stringResource(if (product.isLiquid) R.string.kcal_per_100ml else R.string.kcal_per_100g, product.kcalPer100g.roundToInt()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -708,7 +708,7 @@ private fun AmountDialog(
                         FilterChip(
                             selected = !usePortions,
                             onClick = { usePortions = false; amountText = "100" },
-                            label = { Text(stringResource(R.string.grams_mode)) },
+                            label = { Text(stringResource(if (product.isLiquid) R.string.ml_mode else R.string.grams_mode)) },
                         )
                         FilterChip(
                             selected = usePortions,
@@ -719,7 +719,7 @@ private fun AmountDialog(
                     if (usePortions) {
                         Text(
                             stringResource(
-                                R.string.portion_size_note,
+                                if (product.isLiquid) R.string.portion_size_note_ml else R.string.portion_size_note,
                                 product.servingSizeG.roundToInt(),
                             ),
                             style = MaterialTheme.typography.bodySmall,
@@ -736,6 +736,7 @@ private fun AmountDialog(
                         Text(
                             stringResource(
                                 if (usePortions) R.string.portions_mode
+                                else if (product.isLiquid) R.string.ml_mode
                                 else R.string.grams_mode
                             )
                         )
@@ -757,10 +758,10 @@ private fun AmountDialog(
                     )
                 }
 
-                // The full label, per 100 g. "—" = the source didn't state it.
+                // The full label, per 100 g (or ml for a drink). "—" = the source didn't state it.
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    stringResource(R.string.per100g_header),
+                    stringResource(if (product.isLiquid) R.string.per100ml_header else R.string.per100g_header),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

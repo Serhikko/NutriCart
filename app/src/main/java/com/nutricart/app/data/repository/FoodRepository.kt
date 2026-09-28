@@ -5,9 +5,11 @@ import com.nutricart.app.data.local.entity.FoodProductEntity
 import com.nutricart.app.data.remote.OpenFoodFactsApi
 import android.util.Log
 import com.nutricart.app.data.remote.dto.toEntityOrNull
+import com.nutricart.app.domain.logic.BarcodeNormalizer
 import com.nutricart.app.domain.logic.ProductRanker
 import com.nutricart.app.domain.model.ProductSource
 import kotlinx.coroutines.CancellationException
+import retrofit2.HttpException
 import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
@@ -30,36 +32,56 @@ class FoodRepository @Inject constructor(
 ) {
 
     /**
-     * Barcode lookup, offline-first: a fully-detailed cache row answers
-     * instantly. A row cached BEFORE the detail-nutrient columns existed
-     * (all four null) gets an online refresh attempt — OFF may well know the
-     * values, and without this the user's most-scanned staples would show
-     * "—" forever (review-caught). Offline, the stale row still wins over an
-     * error.
-     * null = the database genuinely does not know this barcode.
+     * Barcode lookup, offline-first.
+     *
+     * The scanned digits are first turned into every form the database might
+     * store them in (BarcodeNormalizer: a UPC-A gets its leading zero, a
+     * UPC-E is expanded, and so on) — a UK import scanned as 12 digits used
+     * to come back "not found" although Open Food Facts knew it as 13.
+     *
+     * A fully-detailed cache row for ANY of those forms answers instantly. A
+     * row cached BEFORE the detail-nutrient columns existed (all four null)
+     * gets an online refresh attempt — OFF may well know the values, and
+     * without this the user's most-scanned staples would show "—" forever
+     * (review-caught). Offline, the stale row still wins over an error.
+     *
+     * Online, the forms are tried in order; a 404 means "not under this form,
+     * try the next", nothing worse. null = no form is known to the database.
      * No internet with NO cached row is NOT "unknown" — the IOException
      * propagates, and the user sees "you are offline" instead of "not found".
      */
-    suspend fun byBarcode(barcode: String): FoodProductEntity? {
-        val cached = foodDao.byId("off:$barcode")
+    suspend fun byBarcode(scanned: String): FoodProductEntity? {
+        val candidates = BarcodeNormalizer.candidates(scanned)
+        if (candidates.isEmpty()) return null
+        val cached = candidates.firstNotNullOfOrNull { foodDao.byId("off:$it") }
         if (cached != null && !cached.missingDetails()) return cached
-        return try {
-            val product = api.productByBarcode(barcode).product
-                ?.toEntityOrNull(System.currentTimeMillis())
-                ?: return cached // OFF lost/hides the product — keep what we have
-            // Same star rule as search: fresh API data must not wipe it.
-            val merged = product.copy(isFavorite = cached?.isFavorite ?: false)
-            foodDao.upsert(merged)
-            merged
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: IOException) {
-            cached ?: throw e // offline — the ViewModel shows a dedicated message
-        } catch (e: Exception) {
-            // Server error or unexpected response — log it, use what we have.
-            Log.w("FoodRepository", "Barcode lookup failed", e)
-            cached
+
+        for (code in candidates) {
+            try {
+                val product = api.productByBarcode(code).product
+                    ?.toEntityOrNull(System.currentTimeMillis())
+                    ?: continue // status 0 / unusable data under this form
+                // Same star rule as search: fresh API data must not wipe it.
+                val merged = product.copy(isFavorite = cached?.isFavorite ?: false)
+                foodDao.upsert(merged)
+                return merged
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: HttpException) {
+                // The v2 endpoint answers 404 for an unknown code: keep going.
+                // Anything else is a server problem — use what we have.
+                if (e.code() == 404) continue
+                Log.w("FoodRepository", "Barcode lookup failed with HTTP ${e.code()}")
+                return cached
+            } catch (e: IOException) {
+                return cached ?: throw e // offline — the ViewModel shows a dedicated message
+            } catch (e: Exception) {
+                // Unexpected response shape — log it, use what we have.
+                Log.w("FoodRepository", "Barcode lookup failed", e)
+                return cached
+            }
         }
+        return cached // every form answered "unknown"
     }
 
     /** True for rows cached before v0.11 — no detail nutrient is known. */
