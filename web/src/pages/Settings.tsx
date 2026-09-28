@@ -2,12 +2,32 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n, type Locale } from '../lib/i18n';
 import { useSession } from '../lib/session';
-import { useFollowed, useMyProfile, useSaveMyName, useUnfollow } from '../lib/queries';
+import { useFollowed, useMyPartners, useMyProfile, useNewPairingCode, useRemovePartner, useSaveMyName, useUnfollow } from '../lib/queries';
 import { useProfileDetails } from '../lib/tracker';
 import { ageYears } from '../domain/calories';
 import { supabase } from '../lib/supabase';
 
 type AccountNotice = { key: string; email?: string; error?: boolean } | null;
+
+/** The code on screen survives a reload; it is useless to anyone else once redeemed or expired. */
+const PAIRING_KEY = 'nutricart.pairing';
+function readPairing(): { code: string; expiresAt: number } | null {
+  try {
+    const raw = localStorage.getItem(PAIRING_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { code: string; expiresAt: number };
+    return parsed.expiresAt > Date.now() ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+function writePairing(value: { code: string; expiresAt: number }) {
+  try {
+    localStorage.setItem(PAIRING_KEY, JSON.stringify(value));
+  } catch {
+    /* private mode: the code just does not survive a reload */
+  }
+}
 
 /** Name, language, the account's email, the accounts followed, and the way out. */
 export function Settings() {
@@ -18,7 +38,29 @@ export function Settings() {
   const followed = useFollowed(userId);
   const unfollow = useUnfollow(userId);
   const details = useProfileDetails(userId);
+  const partners = useMyPartners(userId);
+  const removePartner = useRemovePartner(userId);
+  const newCode = useNewPairingCode(userId);
+  const [pairing, setPairing] = useState<{ code: string; expiresAt: number } | null>(() => readPairing());
+  const [now, setNow] = useState(() => Date.now());
   const [name, setName] = useState('');
+
+  // The countdown under the code; a refresh every 15 seconds is enough.
+  useEffect(() => {
+    if (!pairing) return;
+    const id = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, [pairing]);
+
+  const makeCode = () =>
+    newCode.mutate(undefined, {
+      onSuccess: (fresh) => {
+        setPairing(fresh);
+        setNow(Date.now());
+        writePairing(fresh);
+      },
+    });
+  const minutesLeft = pairing ? Math.max(0, Math.ceil((pairing.expiresAt - now) / 60_000)) : 0;
   const [emailText, setEmailText] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<AccountNotice>(null);
@@ -86,6 +128,34 @@ export function Settings() {
             <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>{t('settings.profile_phone')}</p>
           ) : (
             <Link to="/me/onboarding"><button className="ghost" style={{ paddingLeft: 0 }}>{t('settings.profile_edit')}</button></Link>
+          )}
+        </section>
+      )}
+
+      {details.data && (
+        <section className="card">
+          <h2 style={{ marginTop: 0, fontSize: '1rem' }}>{t('settings.share')}</h2>
+          <p className="muted" style={{ marginTop: 0, fontSize: '0.85rem' }}>{t('settings.share_hint')}</p>
+          {pairing && minutesLeft > 0 ? (
+            <>
+              <p className="code" style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '0.2em', margin: '6px 0' }}>{pairing.code}</p>
+              <p className="muted" style={{ fontSize: '0.85rem', marginTop: 0 }}>{t('settings.code_hint', { min: minutesLeft })}</p>
+            </>
+          ) : pairing ? (
+            <p className="muted" style={{ fontSize: '0.85rem' }}>{t('settings.code_expired')}</p>
+          ) : null}
+          <button className="ghost" style={{ paddingLeft: 0 }} onClick={makeCode} disabled={newCode.isPending}>{t('settings.code_new')}</button>
+          {newCode.isError && <p className="error" style={{ fontSize: '0.85rem' }}>{t('welcome.failed')}</p>}
+          <h3 style={{ fontSize: '0.95rem', margin: '14px 0 6px' }}>{t('settings.partners')}</h3>
+          {partners.data?.length ? (
+            partners.data.map((p) => (
+              <div className="row" key={p.linkId} style={{ marginBottom: 6 }}>
+                <strong>{p.name}</strong>
+                <button className="danger" onClick={() => removePartner.mutate(p.linkId)} disabled={removePartner.isPending}>{t('settings.partner_remove')}</button>
+              </div>
+            ))
+          ) : (
+            <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>{t('settings.partners_none')}</p>
           )}
         </section>
       )}

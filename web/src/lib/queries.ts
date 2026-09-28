@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import { lastDays } from './dates';
-import { normalizePairingCode } from './pairing';
+import { PAIRING_VALIDITY_MINUTES, generatePairingCode, hashPairingCode, normalizePairingCode } from './pairing';
 import type { DaySummary, FoodLogEntry, Nudge, WaterEntry, WeightEntry } from './diary';
 
 /**
@@ -66,6 +66,64 @@ export function useSaveMyName(userId: string | null) {
 
 /** Error codes redeem_pairing_code raises, mapped to the welcome screen's messages. */
 export type RedeemFailure = 'bad_code' | 'own_code' | 'too_many' | 'offline' | 'failed';
+
+/** The people who redeemed this account's code (the phone's "Who can see your day"). */
+export interface MyPartner {
+  linkId: string;
+  name: string;
+  since: string;
+}
+
+export function useMyPartners(userId: string | null) {
+  return useQuery({
+    queryKey: ['partners', userId],
+    enabled: Boolean(userId),
+    queryFn: async (): Promise<MyPartner[]> => {
+      const { data, error } = await supabase
+        .from('partner_links')
+        .select('id, partner_id, created_at, partner:profiles!partner_links_partner_profile_fkey(display_name)')
+        .eq('owner_id', userId!)
+        .order('created_at');
+      if (error) throw error;
+      return (data ?? []).map((row) => {
+        const r = row as unknown as { id: string; partner_id: string; created_at: string; partner: { display_name: string | null } | null };
+        return { linkId: r.id, name: r.partner?.display_name?.trim() || r.partner_id.slice(0, 8), since: r.created_at };
+      });
+    },
+  });
+}
+
+export function useRemovePartner(userId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (linkId: string) => {
+      const { error } = await supabase.from('partner_links').delete().eq('id', linkId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['partners', userId] }),
+  });
+}
+
+/**
+ * A fresh pairing code, as the phone's Settings makes one: older unused
+ * codes of this account are discarded first, so exactly one works at a
+ * time; only the hash goes to the server, the plain code stays on screen.
+ */
+export function useNewPairingCode(userId: string | null) {
+  return useMutation({
+    mutationFn: async (): Promise<{ code: string; expiresAt: number }> => {
+      const { error: clearError } = await supabase.from('pairing_codes').delete().eq('owner_id', userId!);
+      if (clearError) throw clearError;
+      const code = generatePairingCode();
+      const expiresAt = Date.now() + PAIRING_VALIDITY_MINUTES * 60_000;
+      const { error } = await supabase
+        .from('pairing_codes')
+        .insert({ code_hash: await hashPairingCode(code), owner_id: userId, expires_at: new Date(expiresAt).toISOString() });
+      if (error) throw error;
+      return { code, expiresAt };
+    },
+  });
+}
 
 export function useRedeemCode(userId: string | null) {
   const qc = useQueryClient();

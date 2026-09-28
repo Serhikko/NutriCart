@@ -159,5 +159,13 @@
   "add.scan_error": "The camera could not start ({error}). Check the browser's camera permission, or type the barcode below.",
   "add.barcode_manual": "Or type the barcode",
   "add.barcode_go": "Look up",
-  "add.ml": "Millilitres"
+  "add.ml": "Millilitres",
+  "settings.share": "Share your day",
+  "settings.share_hint": "Make a code and have your partner enter it on this website under \"Follow someone’s day\". They will see what you eat as you log it and can send you a nudge.",
+  "settings.code_new": "New code",
+  "settings.code_hint": "Works once, for another {min} min.",
+  "settings.code_expired": "The last code has expired.",
+  "settings.partners": "Who can see your day",
+  "settings.partners_none": "Nobody yet.",
+  "settings.partner_remove": "Remove"
 }
