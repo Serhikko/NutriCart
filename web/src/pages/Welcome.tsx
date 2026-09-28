@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
-import { useFollowed, useMyProfile, useRedeemCode, useSaveMyName } from '../lib/queries';
+import { lastRedeemDetail, useFollowed, useMyProfile, useRedeemCode, useSaveMyName } from '../lib/queries';
 import { isWellFormedPairingCode, normalizePairingCode } from '../lib/pairing';
 import { useProfileDetails } from '../lib/tracker';
 
@@ -79,6 +79,9 @@ export function Welcome() {
         <div className="row">
           <span className="error" style={{ fontSize: '0.85rem' }}>
             {redeem.isError ? t(`welcome.${redeem.error}`) : ''}
+            {redeem.isError && redeem.error === 'failed' && lastRedeemDetail && (
+              <span className="muted" style={{ display: 'block', fontSize: '0.8rem' }}>{lastRedeemDetail}</span>
+            )}
           </span>
           <button type="submit" disabled={loading || redeem.isPending || !isWellFormedPairingCode(normalizePairingCode(code))}>
             {redeem.isPending ? t('welcome.connecting') : t('welcome.connect')}

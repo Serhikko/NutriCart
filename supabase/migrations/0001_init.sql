@@ -161,7 +161,7 @@ create trigger day_summaries_updated_at before update on day_summaries
 
 -- True when the calling user has been linked to this owner by a pairing code.
 create or replace function is_partner_of(p_owner uuid) returns boolean
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
     select exists (
         select 1 from partner_links
         where owner_id = p_owner and partner_id = auth.uid()
@@ -172,9 +172,10 @@ $$;
 -- can read pairing_codes (which no client may select) and insert the link.
 -- Returns the owner's id and display name, or no row when the code is wrong,
 -- expired or used. Five failures in ten minutes lock the caller out.
+-- search_path includes `extensions`: on Supabase pgcrypto (digest) lives there.
 create or replace function redeem_pairing_code(p_code text)
 returns table (owner_id uuid, display_name text)
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
     v_hash   text;
     v_code   pairing_codes%rowtype;

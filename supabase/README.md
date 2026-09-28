@@ -9,7 +9,8 @@ phone talks to it over PostgREST and GoTrue (see `docs/cloud-sync.md`).
 1. Create a free project at supabase.com — region **EU Central (Frankfurt)**.
 2. Authentication → Providers → enable **Anonymous sign-ins**.
 3. SQL Editor → run `migrations/0001_init.sql`, then `0002_web_tracker.sql`,
-   then `0003_two_way_sync.sql` (in order; each file is one milestone).
+   then `0003_two_way_sync.sql`, then `0004_fix_redeem_search_path.sql` (in
+   order; a project set up before 0004 existed needs only that last file).
 4. Authentication → Providers → enable **Email** (email and password, with
    a sign-in link as the fallback; the default 6-character minimum is fine,
    the apps require 8). Authentication → URL Configuration → set the **Site URL** to

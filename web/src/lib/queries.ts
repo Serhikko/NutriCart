@@ -125,16 +125,21 @@ export function useNewPairingCode(userId: string | null) {
   });
 }
 
+/** The database's own words for the last unexpected redeem failure, shown under the generic message. */
+export let lastRedeemDetail: string | null = null;
+
 export function useRedeemCode(userId: string | null) {
   const qc = useQueryClient();
   return useMutation<FollowedAccount, RedeemFailure, string>({
     mutationFn: async (rawCode: string) => {
       const code = normalizePairingCode(rawCode);
+      lastRedeemDetail = null;
       const { data, error } = await supabase.rpc('redeem_pairing_code', { p_code: code });
       if (error) {
         if (error.code === '22023') throw 'own_code';
         if (error.code === '54000') throw 'too_many';
         if (error.message?.toLowerCase().includes('fetch')) throw 'offline';
+        lastRedeemDetail = `${error.code ?? ''} ${error.message ?? ''}`.trim();
         throw 'failed';
       }
       const row = (data as { owner_id: string; display_name: string }[] | null)?.[0];
