@@ -432,4 +432,37 @@
     <string name="partner_more_items">…і ще %1$d</string>
     <string name="partner_nothing_yet">Сьогодні ще нічого не записано.</string>
     <string name="share_day_action">Поділитися днем</string>
+
+    <!-- Cloud sync and the website (Supabase) -->
+    <string name="cloud_section">Хмарна синхронізація та сайт (необов\'язково)</string>
+    <string name="cloud_intro">Зберігай копію щоденника в хмарі, щоб сайт NutriCart міг її показати: тобі на будь-якому пристрої й партнеру, який введе твій код. Телефон залишається основною копією і повністю працює без інтернету.</string>
+    <string name="cloud_not_configured">У цій збірці немає ключів хмари, тож синхронізація недоступна. Див. supabase/README.md у проєкті.</string>
+    <string name="cloud_switch">Синхронізувати в хмару</string>
+    <string name="cloud_switch_on">Увімкнути</string>
+    <string name="cloud_name_label">Твоє ім\'я на сайті</string>
+    <string name="cloud_name_dialog_title">Як сайту тебе називати?</string>
+    <string name="cloud_name_hint">Партнер побачить на сайті «день» з твоїм ім\'ям. Достатньо імені.</string>
+    <string name="cloud_code_title">Код підключення</string>
+    <string name="cloud_code_hint">Партнер вводить його на сайті. Код спрацює один раз і діє ще %1$d хв.</string>
+    <string name="cloud_code_expired">Останній код уже недійсний.</string>
+    <string name="cloud_code_new">Новий код</string>
+    <string name="cloud_partners_title">Хто бачить твій день</string>
+    <string name="cloud_partners_none">Поки нікого. Створи код і попроси партнера ввести його на сайті.</string>
+    <string name="cloud_unlink">Прибрати</string>
+    <string name="cloud_last_sync">Останнє завантаження: %1$s</string>
+    <string name="cloud_pending">%1$d змін чекають на завантаження</string>
+    <string name="cloud_error_offline">Чекаю на з\'єднання.</string>
+    <string name="cloud_error_auth">Хмара розлогінила телефон. Вимкни й знову увімкни синхронізацію.</string>
+    <string name="cloud_error_server">У хмари негаразди; спробую ще.</string>
+    <string name="cloud_error_rejected">Частину змін хмара відхилила, їх пропущено.</string>
+    <string name="cloud_error_failed">Останнє завантаження не вдалося; спробую ще.</string>
+    <string name="cloud_notice_enabled">Синхронізацію увімкнено. Останні 90 днів завантажуються.</string>
+    <string name="cloud_notice_name_saved">Ім\'я збережено.</string>
+    <string name="cloud_notice_code_ready">Код готовий.</string>
+    <string name="cloud_notice_unlinked">Доступ прибрано.</string>
+    <string name="cloud_notice_offline">Немає інтернету.</string>
+    <string name="cloud_notice_auth">Хмара відхилила сесію цього телефона. Вимкни й знову увімкни синхронізацію.</string>
+    <string name="cloud_notice_failed">Щось пішло не так.</string>
+    <string name="cloud_partner_default_name">Партнер</string>
+    <string name="cloud_privacy_hint">Що залишає телефон: назви страв і калорії, вода, вага та денні підсумки активності. Ніколи не пульс, сон чи ключ AI. Зберігається в ЄС; видалити можна будь-коли, вимкнувши синхронізацію.</string>
 </resources>

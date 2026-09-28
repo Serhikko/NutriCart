@@ -1,5 +1,8 @@
 package com.nutricart.app.di
 
+import com.nutricart.app.cloud.CloudConfig
+import com.nutricart.app.cloud.SupabaseAuthApi
+import com.nutricart.app.cloud.SupabaseRestApi
 import com.nutricart.app.data.remote.ClaudeApi
 import com.nutricart.app.data.remote.OpenFoodFactsApi
 import com.nutricart.app.data.remote.TelegramApi
@@ -117,4 +120,47 @@ object NetworkModule {
             .build()
             .create(TelegramApi::class.java)
     }
+
+    /**
+     * Supabase: one Retrofit for both Auth and PostgREST, since they share a
+     * host and the `apikey` header. Not a @Provides of its own: the module
+     * already provides a Retrofit for Open Food Facts, and a second binding of
+     * the same type would be a duplicate-binding compile error. Built even
+     * when the app has no keys (the base URL is then a placeholder) so Hilt's
+     * graph is the same in every build; CloudConfig.isConfigured gates every
+     * call site.
+     */
+    private val supabaseRetrofit: Retrofit by lazy {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("apikey", CloudConfig.anonKey)
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
+        val json = Json {
+            ignoreUnknownKeys = true // PostgREST rows and GoTrue sessions carry more than we map
+            isLenient = true
+            coerceInputValues = true
+        }
+        Retrofit.Builder()
+            .baseUrl(CloudConfig.baseUrl)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSupabaseAuthApi(): SupabaseAuthApi =
+        supabaseRetrofit.create(SupabaseAuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSupabaseRestApi(): SupabaseRestApi =
+        supabaseRetrofit.create(SupabaseRestApi::class.java)
 }

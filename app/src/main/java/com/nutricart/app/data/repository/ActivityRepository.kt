@@ -1,5 +1,7 @@
 package com.nutricart.app.data.repository
 
+import com.nutricart.app.cloud.CloudMirror
+import com.nutricart.app.cloud.CloudSyncScheduling
 import com.nutricart.app.data.health.HcAvailability
 import com.nutricart.app.data.health.HealthConnectManager
 import com.nutricart.app.data.local.dao.ActivityDao
@@ -13,6 +15,7 @@ import com.nutricart.app.domain.model.WeightSource
 import com.nutricart.app.domain.model.WorkoutSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,6 +34,8 @@ class ActivityRepository @Inject constructor(
     private val weightDao: WeightDao,
     private val workoutDao: WorkoutDao,
     private val settings: SettingsDataStore,
+    private val cloudMirror: CloudMirror,
+    private val cloudSyncScheduling: CloudSyncScheduling,
 ) {
 
     fun observeDay(epochDay: Long): Flow<DailyActivityEntity?> =
@@ -101,16 +106,19 @@ class ActivityRepository @Inject constructor(
             // granted). Stored with source HEALTH_CONNECT: a MANUAL entry for
             // the same day always wins over it in queries.
             if (healthConnect.canReadWeight(granted)) healthConnect.readLatestWeight(today)?.let { (date, weightKg) ->
-                weightDao.insert(
-                    WeightEntryEntity(
-                        epochDay = date.toEpochDay(),
-                        weightKg = weightKg,
-                        source = WeightSource.HEALTH_CONNECT,
-                    )
+                val entry = WeightEntryEntity(
+                    epochDay = date.toEpochDay(),
+                    weightKg = weightKg,
+                    source = WeightSource.HEALTH_CONNECT,
                 )
+                weightDao.insert(entry)
+                cloudMirror.weightLogged(entry)
             }
 
             settings.setLastHcSyncEpochMillis(System.currentTimeMillis())
+            // Steps and active kcal changed: the website's day summary should
+            // follow (the worker does nothing when sync is off).
+            if (settings.cloudSyncEnabled.first()) cloudSyncScheduling.requestSync()
             SyncResult.SUCCESS
         } catch (e: CancellationException) {
             // Never swallow a coroutine cancellation — rethrow so the caller

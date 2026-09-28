@@ -13,6 +13,9 @@ import com.nutricart.app.data.settings.SecretsDataStore
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.data.remote.TelegramApi
+import com.nutricart.app.cloud.CloudPartner
+import com.nutricart.app.cloud.CloudRepository
+import com.nutricart.app.cloud.CloudResult
 import com.nutricart.app.partner.PartnerRepository
 import com.nutricart.app.partner.PartnerResult
 import com.nutricart.app.partner.PartnerScheduling
@@ -97,6 +100,24 @@ data class SettingsUiState(
     val partnerBusy: Boolean = false,
     /** One-shot outcome of the last partner action, shown under the section. */
     val partnerNotice: PartnerNotice? = null,
+    // --- Cloud sync (Supabase) ---
+    /** False in a build without keys: the section shows one line and nothing else. */
+    val cloudConfigured: Boolean = false,
+    val cloudEnabled: Boolean = false,
+    /** The name as typed; saved on Save, prefilled from the store. */
+    val cloudNameText: String = "",
+    val cloudNameStored: String? = null,
+    /** The live pairing code and when it expires (epoch millis); null = none. */
+    val cloudPairingCode: Pair<String, Long>? = null,
+    val cloudPartners: List<CloudPartner> = emptyList(),
+    val cloudLastSyncEpochMillis: Long? = null,
+    /** Short error code of the last failed sync, from CloudSyncWorker; null = fine. */
+    val cloudLastError: String? = null,
+    val cloudPendingCount: Int = 0,
+    val cloudBusy: Boolean = false,
+    val cloudNotice: CloudNotice? = null,
+    /** The switch was turned on but no name is stored yet: ask for one first. */
+    val showCloudNameDialog: Boolean = false,
     val saved: Boolean = false,
     val showResetDialog: Boolean = false,
 ) {
@@ -141,7 +162,13 @@ data class SettingsUiState(
 
     val botTokenValid: Boolean
         get() = TelegramApi.TOKEN_PATTERN.matches(botTokenText.trim())
+
+    val cloudNameValid: Boolean
+        get() = cloudNameText.trim().length in 1..40
 }
+
+/** What the cloud section reports after an action. */
+enum class CloudNotice { ENABLED, NAME_SAVED, CODE_READY, UNLINKED, NOT_CONFIGURED, OFFLINE, AUTH, FAILED }
 
 /** What the partner section reports after an action; each maps to one string. */
 enum class PartnerNotice {
@@ -163,6 +190,7 @@ class SettingsViewModel @Inject constructor(
     private val secrets: SecretsDataStore,
     private val partnerRepository: PartnerRepository,
     private val partnerScheduling: PartnerScheduling,
+    private val cloudRepository: CloudRepository,
     healthConnectManager: HealthConnectManager,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -217,6 +245,32 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             settings.partnerInboxEnabled.collect { on -> _uiState.update { it.copy(partnerInboxEnabled = on) } }
+        }
+
+        // Cloud sync: the flags follow the store live; the name field is read
+        // once (it is typed into), then kept in step by saveCloudName.
+        _uiState.update { it.copy(cloudConfigured = cloudRepository.isConfigured) }
+        viewModelScope.launch {
+            val stored = cloudRepository.displayName.first()
+            _uiState.update { it.copy(cloudNameText = stored.orEmpty(), cloudNameStored = stored) }
+        }
+        viewModelScope.launch {
+            cloudRepository.isEnabled.collect { on ->
+                _uiState.update { it.copy(cloudEnabled = on) }
+                if (on) refreshCloudPartners()
+            }
+        }
+        viewModelScope.launch {
+            cloudRepository.pairingCode.collect { code -> _uiState.update { it.copy(cloudPairingCode = code) } }
+        }
+        viewModelScope.launch {
+            cloudRepository.lastSyncEpochMillis.collect { t -> _uiState.update { it.copy(cloudLastSyncEpochMillis = t) } }
+        }
+        viewModelScope.launch {
+            cloudRepository.lastError.collect { e -> _uiState.update { it.copy(cloudLastError = e) } }
+        }
+        viewModelScope.launch {
+            cloudRepository.pendingCount.collect { n -> _uiState.update { it.copy(cloudPendingCount = n) } }
         }
 
         // Load the saved profile and latest weight once into the editable form.
@@ -529,6 +583,95 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settings.setPartnerInboxEnabled(enabled)
             partnerScheduling.reanchor()
+        }
+    }
+
+    // --- Cloud sync ---
+
+    fun setCloudNameText(value: String) = _uiState.update { it.copy(cloudNameText = value, cloudNotice = null) }
+
+    fun clearCloudNotice() = _uiState.update { it.copy(cloudNotice = null) }
+
+    fun dismissCloudNameDialog() = _uiState.update { it.copy(showCloudNameDialog = false) }
+
+    /**
+     * The switch. Turning it on needs a display name first (the website says
+     * "<name>'s day"), so without one the dialog opens and the real enable
+     * happens from there. Turning it off is immediate and keeps the account.
+     */
+    fun toggleCloudSync(enabled: Boolean) {
+        if (!enabled) {
+            viewModelScope.launch {
+                cloudRepository.disable()
+                partnerScheduling.reanchor() // stop the nudge polling if Telegram is not linked
+                _uiState.update { it.copy(cloudNotice = null, cloudPartners = emptyList()) }
+            }
+            return
+        }
+        val name = _uiState.value.cloudNameText.trim()
+        if (name.isEmpty()) {
+            _uiState.update { it.copy(showCloudNameDialog = true) }
+        } else {
+            enableCloudSync(name)
+        }
+    }
+
+    fun enableCloudSync(displayName: String) {
+        _uiState.update { it.copy(showCloudNameDialog = false, cloudNameText = displayName.trim()) }
+        cloudAction(CloudNotice.ENABLED) {
+            cloudRepository.enable(displayName).also { result ->
+                if (result == CloudResult.Ok) {
+                    _uiState.update { it.copy(cloudNameStored = displayName.trim()) }
+                    partnerScheduling.reanchor() // nudges from the website ride the inbox cycle
+                    refreshCloudPartners()
+                }
+            }
+        }
+    }
+
+    fun saveCloudName() {
+        val name = _uiState.value.cloudNameText.trim()
+        if (!_uiState.value.cloudNameValid) return
+        cloudAction(CloudNotice.NAME_SAVED) {
+            cloudRepository.setDisplayName(name).also { result ->
+                if (result == CloudResult.Ok) _uiState.update { it.copy(cloudNameStored = name) }
+            }
+        }
+    }
+
+    fun newPairingCode() {
+        cloudAction(CloudNotice.CODE_READY) { cloudRepository.newPairingCode() }
+    }
+
+    fun refreshCloudPartners() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(cloudPartners = cloudRepository.partners()) }
+        }
+    }
+
+    fun unlinkCloudPartner(linkId: String) {
+        cloudAction(CloudNotice.UNLINKED) {
+            cloudRepository.unlink(linkId).also { refreshCloudPartners() }
+        }
+    }
+
+    private fun cloudAction(onOk: CloudNotice, block: suspend () -> CloudResult) {
+        if (_uiState.value.cloudBusy) return
+        _uiState.update { it.copy(cloudBusy = true, cloudNotice = null) }
+        viewModelScope.launch {
+            val result = try {
+                block()
+            } finally {
+                _uiState.update { it.copy(cloudBusy = false) }
+            }
+            val notice = when (result) {
+                CloudResult.Ok -> onOk
+                CloudResult.NotConfigured -> CloudNotice.NOT_CONFIGURED
+                CloudResult.Offline -> CloudNotice.OFFLINE
+                CloudResult.Auth -> CloudNotice.AUTH
+                CloudResult.Failed -> CloudNotice.FAILED
+            }
+            _uiState.update { it.copy(cloudNotice = notice) }
         }
     }
 

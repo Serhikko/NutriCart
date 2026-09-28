@@ -1,5 +1,7 @@
 package com.nutricart.app.data.repository
 
+import com.nutricart.app.cloud.CloudMirror
+import com.nutricart.app.cloud.CloudSyncScheduling
 import com.nutricart.app.data.local.AppDatabase
 import com.nutricart.app.data.local.dao.ProfileDao
 import com.nutricart.app.data.local.dao.WeightDao
@@ -28,6 +30,8 @@ class ProfileRepository @Inject constructor(
     private val secrets: SecretsDataStore,
     private val db: AppDatabase,
     private val partnerScheduling: PartnerScheduling,
+    private val cloudMirror: CloudMirror,
+    private val cloudSyncScheduling: CloudSyncScheduling,
 ) {
     fun observeProfile(): Flow<UserProfileEntity?> = profileDao.observeProfile()
 
@@ -43,13 +47,13 @@ class ProfileRepository @Inject constructor(
 
     /** Adds (or replaces) today's manual weight entry — history stays intact. */
     suspend fun logWeight(weightKg: Double, todayEpochDay: Long) {
-        weightDao.insert(
-            WeightEntryEntity(
-                epochDay = todayEpochDay,
-                weightKg = weightKg,
-                source = WeightSource.MANUAL,
-            )
+        val entry = WeightEntryEntity(
+            epochDay = todayEpochDay,
+            weightKg = weightKg,
+            source = WeightSource.MANUAL,
         )
+        weightDao.insert(entry)
+        cloudMirror.weightLogged(entry)
     }
 
     /**
@@ -72,8 +76,10 @@ class ProfileRepository @Inject constructor(
             // forgotten here — the same class of bug as per-DAO deletes.
             secrets.resetAll()
             // The partner's queued and periodic jobs would otherwise run once
-            // more against an empty store and a missing token.
+            // more against an empty store and a missing token. Same for the
+            // cloud drain (clearAllTables emptied its outbox already).
             partnerScheduling.cancelAll()
+            cloudSyncScheduling.cancel()
         }
     }
 

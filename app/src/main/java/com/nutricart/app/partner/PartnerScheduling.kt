@@ -74,7 +74,10 @@ class PartnerScheduling @Inject constructor(
      */
     suspend fun reanchor() {
         val wm = WorkManager.getInstance(context)
-        if (linked() && settings.partnerInboxEnabled.first()) {
+        val telegram = linked() && settings.partnerInboxEnabled.first()
+        // The cloud inbox (nudges from the website) rides the same cycle.
+        val cloud = settings.cloudSyncEnabled.first()
+        if (telegram || cloud) {
             val periodic = PeriodicWorkRequestBuilder<PartnerInboxWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(online())
                 .build()

@@ -14,6 +14,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.nutricart.app.R
+import com.nutricart.app.cloud.CloudRepository
 import com.nutricart.app.data.settings.SettingsDataStore
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -34,10 +35,17 @@ class PartnerInboxWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val repository: PartnerRepository,
+    private val cloud: CloudRepository,
     private val settings: SettingsDataStore,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
+        // Nudges from the website: same notification, a different inbox.
+        cloud.fetchUnseenNudges().forEach { nudge ->
+            val sender = nudge.fromName.ifBlank { applicationContext.getString(R.string.cloud_partner_default_name) }
+            notify(nudge.id.hashCode().toLong(), sender, nudge.text)
+        }
+
         if (!settings.partnerInboxEnabled.first()) return Result.success()
         val inbox = repository.fetchPartnerMessages()
         inbox.messages.forEach { message ->

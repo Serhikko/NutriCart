@@ -2,6 +2,7 @@ package com.nutricart.app.data.settings
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -32,6 +33,11 @@ class SecretsDataStore @Inject constructor(
     private object Keys {
         val AI_API_KEY = stringPreferencesKey("ai_api_key")
         val TELEGRAM_BOT_TOKEN = stringPreferencesKey("telegram_bot_token")
+        // The cloud session: tokens are secrets, the user id travels with them.
+        val CLOUD_ACCESS_TOKEN = stringPreferencesKey("cloud_access_token")
+        val CLOUD_REFRESH_TOKEN = stringPreferencesKey("cloud_refresh_token")
+        val CLOUD_USER_ID = stringPreferencesKey("cloud_user_id")
+        val CLOUD_TOKEN_EXPIRES_AT = longPreferencesKey("cloud_token_expires_at_epoch_millis")
     }
 
     /** null = never set. */
@@ -59,6 +65,34 @@ class SecretsDataStore @Inject constructor(
         context.secretsDataStore.edit { prefs -> prefs.remove(Keys.TELEGRAM_BOT_TOKEN) }
     }
 
+    /** The signed-in cloud user, or null when the phone never signed in. */
+    val cloudSession: Flow<CloudSession?> =
+        context.secretsDataStore.data.map { prefs ->
+            val access = prefs[Keys.CLOUD_ACCESS_TOKEN]
+            val refresh = prefs[Keys.CLOUD_REFRESH_TOKEN]
+            val userId = prefs[Keys.CLOUD_USER_ID]
+            if (access == null || refresh == null || userId == null) null
+            else CloudSession(userId, access, refresh, prefs[Keys.CLOUD_TOKEN_EXPIRES_AT] ?: 0L)
+        }
+
+    suspend fun setCloudSession(session: CloudSession) {
+        context.secretsDataStore.edit { prefs ->
+            prefs[Keys.CLOUD_ACCESS_TOKEN] = session.accessToken
+            prefs[Keys.CLOUD_REFRESH_TOKEN] = session.refreshToken
+            prefs[Keys.CLOUD_USER_ID] = session.userId
+            prefs[Keys.CLOUD_TOKEN_EXPIRES_AT] = session.expiresAtEpochMillis
+        }
+    }
+
+    suspend fun clearCloudSession() {
+        context.secretsDataStore.edit { prefs ->
+            prefs.remove(Keys.CLOUD_ACCESS_TOKEN)
+            prefs.remove(Keys.CLOUD_REFRESH_TOKEN)
+            prefs.remove(Keys.CLOUD_USER_ID)
+            prefs.remove(Keys.CLOUD_TOKEN_EXPIRES_AT)
+        }
+    }
+
     /**
      * Part of "reset the app". The second store is exactly the kind of thing
      * that gets forgotten in a reset — the same class of bug that shipped in
@@ -69,3 +103,11 @@ class SecretsDataStore @Inject constructor(
         context.secretsDataStore.edit { prefs -> prefs.clear() }
     }
 }
+
+/** An anonymous Supabase user's session, as the phone keeps it. */
+data class CloudSession(
+    val userId: String,
+    val accessToken: String,
+    val refreshToken: String,
+    val expiresAtEpochMillis: Long,
+)

@@ -14,6 +14,7 @@ import com.nutricart.app.data.local.dao.RecipeDao
 import com.nutricart.app.data.local.dao.RecurringWorkoutDao
 import com.nutricart.app.data.local.dao.SavedMealDao
 import com.nutricart.app.data.local.dao.ShoppingDao
+import com.nutricart.app.data.local.dao.SyncOutboxDao
 import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
 import com.nutricart.app.data.local.dao.WorkoutDao
@@ -31,6 +32,7 @@ import com.nutricart.app.data.local.entity.RecurringWorkoutEntity
 import com.nutricart.app.data.local.entity.SavedMealEntity
 import com.nutricart.app.data.local.entity.SavedMealItemEntity
 import com.nutricart.app.data.local.entity.ShoppingListItemEntity
+import com.nutricart.app.data.local.entity.SyncOutboxEntity
 import com.nutricart.app.data.local.entity.UserProfileEntity
 import com.nutricart.app.data.local.entity.WaterEntryEntity
 import com.nutricart.app.data.local.entity.WeightEntryEntity
@@ -57,8 +59,9 @@ import com.nutricart.app.data.local.entity.WorkoutEntryEntity
         SavedMealItemEntity::class,
         DayNoteEntity::class,
         RecurringWorkoutEntity::class,
+        SyncOutboxEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = false, // enable + commit schema JSONs before the first real release
 )
 @TypeConverters(Converters::class)
@@ -77,4 +80,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun savedMealDao(): SavedMealDao
     abstract fun noteDao(): NoteDao
     abstract fun recurringWorkoutDao(): RecurringWorkoutDao
+    abstract fun syncOutboxDao(): SyncOutboxDao
 }

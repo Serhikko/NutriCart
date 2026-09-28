@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.lifecycleScope
+import com.nutricart.app.cloud.CloudSyncScheduling
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.partner.PartnerScheduling
 import com.nutricart.app.reminders.MealReminderScheduling
@@ -26,6 +27,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var partnerScheduling: PartnerScheduling
 
+    @Inject
+    lateinit var cloudSyncScheduling: CloudSyncScheduling
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -41,6 +45,8 @@ class MainActivity : ComponentActivity() {
             // Same idea for the partner inbox — and it also polls right away,
             // so a nudge sent while the phone was in a drawer shows up now.
             partnerScheduling.reanchor()
+            // And whatever the cloud outbox holds goes out now.
+            cloudSyncScheduling.reanchor()
         }
     }
 

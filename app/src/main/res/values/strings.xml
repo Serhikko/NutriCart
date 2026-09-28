@@ -439,4 +439,37 @@
     <string name="partner_more_items">…and %1$d more</string>
     <string name="partner_nothing_yet">Nothing logged yet today.</string>
     <string name="share_day_action">Share today</string>
+
+    <!-- Cloud sync and the website (Supabase) -->
+    <string name="cloud_section">Cloud sync &amp; website (optional)</string>
+    <string name="cloud_intro">Keep a copy of your diary in the cloud so the NutriCart website can show it: to you on any device, and to a partner who enters your pairing code. Your phone stays the primary copy and works fully offline.</string>
+    <string name="cloud_not_configured">This build has no cloud keys, so sync is unavailable. See supabase/README.md in the project.</string>
+    <string name="cloud_switch">Sync to the cloud</string>
+    <string name="cloud_switch_on">Turn on</string>
+    <string name="cloud_name_label">Your name on the website</string>
+    <string name="cloud_name_dialog_title">What should the website call you?</string>
+    <string name="cloud_name_hint">Your partner will see “your name’s day” on the website. A first name is enough.</string>
+    <string name="cloud_code_title">Pairing code</string>
+    <string name="cloud_code_hint">Your partner enters this on the website. It works once and for another %1$d minutes.</string>
+    <string name="cloud_code_expired">The last code has expired.</string>
+    <string name="cloud_code_new">New code</string>
+    <string name="cloud_partners_title">Who can see your day</string>
+    <string name="cloud_partners_none">Nobody yet. Make a code and have your partner enter it on the website.</string>
+    <string name="cloud_unlink">Remove</string>
+    <string name="cloud_last_sync">Last upload: %1$s</string>
+    <string name="cloud_pending">%1$d changes waiting to upload</string>
+    <string name="cloud_error_offline">Waiting for a connection.</string>
+    <string name="cloud_error_auth">Signed out of the cloud. Turn sync off and on again.</string>
+    <string name="cloud_error_server">The cloud is having trouble; will retry.</string>
+    <string name="cloud_error_rejected">Some changes were rejected by the cloud and skipped.</string>
+    <string name="cloud_error_failed">The last upload failed; will retry.</string>
+    <string name="cloud_notice_enabled">Sync is on. The last 90 days are uploading.</string>
+    <string name="cloud_notice_name_saved">Name saved.</string>
+    <string name="cloud_notice_code_ready">Code ready.</string>
+    <string name="cloud_notice_unlinked">Access removed.</string>
+    <string name="cloud_notice_offline">You are offline.</string>
+    <string name="cloud_notice_auth">The cloud rejected this phone\'s session. Turn sync off and on again.</string>
+    <string name="cloud_notice_failed">Something went wrong.</string>
+    <string name="cloud_partner_default_name">Partner</string>
+    <string name="cloud_privacy_hint">What leaves the phone: meal names and calories, water, weight and your daily activity totals. Never heart rate, sleep or the AI key. Stored in the EU; delete it any time by turning sync off.</string>
 </resources>

@@ -137,6 +137,14 @@ fun SettingsScreen(
         )
     }
 
+    if (state.showCloudNameDialog) {
+        CloudNameDialog(
+            initialName = state.cloudNameText,
+            onConfirm = viewModel::enableCloudSync,
+            onDismiss = viewModel::dismissCloudNameDialog,
+        )
+    }
+
     if (state.showRecurringDialog) {
         RecurringDialog(
             onConfirm = viewModel::addRecurring,
@@ -567,6 +575,11 @@ private fun SettingsForm(
         SectionTitle(R.string.partner_section)
         PartnerSection(state = state, viewModel = viewModel)
 
+        // --- Cloud sync and the website (optional) ---
+        SectionSpace()
+        SectionTitle(R.string.cloud_section)
+        CloudSection(state = state, viewModel = viewModel)
+
         // --- Health Connect ---
         // Diagnostics, not daily numbers: they used to sit at the bottom of the
         // dashboard. The whole section is hidden when Health Connect is not
@@ -860,6 +873,207 @@ private fun partnerNoticeText(notice: PartnerNotice, state: SettingsUiState): St
     PartnerNotice.BUSY -> stringResource(R.string.partner_notice_busy)
     PartnerNotice.BLOCKED -> stringResource(R.string.partner_notice_blocked)
     PartnerNotice.FAILED -> stringResource(R.string.partner_notice_failed)
+}
+
+/**
+ * "Cloud sync & website": one switch, a name, a pairing code, the people who
+ * can read the account. Everything the website needs from the phone is set
+ * up here; the schema and policies are in supabase/.
+ */
+@Composable
+private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
+    if (!state.cloudConfigured) {
+        // A build without keys (see supabase/README.md): say so, offer nothing.
+        Text(
+            stringResource(R.string.cloud_not_configured),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+
+    Text(
+        stringResource(R.string.cloud_intro),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    SwitchRow(R.string.cloud_switch, state.cloudEnabled, viewModel::toggleCloudSync)
+
+    if (state.cloudEnabled) {
+        // Name
+        OutlinedTextField(
+            value = state.cloudNameText,
+            onValueChange = viewModel::setCloudNameText,
+            label = { Text(stringResource(R.string.cloud_name_label)) },
+            singleLine = true,
+            isError = state.cloudNameText.isNotEmpty() && !state.cloudNameValid,
+            enabled = !state.cloudBusy,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (state.cloudNameText.trim() != state.cloudNameStored.orEmpty()) {
+            TextButton(
+                onClick = viewModel::saveCloudName,
+                enabled = state.cloudNameValid && !state.cloudBusy,
+            ) { Text(stringResource(R.string.save)) }
+        }
+
+        // Pairing code
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.cloud_code_title), style = MaterialTheme.typography.titleMedium)
+        val code = state.cloudPairingCode
+        val now = System.currentTimeMillis()
+        if (code != null && code.second > now) {
+            Text(
+                code.first,
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                stringResource(R.string.cloud_code_hint, ((code.second - now) / 60_000L + 1).toInt()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (code != null) {
+            Text(
+                stringResource(R.string.cloud_code_expired),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        OutlinedButton(onClick = viewModel::newPairingCode, enabled = !state.cloudBusy) {
+            Text(stringResource(R.string.cloud_code_new))
+        }
+
+        // Partners
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.cloud_partners_title), style = MaterialTheme.typography.titleMedium)
+        if (state.cloudPartners.isEmpty()) {
+            Text(
+                stringResource(R.string.cloud_partners_none),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            state.cloudPartners.forEach { partner ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(partner.name, style = MaterialTheme.typography.bodyLarge)
+                    TextButton(
+                        onClick = { viewModel.unlinkCloudPartner(partner.linkId) },
+                        enabled = !state.cloudBusy,
+                    ) {
+                        Text(stringResource(R.string.cloud_unlink), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+
+        // Status
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            stringResource(
+                R.string.cloud_last_sync,
+                state.cloudLastSyncEpochMillis?.let { formattedDateTime(it) }
+                    ?: stringResource(R.string.no_data_dash),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (state.cloudPendingCount > 0) {
+            Text(
+                stringResource(R.string.cloud_pending, state.cloudPendingCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        state.cloudLastError?.let { error ->
+            Text(
+                cloudErrorText(error),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+
+    state.cloudNotice?.let { notice ->
+        val isGood = notice == CloudNotice.ENABLED || notice == CloudNotice.NAME_SAVED ||
+            notice == CloudNotice.CODE_READY || notice == CloudNotice.UNLINKED
+        Text(
+            stringResource(
+                when (notice) {
+                    CloudNotice.ENABLED -> R.string.cloud_notice_enabled
+                    CloudNotice.NAME_SAVED -> R.string.cloud_notice_name_saved
+                    CloudNotice.CODE_READY -> R.string.cloud_notice_code_ready
+                    CloudNotice.UNLINKED -> R.string.cloud_notice_unlinked
+                    CloudNotice.NOT_CONFIGURED -> R.string.cloud_not_configured
+                    CloudNotice.OFFLINE -> R.string.cloud_notice_offline
+                    CloudNotice.AUTH -> R.string.cloud_notice_auth
+                    CloudNotice.FAILED -> R.string.cloud_notice_failed
+                }
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isGood) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        )
+    }
+    Text(
+        stringResource(R.string.cloud_privacy_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/** The error codes CloudSyncWorker records, in the user's words. */
+@Composable
+private fun cloudErrorText(code: String): String = stringResource(
+    when (code) {
+        "offline" -> R.string.cloud_error_offline
+        "auth" -> R.string.cloud_error_auth
+        "server" -> R.string.cloud_error_server
+        "rejected" -> R.string.cloud_error_rejected
+        else -> R.string.cloud_error_failed
+    }
+)
+
+/** Asked once, when the switch is turned on without a stored name. */
+@Composable
+private fun CloudNameDialog(
+    initialName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf(initialName) }
+    val valid = name.trim().length in 1..40
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.cloud_name_dialog_title)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.cloud_name_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(40) },
+                    label = { Text(stringResource(R.string.cloud_name_label)) },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name.trim()) }, enabled = valid) {
+                Text(stringResource(R.string.cloud_switch_on))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 /** A timestamp in the phone's own short date + time format. */

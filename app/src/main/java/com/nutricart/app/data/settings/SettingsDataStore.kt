@@ -53,6 +53,15 @@ class SettingsDataStore @Inject constructor(
         val PARTNER_NOTIFY_MISSED = booleanPreferencesKey("partner_notify_missed")
         val PARTNER_INBOX_ENABLED = booleanPreferencesKey("partner_inbox_enabled")
         val PARTNER_UPDATE_OFFSET = longPreferencesKey("partner_update_offset")
+
+        // Cloud sync (Supabase). The session tokens live in SecretsDataStore.
+        val CLOUD_SYNC_ENABLED = booleanPreferencesKey("cloud_sync_enabled")
+        val CLOUD_DISPLAY_NAME = stringPreferencesKey("cloud_display_name")
+        val CLOUD_DEVICE_ID = stringPreferencesKey("cloud_device_id")
+        val CLOUD_LAST_SYNC = longPreferencesKey("cloud_last_sync_epoch_millis")
+        val CLOUD_LAST_ERROR = stringPreferencesKey("cloud_last_error")
+        val CLOUD_PAIRING_CODE = stringPreferencesKey("cloud_pairing_code")
+        val CLOUD_PAIRING_EXPIRES_AT = longPreferencesKey("cloud_pairing_expires_at_epoch_millis")
     }
 
     val onboardingCompleted: Flow<Boolean> =
@@ -208,6 +217,69 @@ class SettingsDataStore @Inject constructor(
         context.dataStore.edit { prefs ->
             if (offset == null) prefs.remove(Keys.PARTNER_UPDATE_OFFSET)
             else prefs[Keys.PARTNER_UPDATE_OFFSET] = offset
+        }
+    }
+
+    // --- Cloud sync ---
+
+    val cloudSyncEnabled: Flow<Boolean> =
+        context.dataStore.data.map { prefs -> prefs[Keys.CLOUD_SYNC_ENABLED] ?: false }
+
+    suspend fun setCloudSyncEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[Keys.CLOUD_SYNC_ENABLED] = enabled }
+    }
+
+    /** How the website names this account ("Serhii's day"). null = not set yet. */
+    val cloudDisplayName: Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[Keys.CLOUD_DISPLAY_NAME] }
+
+    suspend fun setCloudDisplayName(name: String) {
+        context.dataStore.edit { prefs -> prefs[Keys.CLOUD_DISPLAY_NAME] = name }
+    }
+
+    /**
+     * A random id minted once per install; it prefixes every row id this phone
+     * sends, so two phones on one account (a later milestone) can never
+     * collide. null = never minted.
+     */
+    val cloudDeviceId: Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[Keys.CLOUD_DEVICE_ID] }
+
+    suspend fun setCloudDeviceId(id: String) {
+        context.dataStore.edit { prefs -> prefs[Keys.CLOUD_DEVICE_ID] = id }
+    }
+
+    val cloudLastSyncEpochMillis: Flow<Long?> =
+        context.dataStore.data.map { prefs -> prefs[Keys.CLOUD_LAST_SYNC] }
+
+    /** A short error code from the last failed sync ("offline", "auth", ...); null = fine. */
+    val cloudLastError: Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[Keys.CLOUD_LAST_ERROR] }
+
+    suspend fun recordCloudSync(nowEpochMillis: Long?, error: String?) {
+        context.dataStore.edit { prefs ->
+            if (nowEpochMillis != null) prefs[Keys.CLOUD_LAST_SYNC] = nowEpochMillis
+            if (error == null) prefs.remove(Keys.CLOUD_LAST_ERROR) else prefs[Keys.CLOUD_LAST_ERROR] = error
+        }
+    }
+
+    /** The pairing code on screen and when it stops working; null = none issued. */
+    val cloudPairingCode: Flow<Pair<String, Long>?> =
+        context.dataStore.data.map { prefs ->
+            val code = prefs[Keys.CLOUD_PAIRING_CODE]
+            val expires = prefs[Keys.CLOUD_PAIRING_EXPIRES_AT]
+            if (code == null || expires == null) null else code to expires
+        }
+
+    suspend fun setCloudPairingCode(code: String?, expiresAtEpochMillis: Long?) {
+        context.dataStore.edit { prefs ->
+            if (code == null || expiresAtEpochMillis == null) {
+                prefs.remove(Keys.CLOUD_PAIRING_CODE)
+                prefs.remove(Keys.CLOUD_PAIRING_EXPIRES_AT)
+            } else {
+                prefs[Keys.CLOUD_PAIRING_CODE] = code
+                prefs[Keys.CLOUD_PAIRING_EXPIRES_AT] = expiresAtEpochMillis
+            }
         }
     }
 
