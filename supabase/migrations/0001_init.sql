@@ -45,9 +45,11 @@ create table partner_links (
     constraint partner_links_not_self check (owner_id <> partner_id),
     -- Both sides also point at profiles, under explicit names, so PostgREST
     -- can embed either display name: profiles!partner_links_owner_profile_fkey
-    -- and profiles!partner_links_partner_id_fkey.
+    -- and profiles!partner_links_partner_profile_fkey. (The inline references to
+    -- auth.users above already own the default names *_owner_id_fkey and
+    -- *_partner_id_fkey, so these must not reuse them.)
     constraint partner_links_owner_profile_fkey foreign key (owner_id) references profiles (user_id) on delete cascade,
-    constraint partner_links_partner_id_fkey foreign key (partner_id) references profiles (user_id) on delete cascade
+    constraint partner_links_partner_profile_fkey foreign key (partner_id) references profiles (user_id) on delete cascade
 );
 create index partner_links_partner_idx on partner_links (partner_id);
 

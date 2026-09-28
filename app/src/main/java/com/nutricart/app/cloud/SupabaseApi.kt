@@ -107,6 +107,6 @@ interface SupabaseRestApi {
         @Header("Authorization") bearer: String,
         @Query("owner_id") ownerFilter: String,
         @Query("select") select: String =
-            "id,partner_id,created_at,partner:profiles!partner_links_partner_id_fkey(display_name)",
+            "id,partner_id,created_at,partner:profiles!partner_links_partner_profile_fkey(display_name)",
     ): List<SbPartnerLinkDto>
 }
