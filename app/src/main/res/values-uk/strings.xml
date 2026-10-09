@@ -164,6 +164,20 @@
     <string name="barcode_not_found_belarus">Цього білоруського продукту ще немає в Open Food Facts. Додай його один раз, і наступного разу сканер його знайде.</string>
     <string name="barcode_not_found_other">Цього продукту ще немає в Open Food Facts. Додай його один раз, і наступного разу сканер його знайде.</string>
     <string name="barcode_incomplete">Open Food Facts знає цей продукт, але не всю його поживну цінність. Допиши відсутні значення з етикетки.</string>
+    <!-- The same form, prefilled from a Ukrainian shop's catalogue (zakaz.ua) instead of Open Food Facts. -->
+    <string name="barcode_incomplete_shop">Цей продукт є в каталозі українського магазину, але без повної поживної цінності. Допиши відсутні значення з етикетки.</string>
+    <!-- The same forms with all four values filled in, but not to be trusted as they are: a shop's values that don't add up, or Open Food Facts' estimates from the ingredients. -->
+    <string name="barcode_incomplete_shop_check">Цей продукт є в каталозі українського магазину, але його значення поживної цінності не сходяться. Звір їх з етикеткою перед збереженням.</string>
+    <string name="barcode_incomplete_estimated">Open Food Facts лише оцінює поживну цінність цього продукту за складом. Звір значення з етикеткою перед збереженням.</string>
+    <!-- Scan found nothing, but a source didn't answer: never claim it lacks the product. The snackbar's action is add_action. -->
+    <string name="barcode_off_down">Open Food Facts не відповів (можливо, перевантажений). Спробуй ще раз за хвилину або додай продукт з етикетки.</string>
+    <string name="barcode_off_down_shops_miss">В українських магазинах цього штрихкоду немає, а Open Food Facts не відповів. Спробуй ще раз за хвилину або додай продукт з етикетки.</string>
+    <string name="barcode_not_found_shops_down">Цього продукту немає в Open Food Facts, а українські магазини не відповіли. Спробуй пізніше або додай його один раз, і наступного разу сканер його знайде.</string>
+    <!-- Scan unknown to Open Food Facts AND to the Ukrainian shops' catalogues. -->
+    <string name="barcode_not_found_ukraine_shops">Цього українського продукту ще немає ні в Open Food Facts, ні в каталогах українських магазинів. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <string name="barcode_not_found_other_shops">Цього продукту ще немає ні в Open Food Facts, ні в каталогах українських магазинів. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <!-- Under a product's nutrition when its data came from a Ukrainian shop, not Open Food Facts. -->
+    <string name="product_source_zakaz">Джерело: каталог українського магазину (zakaz.ua)</string>
     <string name="barcode_line">Штрихкод %1$s</string>
     <string name="barcode_line_ukraine">Штрихкод %1$s (Україна)</string>
     <string name="barcode_line_belarus">Штрихкод %1$s (Білорусь)</string>

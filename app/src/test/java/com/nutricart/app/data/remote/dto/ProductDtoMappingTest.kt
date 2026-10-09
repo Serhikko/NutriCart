@@ -304,6 +304,104 @@ class ProductDtoMappingTest {
         assertEquals("Сырок беларускі", checkNotNull(q.toPrefill("4810268000013")).name)
     }
 
+    // --- OFF's estimates from the ingredients ----------------------------
+
+    @Test
+    fun `a named product with only estimated values is not found, but prefills the form`() {
+        val p = product(
+            """{"code":"4820000000002","product_name_uk":"Печиво",
+               "nutriments":{},
+               "nutriments_estimated":{"energy-kcal_100g":452,"proteins_100g":7.1,"fat_100g":18.2,
+                                       "carbohydrates_100g":64.5,"sugars_100g":21,"fiber_100g":2.4}}"""
+        )
+        assertNull(p.toEntityOrNull(1L)) // estimates never make a product "found"
+        val prefill = checkNotNull(p.toPrefill("4820000000002"))
+        assertEquals("Печиво", prefill.name)
+        assertEquals(452.0, prefill.kcalPer100g!!, 0.0)
+        assertEquals(7.1, prefill.proteinPer100g!!, 0.0)
+        assertEquals(18.2, prefill.fatPer100g!!, 0.0)
+        assertEquals(64.5, prefill.carbsPer100g!!, 0.0)
+        assertEquals(21.0, prefill.sugarsPer100g!!, 0.0)
+        assertEquals(2.4, prefill.fiberPer100g!!, 0.0)
+        assertNull(prefill.saltPer100g) // estimated nowhere: stays unknown
+    }
+
+    @Test
+    fun `stated values always beat the estimates`() {
+        val p = product(
+            """{"code":"4820000000003","product_name":"Сир",
+               "nutriments":{"energy-kcal_100g":350,"proteins_100g":25},
+               "nutriments_estimated":{"energy-kcal_100g":300,"proteins_100g":20,"fat_100g":27,
+                                       "carbohydrates_100g":1}}"""
+        )
+        assertNull(p.toEntityOrNull(1L))
+        val prefill = checkNotNull(p.toPrefill(null))
+        assertEquals(350.0, prefill.kcalPer100g!!, 0.0)
+        assertEquals(25.0, prefill.proteinPer100g!!, 0.0)
+        assertEquals(27.0, prefill.fatPer100g!!, 0.0) // estimated: missing on the label
+        assertEquals(1.0, prefill.carbsPer100g!!, 0.0)
+    }
+
+    @Test
+    fun `estimates that are missing or not numbers change nothing`() {
+        // The same vectors as the website's offNames test.
+        assertNull(checkNotNull(product("""{"code":"4820000000004","nutriments_estimated":"n/a"}""").toPrefill()).kcalPer100g)
+        assertNull(
+            checkNotNull(product("""{"code":"4820000000004","nutriments_estimated":{"fat_100g":"x"}}""").toPrefill())
+                .fatPer100g
+        )
+    }
+
+    @Test
+    fun `an odd estimates value never costs a complete product`() {
+        // Decoded as the scanner does, the whole answer at once: a failure here
+        // used to read as "Open Food Facts didn't answer".
+        for (odd in listOf("\"n/a\"", "[]", "5", "null")) {
+            val answer = json.decodeFromString(
+                ProductResponseDto.serializer(),
+                """{"status":1,"product":{"code":"1","product_name":"Oats",
+                   "nutriments":{"energy-kcal_100g":370,"proteins_100g":13,"fat_100g":7,"carbohydrates_100g":60},
+                   "nutriments_estimated":$odd}}""",
+            )
+            val p = checkNotNull(answer.product)
+            assertNull(odd, p.nutrimentsEstimated)
+            assertEquals(odd, 370.0, checkNotNull(p.toEntityOrNull(1L)).kcalPer100g, 0.0)
+        }
+    }
+
+    @Test
+    fun `the prefill says when a core value is only an estimate`() {
+        val estimatedOnly = product(
+            """{"code":"4820000000005","product_name_uk":"Печиво",
+               "nutriments_estimated":{"energy-kcal_100g":452,"proteins_100g":7.1,"fat_100g":18.2,
+                                       "carbohydrates_100g":64.5}}"""
+        )
+        val prefill = checkNotNull(estimatedOnly.toPrefill())
+        assertTrue(prefill.estimated)
+        assertTrue(prefill.hasCoreValues) // nothing missing: the form asks for a check
+
+        // A detail nutrient estimated, the core stated: nothing core to check.
+        val detailOnly = product(
+            """{"code":"4820000000006",
+               "nutriments":{"energy-kcal_100g":350,"proteins_100g":25,"fat_100g":27,"carbohydrates_100g":1},
+               "nutriments_estimated":{"energy-kcal_100g":300,"fiber_100g":2}}"""
+        )
+        assertFalse(checkNotNull(detailOnly.toPrefill()).estimated)
+        assertFalse(checkNotNull(product("""{"code":"4820000000007","product_name":"Сир"}""").toPrefill()).estimated)
+    }
+
+    @Test
+    fun `a complete product ignores the estimates altogether`() {
+        val p = product(
+            """{"code":"1","product_name":"Oats",
+               "nutriments":{"energy-kcal_100g":370,"proteins_100g":13,"fat_100g":7,"carbohydrates_100g":60},
+               "nutriments_estimated":{"energy-kcal_100g":999,"fiber_100g":10}}"""
+        )
+        val e = checkNotNull(p.toEntityOrNull(1L))
+        assertEquals(370.0, e.kcalPer100g, 0.0)
+        assertNull(e.fiberPer100g) // an estimate is not a stated value
+    }
+
     // --- The requested field list ----------------------------------------
 
     @Test
@@ -317,8 +415,12 @@ class ProductDtoMappingTest {
         for (name in listOf(
             "product_name_uk", "product_name_ru", "product_name_be",
             "generic_name", "generic_name_en", "generic_name_uk", "generic_name_ru", "generic_name_be",
+            "nutriments_estimated",
         )) {
             assertTrue(name, name in requested)
         }
+        // Search asks for the same, except the estimates only the scanner's form reads.
+        val searched = OFF_SEARCH_FIELDS.split(",").toSet()
+        assertEquals(requested - "nutriments_estimated", searched)
     }
 }

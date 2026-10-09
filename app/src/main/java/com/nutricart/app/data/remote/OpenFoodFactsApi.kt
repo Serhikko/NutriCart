@@ -1,6 +1,7 @@
 package com.nutricart.app.data.remote
 
 import com.nutricart.app.data.remote.dto.OFF_PRODUCT_FIELDS
+import com.nutricart.app.data.remote.dto.OFF_SEARCH_FIELDS
 import com.nutricart.app.data.remote.dto.ProductResponseDto
 import com.nutricart.app.data.remote.dto.SearchResponseDto
 import retrofit2.http.GET
@@ -19,7 +20,7 @@ interface OpenFoodFactsApi {
     suspend fun searchByName(
         @Query("search_terms") query: String,
         @Query("page_size") pageSize: Int = 25,
-        @Query("fields") fields: String = FIELDS,
+        @Query("fields") fields: String = SEARCH_FIELDS,
     ): SearchResponseDto
 
     // Used by the barcode scanner (FoodRepository.byBarcode).
@@ -37,5 +38,8 @@ interface OpenFoodFactsApi {
         // _uk/_ru/_be and generic names that Ukrainian and Belarusian
         // products are often known by (see ProductNames).
         const val FIELDS = OFF_PRODUCT_FIELDS
+
+        // Search skips OFF's estimates, which only the scanner's form uses.
+        const val SEARCH_FIELDS = OFF_SEARCH_FIELDS
     }
 }

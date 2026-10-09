@@ -6,8 +6,14 @@ import com.nutricart.app.domain.logic.NutritionLabelMath
 import com.nutricart.app.domain.logic.ProductNames
 import com.nutricart.app.domain.model.ProductPrefill
 import com.nutricart.app.domain.model.ProductSource
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class SearchResponseDto(
@@ -15,17 +21,25 @@ data class SearchResponseDto(
 )
 
 /**
+ * The Open Food Facts fields name search reads: [OFF_PRODUCT_FIELDS] minus
+ * nutriments_estimated, which only the scanner's prefill uses — a page of
+ * 25 products would carry dozens of estimated values each for nothing.
+ */
+const val OFF_SEARCH_FIELDS =
+    "code,product_name,product_name_en,product_name_uk,product_name_ru,product_name_be," +
+        "generic_name,generic_name_en,generic_name_uk,generic_name_ru,generic_name_be," +
+        "brands,nutriments,serving_quantity,serving_size,quantity,nutrition_data_per,additives_tags"
+
+/**
  * Every Open Food Facts field the app reads. OFF returns ONLY the requested
  * fields — a field missing here is silently absent from every response
  * (review-caught: the additives feature shipped dead because additives_tags
  * wasn't listed). ProductDtoMappingTest checks that every field ProductDto
  * declares is in this list. nutriments covers every _100g and _serving
- * column at once.
+ * column at once; nutriments_estimated is OFF's own estimate from the
+ * ingredients (see [toPrefill]).
  */
-const val OFF_PRODUCT_FIELDS =
-    "code,product_name,product_name_en,product_name_uk,product_name_ru,product_name_be," +
-        "generic_name,generic_name_en,generic_name_uk,generic_name_ru,generic_name_be," +
-        "brands,nutriments,serving_quantity,serving_size,quantity,nutrition_data_per,additives_tags"
+const val OFF_PRODUCT_FIELDS = "$OFF_SEARCH_FIELDS,nutriments_estimated"
 
 @Serializable
 data class ProductResponseDto(
@@ -61,6 +75,15 @@ data class ProductDto(
     @SerialName("generic_name_be") val genericNameBe: String? = null,
     val brands: String? = null,
     val nutriments: NutrimentsDto? = null,
+    /**
+     * OFF's estimate from the ingredient list, for products nobody typed
+     * the label of. Only ever a starting point for the form the user
+     * confirms ([toPrefill]), never the values of a product logged as is.
+     * Read leniently ([LenientNutrimentsSerializer]): an odd value here must
+     * not cost the product itself.
+     */
+    @Serializable(with = LenientNutrimentsSerializer::class)
+    @SerialName("nutriments_estimated") val nutrimentsEstimated: NutrimentsDto? = null,
     // String on purpose: this community-filled field can arrive as a number,
     // a quoted number, an empty string or even "2 pcs". Declaring it Double
     // would make ONE bad product break decoding of the whole search response.
@@ -136,6 +159,29 @@ data class NutrimentsDto(
 )
 
 /**
+ * [NutrimentsDto] where anything but a JSON object ("n/a", [], a number)
+ * reads as null. Without it ONE such value failed decoding of the whole
+ * product, and the scan reported Open Food Facts as unavailable even for a
+ * complete product (review-caught; the website ignores such a value too).
+ * The values inside stay lenient through [LenientDoubleSerializer].
+ */
+internal object LenientNutrimentsSerializer : KSerializer<NutrimentsDto?> {
+
+    override val descriptor: SerialDescriptor = NutrimentsDto.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): NutrimentsDto? {
+        val json = decoder as? JsonDecoder ?: return NutrimentsDto.serializer().deserialize(decoder)
+        val element = json.decodeJsonElement() as? JsonObject ?: return null
+        // The caller's Json, so its settings (ignoreUnknownKeys...) still apply.
+        return json.json.decodeFromJsonElement(NutrimentsDto.serializer(), element)
+    }
+
+    override fun serialize(encoder: Encoder, value: NutrimentsDto?) {
+        if (value == null) encoder.encodeNull() else NutrimentsDto.serializer().serialize(encoder, value)
+    }
+}
+
+/**
  * The product's name in the language order of its barcode's origin (see
  * ProductNames); [code] decides that origin. null = no name anywhere.
  */
@@ -164,19 +210,50 @@ fun ProductDto.resolvedName(code: String?): String? = ProductNames.resolve(
 )
 
 /**
- * Everything OFF knows about this product, each value RESOLVED — the one
- * path both [toEntityOrNull] and the scanner's "incomplete product" form
- * use, so the two can never disagree about a number:
+ * What the scanner's "incomplete product" form starts with: everything
+ * [resolved] knows, and for each value still unknown OFF's estimate from the
+ * ingredients (nutriments_estimated), per 100 g. The user checks every
+ * number against the label before saving, so an estimate is a fair start
+ * here; it never makes a product "found" ([toEntityOrNull] ignores it). A
+ * product with a name and only estimated values therefore opens the form,
+ * prefilled, and [ProductPrefill.estimated] tells the form to ask for a
+ * check of those numbers rather than for missing ones.
+ *
+ * [lookedUpCode] is the barcode for a product whose own code is missing;
+ * null only when neither is known.
+ */
+fun ProductDto.toPrefill(lookedUpCode: String? = null): ProductPrefill? {
+    val p = resolved(lookedUpCode) ?: return null
+    val e = nutrimentsEstimated ?: return p
+    return p.copy(
+        estimated = (p.kcalPer100g == null && e.kcalPer100g != null) ||
+            (p.proteinPer100g == null && e.proteinPer100g != null) ||
+            (p.fatPer100g == null && e.fatPer100g != null) ||
+            (p.carbsPer100g == null && e.carbsPer100g != null),
+        kcalPer100g = p.kcalPer100g ?: e.kcalPer100g,
+        proteinPer100g = p.proteinPer100g ?: e.proteinPer100g,
+        fatPer100g = p.fatPer100g ?: e.fatPer100g,
+        carbsPer100g = p.carbsPer100g ?: e.carbsPer100g,
+        fiberPer100g = p.fiberPer100g ?: e.fiberPer100g,
+        sugarsPer100g = p.sugarsPer100g ?: e.sugarsPer100g,
+        saltPer100g = p.saltPer100g ?: e.saltPer100g,
+        saturatedFatPer100g = p.saturatedFatPer100g ?: e.saturatedFatPer100g,
+    )
+}
+
+/**
+ * Everything OFF's contributors stated about this product, each value
+ * RESOLVED — the one path both [toEntityOrNull] and [toPrefill] use, so the
+ * two can never disagree about a stated number:
  *
  *  - energy: kcal/100 g, else kJ/100 g converted, else a per-serving value
  *    rescaled by the serving size, else the Atwater sum of the macros;
  *  - protein / fat / carbs and the detail nutrients: per 100 g, else per
  *    serving rescaled.
  *
- * Unknown values stay null. [lookedUpCode] is the barcode for a product
- * whose own code is missing; null only when neither is known.
+ * Unknown values stay null; estimates are not used here.
  */
-fun ProductDto.toPrefill(lookedUpCode: String? = null): ProductPrefill? {
+private fun ProductDto.resolved(lookedUpCode: String?): ProductPrefill? {
     val barcode = code?.takeIf { it.isNotBlank() }
         ?: lookedUpCode?.takeIf { it.isNotBlank() }
         ?: return null
@@ -225,15 +302,17 @@ fun ProductDto.toPrefill(lookedUpCode: String? = null): ProductPrefill? {
 /**
  * DTO -> cache entity. Open Food Facts data is community-filled and often
  * incomplete. A product still needs a barcode, a name and the four core
- * values, each resolved by [toPrefill] (per serving rescaled, kJ converted,
+ * values, each resolved by [resolved] (per serving rescaled, kJ converted,
  * energy from the macros...). Only when a value is still unknown after that
  * is the product dropped (returns null) — the scanner then offers the
  * prefilled form instead. Before, a UK pack entered per portion, or with kJ
- * only, was silently invisible to search and the scanner.
+ * only, was silently invisible to search and the scanner. OFF's estimates
+ * are never used here: a product logged without the user's check must carry
+ * stated values only.
  */
 fun ProductDto.toEntityOrNull(cachedAtEpochMillis: Long): FoodProductEntity? {
     val barcode = code?.takeIf { it.isNotBlank() } ?: return null
-    val p = toPrefill(barcode) ?: return null
+    val p = resolved(barcode) ?: return null
     return FoodProductEntity(
         id = "off:$barcode",
         name = p.name ?: return null,

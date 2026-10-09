@@ -42,4 +42,14 @@ class BarcodeOriginTest {
         assertEquals(BarcodeCountry.UKRAINE, BarcodeOrigin.countryOf("abc 482 0024 700016"))
         assertNull(BarcodeOrigin.countryOf(""))
     }
+
+    @Test
+    fun `the GS1 prefix comes from the 13-digit form, or from an EAN-8 as printed`() {
+        assertEquals("482", BarcodeOrigin.gs1Prefix("4823090100292"))
+        assertEquals("401", BarcodeOrigin.gs1Prefix("40111445"))
+        assertEquals("001", BarcodeOrigin.gs1Prefix("012345678905")) // UPC-A gets its zero
+        assertEquals("482", BarcodeOrigin.gs1Prefix("14820024700013")) // GTIN-14
+        assertNull(BarcodeOrigin.gs1Prefix("123"))
+        assertNull(BarcodeOrigin.gs1Prefix(""))
+    }
 }

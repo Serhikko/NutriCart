@@ -6,11 +6,14 @@ import com.nutricart.app.cloud.SupabaseRestApi
 import com.nutricart.app.data.remote.ClaudeApi
 import com.nutricart.app.data.remote.OpenFoodFactsApi
 import com.nutricart.app.data.remote.TelegramApi
+import com.nutricart.app.data.remote.ZakazApi
+import com.nutricart.app.data.remote.dto.ZAKAZ_MAX_STORES
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -21,6 +24,13 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    /**
+     * Who we are, for the food databases. No version number on purpose — it
+     * would silently go stale on every release; OFF only asks for an app
+     * name + contact.
+     */
+    private const val USER_AGENT = "NutriCart (https://github.com/Serhikko/NutriCart)"
 
     @Provides
     @Singleton
@@ -37,10 +47,8 @@ object NetworkModule {
             .addInterceptor { chain ->
                 // Open Food Facts policy: identify your app with a descriptive
                 // User-Agent, or requests may be throttled.
-                // No version number on purpose — it would silently go stale on
-                // every release; OFF only asks for an app name + contact.
                 val request = chain.request().newBuilder()
-                    .header("User-Agent", "NutriCart (https://github.com/Serhikko/NutriCart)")
+                    .header("User-Agent", USER_AGENT)
                     .build()
                 chain.proceed(request)
             }
@@ -119,6 +127,47 @@ object NetworkModule {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(TelegramApi::class.java)
+    }
+
+    /**
+     * The Ukrainian shops' catalogue (zakaz.ua), the barcode scanner's second
+     * source. Its own client for the same reason as the services above, and
+     * for its own rules:
+     *  - short timeouts: it is asked while the user waits on a scan, and
+     *    ZakazShops gives the whole tier about eight seconds;
+     *  - every store of a scan asked at once: all of them are on one host,
+     *    and OkHttp's default of five requests per host would hold the
+     *    sixth back until another finished, often past that budget;
+     *  - our honest User-Agent and nothing else of note: no browser
+     *    disguise, no Origin, Referer or chain headers — the app is a
+     *    polite, identifiable client of an API that is not its own;
+     *  - answers are kept as untyped JSON (see ZakazDto.kt), so the Json
+     *    needs no configuration.
+     */
+    @Provides
+    @Singleton
+    fun provideZakazApi(): ZakazApi {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(6, TimeUnit.SECONDS)
+            .callTimeout(6, TimeUnit.SECONDS)
+            .dispatcher(Dispatcher().apply { maxRequestsPerHost = ZAKAZ_MAX_STORES })
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("User-Agent", USER_AGENT)
+                    .header("Accept", "application/json")
+                    // Ukrainian titles: the names the user sees on the pack.
+                    .header("Accept-Language", "uk")
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(ZakazApi.BASE_URL)
+            .client(client)
+            .addConverterFactory(Json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(ZakazApi::class.java)
     }
 
     /**

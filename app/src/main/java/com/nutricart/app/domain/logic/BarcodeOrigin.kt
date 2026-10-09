@@ -19,13 +19,23 @@ object BarcodeOrigin {
         "481" to BarcodeCountry.BELARUS,
     )
 
-    fun countryOf(scanned: String): BarcodeCountry? {
+    fun countryOf(scanned: String): BarcodeCountry? = gs1Prefix(scanned)?.let { prefixes[it] }
+
+    /**
+     * The GS1 prefix: the first three digits of the code's 13-digit form, or
+     * of an EAN-8 as printed. null for any other length. A 12-digit UPC-A
+     * (US/Canada numbering) gets its leading zero, so its prefix starts with
+     * 0 and is never 481 or 482.
+     */
+    fun gs1Prefix(scanned: String): String? {
         // ASCII digits only, like the website's /\D/g.
         val digits = scanned.filter { it in '0'..'9' }
-        // GTIN-14 wraps the retail code behind a packaging-level digit.
-        val code = if (digits.length == 14) digits.substring(1) else digits
-        // EAN-13 and EAN-8 only; a 12-digit UPC-A is US/Canada numbering.
-        if (code.length != 13 && code.length != 8) return null
-        return prefixes[code.take(3)]
+        return when (digits.length) {
+            13, 8 -> digits.take(3)
+            12 -> "0" + digits.take(2)
+            // GTIN-14 wraps the retail code behind a packaging-level digit.
+            14 -> digits.substring(1, 4)
+            else -> null
+        }
     }
 }

@@ -9,7 +9,7 @@ import com.nutricart.app.data.repository.BarcodeLookup
 import com.nutricart.app.data.repository.DiaryRepository
 import com.nutricart.app.data.repository.FoodRepository
 import com.nutricart.app.data.repository.SavedMealRepository
-import com.nutricart.app.domain.model.BarcodeCountry
+import com.nutricart.app.domain.model.LookupNotice
 import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.domain.model.ProductPrefill
 import com.nutricart.app.domain.model.ProductSource
@@ -31,8 +31,9 @@ sealed interface ScanMessage {
     /**
      * Nobody knows this code: the snackbar offers to add it under [barcode]
      * (blank only if the scan held no digits — then there is nothing to add).
+     * [notice] says which sources were checked, or could not be reached.
      */
-    data class ProductNotFound(val barcode: String, val country: BarcodeCountry?) : ScanMessage
+    data class ProductNotFound(val barcode: String, val notice: LookupNotice) : ScanMessage
 
     data object Offline : ScanMessage
 
@@ -44,16 +45,18 @@ sealed interface ScanMessage {
  *
  * A new product opened from a scan carries its [barcode] (saved as
  * "local:barcode:<digits>", so the next scan finds it) and, when Open Food
- * Facts knew the product only partly, the [prefill] that fills the form.
+ * Facts or a Ukrainian shop knew the product only partly, the [prefill] that
+ * fills the form; [prefillFromShop] says which of the two it came from.
  */
 data class CustomFormTarget(
     val editing: FoodProductEntity?,
     val barcode: String? = null,
     val prefill: ProductPrefill? = null,
+    val prefillFromShop: Boolean = false,
 ) {
     /**
      * Where the form's "drink" box starts: the product being edited, else
-     * what Open Food Facts' pack size said, else food. The user can change it.
+     * what the source's pack size said, else food. The user can change it.
      */
     val startsAsLiquid: Boolean get() = editing?.isLiquid ?: prefill?.isLiquid ?: false
 }
@@ -362,9 +365,10 @@ class FoodSearchViewModel @Inject constructor(
 
     /**
      * Opens the system scanner. A found product goes straight to the amount
-     * dialog; one Open Food Facts knows only partly opens the new-food form
-     * prefilled; an unknown one shows a snackbar whose "Add" action opens the
-     * form tied to the barcode (openBarcodeForm).
+     * dialog; one Open Food Facts or a Ukrainian shop knows only partly opens
+     * the new-food form prefilled; an unknown one shows a snackbar (saying
+     * which sources were checked) whose "Add" action opens the form tied to
+     * the barcode (openBarcodeForm).
      */
     fun scanBarcode() {
         if (scanning) return // the scanner UI takes a moment — ignore double-taps
@@ -378,8 +382,8 @@ class FoodSearchViewModel @Inject constructor(
                     when (result) {
                         is BarcodeLookup.Found ->
                             it.copy(searching = false, selected = result.product, scanMessage = null)
-                        // OFF knows it only partly: the form, prefilled, instead
-                        // of a dead end — the user copies the rest from the label.
+                        // Known only partly: the form, prefilled, instead of a
+                        // dead end — the user copies the rest from the label.
                         is BarcodeLookup.Incomplete -> it.copy(
                             searching = false,
                             scanMessage = null,
@@ -387,11 +391,12 @@ class FoodSearchViewModel @Inject constructor(
                                 editing = null,
                                 barcode = result.prefill.barcode,
                                 prefill = result.prefill,
+                                prefillFromShop = result.fromShop,
                             ),
                         )
                         is BarcodeLookup.NotFound -> it.copy(
                             searching = false,
-                            scanMessage = ScanMessage.ProductNotFound(result.barcode, result.country),
+                            scanMessage = ScanMessage.ProductNotFound(result.barcode, result.notice),
                         )
                     }
                 }
@@ -424,7 +429,7 @@ class FoodSearchViewModel @Inject constructor(
     }
 
     fun openEditForm(product: FoodProductEntity) {
-        // Only user-created products are editable; OFF data is not ours to change.
+        // Only user-created products are editable; OFF and shop data are not ours to change.
         if (product.source != ProductSource.LOCAL) return
         _uiState.update { it.copy(customForm = CustomFormTarget(product)) }
     }

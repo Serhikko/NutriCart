@@ -8,8 +8,10 @@ import com.nutricart.app.data.remote.dto.toEntityOrNull
 import com.nutricart.app.domain.logic.ProductRanker
 import com.nutricart.app.domain.model.ProductSource
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import retrofit2.HttpException
 import java.io.IOException
+import java.net.SocketTimeoutException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,18 +30,25 @@ data class FoodSearchResult(
 class FoodRepository @Inject constructor(
     private val api: OpenFoodFactsApi,
     private val foodDao: FoodDao,
+    private val shops: ZakazShops,
 ) {
 
     /**
-     * Barcode lookup: Found, Incomplete (OFF knows the product only partly)
-     * or NotFound. The order of the checks — the user's own product first,
-     * then the cache, then Open Food Facts form by form — lives in the pure
-     * [lookUpBarcode], unit-tested on the JVM; this only wires it to Room and
-     * Retrofit. No internet with nothing cached still throws IOException, so
-     * the user sees "you are offline" instead of "not found".
+     * Barcode lookup: Found, Incomplete (OFF or a Ukrainian shop knows the
+     * product only partly) or NotFound. The order of the checks — the user's
+     * own product first, then the cache, then Open Food Facts form by form,
+     * then the Ukrainian shops — lives in the pure [lookUpBarcode],
+     * unit-tested on the JVM; this only wires it to Room, Retrofit and
+     * [ZakazShops]. No internet with nothing to show still throws
+     * IOException, so the user sees "you are offline" instead of "not found".
      */
     suspend fun byBarcode(scanned: String): BarcodeLookup =
-        lookUpBarcode(scanned, lookupSources, nowMillis = System::currentTimeMillis)
+        lookUpBarcode(
+            scanned,
+            lookupSources,
+            nowMillis = System::currentTimeMillis,
+            pause = { delay(it) },
+        )
 
     private val lookupSources = object : BarcodeLookupSources {
         override suspend fun ownProduct(code: String): FoodProductEntity? =
@@ -48,7 +57,12 @@ class FoodRepository @Inject constructor(
         override suspend fun cachedOffProduct(code: String): FoodProductEntity? =
             foodDao.byId("off:$code")
 
+        override suspend fun cachedShopProduct(code: String): FoodProductEntity? =
+            foodDao.byId(FoodProductEntity.zakazId(code))
+
         override suspend fun save(product: FoodProductEntity) = foodDao.upsert(product)
+
+        override suspend fun askShops(code14: String): ShopAnswer = shops.ask(code14)
 
         override suspend fun askOff(code: String): OffAnswer = try {
             val response = api.productByBarcode(code)
@@ -58,14 +72,25 @@ class FoodRepository @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: HttpException) {
-            // The v2 endpoint answers 404 for an unknown code: keep going.
-            // Anything else is a server problem — use what we have.
-            if (e.code() == 404) {
-                OffAnswer.Unknown
-            } else {
-                Log.w("FoodRepository", "Barcode lookup failed with HTTP ${e.code()}")
-                OffAnswer.Failed
+            when (e.code()) {
+                // The v2 endpoint answers 404 for an unknown code: keep going.
+                404 -> OffAnswer.Unknown
+                // Rate-limited (OFF allows 15 product reads a minute per IP)
+                // or overloaded: "busy", never "not found".
+                429, 503 -> OffAnswer.Busy(
+                    retryAfterSeconds(e.response()?.headers()?.get("Retry-After")),
+                )
+                // Anything else is a server problem — use what we have.
+                else -> {
+                    Log.w("FoodRepository", "Barcode lookup failed with HTTP ${e.code()}")
+                    OffAnswer.Failed
+                }
             }
+        } catch (e: SocketTimeoutException) {
+            // Connected, but OFF didn't answer in time: OFF is unavailable,
+            // the phone is not offline (and the shops may still answer).
+            Log.w("FoodRepository", "Barcode lookup timed out")
+            OffAnswer.Failed
         } catch (e: IOException) {
             OffAnswer.Offline(e)
         } catch (e: Exception) {
@@ -89,10 +114,10 @@ class FoodRepository @Inject constructor(
             // Spec rule: EVERY looked-up product goes into the cache,
             // so the app keeps working without internet.
             foodDao.upsertAll(products)
-            // User-created products first (the API cannot know them), then the
-            // API results — and the whole list re-ranked by how often the user
-            // actually logs each product. (The offline branch needs no merge —
-            // searchByName already covers all sources.)
+            // User-created and shop products first (the API cannot know them),
+            // then the API results — and the whole list re-ranked by how often
+            // the user actually logs each product. (The offline branch needs no
+            // merge — searchByName already covers all sources.)
             FoodSearchResult(
                 ranked(foodDao.searchLocalByName(query) + products),
                 offline = false,

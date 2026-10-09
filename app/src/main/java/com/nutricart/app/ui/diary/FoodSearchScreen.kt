@@ -1,5 +1,6 @@
 package com.nutricart.app.ui.diary
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,6 +66,8 @@ import com.nutricart.app.data.local.entity.FoodProductEntity
 import com.nutricart.app.domain.logic.BarcodeOrigin
 import com.nutricart.app.domain.logic.FoodMath
 import com.nutricart.app.domain.model.BarcodeCountry
+import com.nutricart.app.domain.model.LookupNotice
+import com.nutricart.app.domain.model.ProductPrefill
 import com.nutricart.app.domain.model.ProductSource
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -102,9 +105,9 @@ fun FoodSearchScreen(
 
     // One-shot barcode messages -> snackbar.
     val notFoundMessage = stringResource(R.string.barcode_not_found)
-    val notFoundUkraineMessage = stringResource(R.string.barcode_not_found_ukraine)
-    val notFoundBelarusMessage = stringResource(R.string.barcode_not_found_belarus)
-    val notFoundOtherMessage = stringResource(R.string.barcode_not_found_other)
+    // Resolved here: stringResource cannot be called inside the effect below.
+    val noticeMessage = (state.scanMessage as? ScanMessage.ProductNotFound)
+        ?.let { stringResource(noticeText(it.notice)) }
     val addActionLabel = stringResource(R.string.add_action)
     val offlineMessage = stringResource(R.string.barcode_offline)
     val scanFailedMessage = stringResource(R.string.barcode_scan_failed)
@@ -112,17 +115,13 @@ fun FoodSearchScreen(
         val message = state.scanMessage ?: return@LaunchedEffect
         when (message) {
             is ScanMessage.ProductNotFound -> {
-                if (message.barcode.isBlank()) {
+                if (message.barcode.isBlank() || noticeMessage == null) {
                     snackbarHostState.showSnackbar(notFoundMessage)
                 } else {
                     // Not a dead end: "Add" opens the form tied to this barcode,
                     // and the next scan of the pack finds the user's entry.
                     val result = snackbarHostState.showSnackbar(
-                        message = when (message.country) {
-                            BarcodeCountry.UKRAINE -> notFoundUkraineMessage
-                            BarcodeCountry.BELARUS -> notFoundBelarusMessage
-                            null -> notFoundOtherMessage
-                        },
+                        message = noticeMessage,
                         actionLabel = addActionLabel,
                         duration = SnackbarDuration.Long,
                     )
@@ -537,7 +536,7 @@ private fun ProductRow(
                 else MaterialTheme.colorScheme.outlineVariant,
             )
         }
-        // Only the user's own products are editable — OFF data is read-only.
+        // Only the user's own products are editable — OFF and shop data are read-only.
         if (product.source == ProductSource.LOCAL) {
             IconButton(onClick = onEdit) {
                 Icon(
@@ -555,8 +554,8 @@ private fun ProductRow(
  * like on any nutrition label. Save stays disabled until the input is sane.
  *
  * Opened from a scan, the form also says which barcode the product will be
- * found under next time, and — when Open Food Facts knew the product only
- * partly — starts with everything OFF knew filled in.
+ * found under next time, and — when Open Food Facts or a Ukrainian shop
+ * knew the product only partly — starts with everything it knew filled in.
  */
 @Composable
 private fun CustomFoodDialog(
@@ -636,7 +635,7 @@ private fun CustomFoodDialog(
             ) {
                 if (prefill != null) {
                     Text(
-                        stringResource(R.string.barcode_incomplete),
+                        stringResource(prefillNote(prefill, target.prefillFromShop)),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -719,6 +718,37 @@ private fun CustomFoodDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
+}
+
+/**
+ * The line above a prefilled form. Never credits Open Food Facts with a
+ * shop's data. With all four values filled in, nothing is missing: those
+ * numbers are shop values that don't add up, or OFF's estimates, and the
+ * user is asked to check them against the label, not to fill gaps (the
+ * form would otherwise save them as the user's own with one tap).
+ */
+@StringRes
+private fun prefillNote(prefill: ProductPrefill, fromShop: Boolean): Int = when {
+    fromShop && prefill.hasCoreValues -> R.string.barcode_incomplete_shop_check
+    fromShop -> R.string.barcode_incomplete_shop
+    prefill.estimated && prefill.hasCoreValues -> R.string.barcode_incomplete_estimated
+    else -> R.string.barcode_incomplete
+}
+
+/**
+ * The snackbar text for a scan that found nothing. Each one names only the
+ * sources that answered; one that didn't is reported as unreachable.
+ */
+@StringRes
+private fun noticeText(notice: LookupNotice): Int = when (notice) {
+    LookupNotice.OFF_DOWN -> R.string.barcode_off_down
+    LookupNotice.OFF_DOWN_SHOPS_MISS -> R.string.barcode_off_down_shops_miss
+    LookupNotice.NOT_FOUND_UKRAINE -> R.string.barcode_not_found_ukraine
+    LookupNotice.NOT_FOUND_BELARUS -> R.string.barcode_not_found_belarus
+    LookupNotice.NOT_FOUND_OTHER -> R.string.barcode_not_found_other
+    LookupNotice.NOT_FOUND_UKRAINE_SHOPS -> R.string.barcode_not_found_ukraine_shops
+    LookupNotice.NOT_FOUND_OTHER_SHOPS -> R.string.barcode_not_found_other_shops
+    LookupNotice.NOT_FOUND_SHOPS_DOWN -> R.string.barcode_not_found_shops_down
 }
 
 /** "Barcode 4820024700016 (Ukraine)": the code a scanned product is saved under. */
@@ -876,6 +906,16 @@ private fun AmountDialog(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         stringResource(R.string.additives_line, csv.replace(",", ", ")),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                // A shop's catalogue is a less checked source than a label:
+                // say where these numbers come from.
+                if (product.source == ProductSource.ZAKAZ) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        stringResource(R.string.product_source_zakaz),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -167,6 +167,20 @@
     <string name="barcode_not_found_belarus">This Belarusian product isn\'t in Open Food Facts yet. Add it once and the scanner will find it next time.</string>
     <string name="barcode_not_found_other">This product isn\'t in Open Food Facts yet. Add it once and the scanner will find it next time.</string>
     <string name="barcode_incomplete">Open Food Facts knows this product, but not all of its nutrition. Fill in the missing values from the label.</string>
+    <!-- The same form, prefilled from a Ukrainian shop's catalogue (zakaz.ua) instead of Open Food Facts. -->
+    <string name="barcode_incomplete_shop">A Ukrainian shop lists this product, but not all of its nutrition. Fill in the missing values from the label.</string>
+    <!-- The same forms with all four values filled in, but not to be trusted as they are: a shop's values that don't add up, or Open Food Facts' estimates from the ingredients. -->
+    <string name="barcode_incomplete_shop_check">A Ukrainian shop lists this product, but its nutrition values don\'t add up. Check them against the label before saving.</string>
+    <string name="barcode_incomplete_estimated">Open Food Facts only estimates this product\'s nutrition from its ingredients. Check the values against the label before saving.</string>
+    <!-- Scan found nothing, but a source didn't answer: never claim it lacks the product. The snackbar's action is add_action. -->
+    <string name="barcode_off_down">Open Food Facts didn\'t answer (it may be busy). Try again in a minute, or add the product from its label.</string>
+    <string name="barcode_off_down_shops_miss">Ukrainian shops don\'t list this barcode, and Open Food Facts didn\'t answer. Try again in a minute, or add the product from its label.</string>
+    <string name="barcode_not_found_shops_down">This product isn\'t in Open Food Facts, and Ukrainian shops didn\'t answer. Try again later, or add it once and the scanner will find it next time.</string>
+    <!-- Scan unknown to Open Food Facts AND to the Ukrainian shops' catalogues. -->
+    <string name="barcode_not_found_ukraine_shops">This Ukrainian product isn\'t in Open Food Facts or Ukrainian shops\' catalogues yet. Add it once and the scanner will find it next time.</string>
+    <string name="barcode_not_found_other_shops">This product isn\'t in Open Food Facts or Ukrainian shops\' catalogues yet. Add it once and the scanner will find it next time.</string>
+    <!-- Under a product's nutrition when its data came from a Ukrainian shop, not Open Food Facts. -->
+    <string name="product_source_zakaz">Source: Ukrainian shop catalogue (zakaz.ua)</string>
     <string name="barcode_line">Barcode %1$s</string>
     <string name="barcode_line_ukraine">Barcode %1$s (Ukraine)</string>
     <string name="barcode_line_belarus">Barcode %1$s (Belarus)</string>
