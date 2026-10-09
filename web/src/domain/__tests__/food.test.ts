@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { forGrams, kcalFromKj, per100gFromServing, resolveKcalPer100g, scalePer100g, servingsToGrams } from '../food';
-import { barcodeCandidates, expandUpcE, gtinCheckDigitValid, lenientNumber, toProduct } from '../openFoodFacts';
+import { barcodeCandidates, expandUpcE, gtinCheckDigitValid, lenientNumber, offCodes, toProduct } from '../openFoodFacts';
 
 describe('FoodMath port', () => {
   it('80 grams of a 250 kcal product is 200 kcal', () => {
@@ -89,5 +89,16 @@ describe('BarcodeNormalizer port', () => {
   it('GTIN check digit', () => {
     expect(gtinCheckDigitValid('5000112637922')).toBe(true);
     expect(gtinCheckDigitValid('5000112637923')).toBe(false);
+  });
+  // Shared with the phone: OFF strips leading zeros itself, so forms that differ only there are one request.
+  it('codes worth asking OFF for: one per leading-zero-stripped form, the first of each', () => {
+    expect(offCodes(barcodeCandidates('012345678905'))).toEqual(['012345678905']);
+    expect(offCodes(barcodeCandidates('0012345678905'))).toEqual(['0012345678905']);
+    expect(offCodes(barcodeCandidates('01234565'))).toEqual(['01234565', '012345000065']);
+    expect(offCodes(barcodeCandidates('96385074'))).toEqual(['96385074']);
+    expect(offCodes(barcodeCandidates('15000112637929'))).toEqual(['15000112637929', '5000112637929']);
+    expect(offCodes(barcodeCandidates('04820024700016'))).toEqual(['04820024700016']);
+    expect(offCodes(barcodeCandidates('5000112637922'))).toEqual(['5000112637922']);
+    expect(offCodes([])).toEqual([]);
   });
 });

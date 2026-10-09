@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useI18n } from '../lib/i18n';
 import type { FoodProduct } from '../domain/openFoodFacts';
 import { forGrams, servingsToGrams } from '../domain/food';
+import { isZakazProduct } from '../domain/zakaz';
 
 /** The phone's AmountDialog: grams, or portions when the label states a portion size. */
 export function AmountDialog({ product, onConfirm, onCancel }: { product: FoodProduct; onConfirm: (grams: number, servings: number | null) => void; onCancel: () => void }) {
@@ -43,6 +44,8 @@ export function AmountDialog({ product, onConfirm, onCancel }: { product: FoodPr
       {row(t('ob.protein'), product.proteinPer100g)}
       {row(t('ob.fat'), product.fatPer100g)}
       {row(t('ob.carbs'), product.carbsPer100g)}
+      {/* Values a shop typed in, not Open Food Facts' community: say where they come from, as the phone does. */}
+      {isZakazProduct(product) && <p className="muted" style={{ fontSize: '0.8rem', margin: '6px 0 0' }}>{t('add.source_zakaz')}</p>}
       <div className="row" style={{ marginTop: 12 }}>
         <button className="ghost" onClick={onCancel}>{t('add.cancel')}</button>
         <button disabled={!ok} onClick={() => ok && onConfirm(grams!, usePortions ? amount : null)}>{t('add.confirm')}</button>

@@ -1,13 +1,16 @@
-import { lazy, Suspense, useCallback, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useI18n } from '../lib/i18n';
+import { useSession } from '../lib/session';
 import { useMyTargets } from '../lib/myTargets';
 import { useLogFood } from '../lib/tracker';
 import { OffError, lookupBarcode, searchProducts } from '../lib/openFoodFacts';
 import { saveCustomProduct, savedProductFor, searchCustomProducts } from '../lib/customProducts';
+import { shopsSource } from '../lib/zakaz';
 import type { FoodProduct, ProductPrefill } from '../domain/openFoodFacts';
 import { countryOf, type BarcodeCountry } from '../domain/barcodeOrigin';
 import { isStorableBarcode } from '../domain/customProduct';
+import { lookupNotice, UNANSWERED_NOTICES, type LookupNotice } from '../domain/zakaz';
 import type { MealSlot } from '../lib/diary';
 import { AmountDialog } from '../components/AmountDialog';
 import { CustomProductForm } from '../components/CustomProductForm';
@@ -17,9 +20,13 @@ const BarcodeScanner = lazy(() => import('../components/BarcodeScanner').then((m
 
 /**
  * Search Open Food Facts or scan a barcode, then choose an amount: the phone's
- * FoodSearchScreen. A scanned product Open Food Facts lacks, or knows without
- * all of its nutrition, can be added once under its barcode (custom_products);
- * the next scan of that code finds it, and name search lists it first.
+ * FoodSearchScreen. A scan asks Open Food Facts, then, for codes they may
+ * have, the Ukrainian shops (zakaz.ua). A product nobody has, or one known
+ * without all of its nutrition, can be added once under its barcode
+ * (custom_products); the next scan of that code finds it, and name search
+ * lists it first. When a source did not answer, the message says so (and
+ * to try again later) rather than calling the product unknown; like the
+ * phone, the only action it offers is to add the product.
  */
 export function AddFood() {
   const { epochDay: dayParam = '', slot = 'LUNCH' } = useParams();
@@ -29,6 +36,12 @@ export function AddFood() {
   const navigate = useNavigate();
   const me = useMyTargets(epochDay);
   const logFood = useLogFood(me.userId);
+  // Read at scan time, not captured: the token is refreshed hourly, and onCode must stay stable for the camera.
+  const { session } = useSession();
+  const accessToken = useRef<string | null>(null);
+  useEffect(() => {
+    accessToken.current = session?.access_token ?? null;
+  }, [session]);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodProduct[] | null>(null);
@@ -41,10 +54,10 @@ export function AddFood() {
   const [scanning, setScanning] = useState(false);
   const [barcode, setBarcode] = useState('');
   const [selected, setSelected] = useState<FoodProduct | null>(null);
-  /** The last scan found nothing: its digits and their GS1 origin, for the "add it" message. */
-  const [notFound, setNotFound] = useState<{ barcode: string; country: BarcodeCountry | null } | null>(null);
-  /** The add-this-product form, empty or prefilled from what Open Food Facts knows. */
-  const [form, setForm] = useState<{ barcode: string; prefill: ProductPrefill | null } | null>(null);
+  /** The last scan found nothing: its digits, their GS1 origin and what the sources said, for the message. */
+  const [notFound, setNotFound] = useState<{ barcode: string; country: BarcodeCountry | null; notice: LookupNotice } | null>(null);
+  /** The add-this-product form, empty or prefilled from what Open Food Facts or a shop knows. */
+  const [form, setForm] = useState<{ barcode: string; prefill: ProductPrefill | null; from: 'off' | 'shops' | null } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const userId = me.userId;
@@ -75,15 +88,18 @@ export function AddFood() {
       setDetail(null);
       setNotFound(null);
       try {
-        const result = await lookupBarcode(code, { saved: (candidates) => savedProductFor(userId, candidates) });
+        const result = await lookupBarcode(code, {
+          saved: (candidates) => savedProductFor(userId, candidates),
+          shops: shopsSource(accessToken.current),
+        });
         if (result.kind === 'found') {
           setSelected(result.product);
           setStatus('idle');
         } else if (result.kind === 'incomplete') {
-          setForm({ barcode: result.prefill.barcode, prefill: result.prefill });
+          setForm({ barcode: result.prefill.barcode, prefill: result.prefill, from: result.from });
           setStatus('idle');
         } else {
-          setNotFound({ barcode: result.barcode, country: result.country });
+          setNotFound({ barcode: result.barcode, country: result.country, notice: lookupNotice(result.country, result.offUnavailable, result.shops) });
           setStatus('not_found');
         }
       } catch (e) {
@@ -151,6 +167,7 @@ export function AddFood() {
           barcode={form.barcode}
           country={countryOf(form.barcode)}
           prefill={form.prefill}
+          prefillFrom={form.from}
           saving={saving}
           onSave={(product) => void saveProduct(product)}
           onCancel={closeForm}
@@ -191,13 +208,15 @@ export function AddFood() {
           )}
           {status === 'not_found' && notFound && isStorableBarcode(notFound.barcode) && (
             <div className="card">
-              <p style={{ marginTop: 0 }}>{t(`add.not_found.${notFound.country ?? 'other'}`)}</p>
+              <p style={{ marginTop: 0 }}>{t(`add.notice.${notFound.notice}`)}</p>
               <p className="muted" style={{ fontSize: '0.85rem' }}>{t(`add.barcode_line.${notFound.country ?? 'other'}`, { code: notFound.barcode })}</p>
-              <button onClick={() => setForm({ barcode: notFound.barcode, prefill: null })}>{t('add.add_product')}</button>
+              <button onClick={() => setForm({ barcode: notFound.barcode, prefill: null, from: null })}>{t('add.add_product')}</button>
             </div>
           )}
-          {/* A code no barcode table can hold (a typing slip, say): nothing to add it under. */}
-          {status === 'not_found' && notFound && !isStorableBarcode(notFound.barcode) && <p className="error">{t('add.scan_not_found')}</p>}
+          {/* A code no barcode table can hold (a typing slip, say): nothing to add it under, but a source that did not answer is still said. */}
+          {status === 'not_found' && notFound && !isStorableBarcode(notFound.barcode) && (
+            <p className="error">{t(UNANSWERED_NOTICES.includes(notFound.notice) ? `add.notice.${notFound.notice}` : 'add.scan_not_found')}</p>
+          )}
           {results && results.length === 0 && status === 'idle' && <p className="muted">{t('add.none')}</p>}
 
           {results?.map((p) => (

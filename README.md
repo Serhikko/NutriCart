@@ -14,7 +14,10 @@ ready-to-shop grocery list. Offline-first, ad-free, in English and Ukrainian.
   scanning (EAN-13/8, UPC-A/E, with the code forms the database actually
   stores), custom foods, favorites, frequency-ranked search, one-tap saved
   meals and a multi-add basket. Labels entered per portion or in kJ only are
-  converted instead of dropped.
+  converted instead of dropped. A scanned product Open Food Facts lacks is
+  looked up in Ukrainian supermarkets' catalogues (zakaz.ua); when a source
+  doesn't answer, the app says so instead of "not found". What each source
+  receives: `docs/cloud-sync.md`.
 - **Full nutrition label** — fiber, sugars, salt, saturated fat and E-number
   additives per product; "green numbers" feedback on the dashboard.
 - **7-day meal plan generator** — hits the calorie target within ±5% by scaling

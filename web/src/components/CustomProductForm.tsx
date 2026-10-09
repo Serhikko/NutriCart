@@ -1,14 +1,25 @@
 import { useState, type ReactNode } from 'react';
 import { useI18n } from '../lib/i18n';
 import type { BarcodeCountry } from '../domain/barcodeOrigin';
-import type { FoodProduct, ProductPrefill } from '../domain/openFoodFacts';
+import { hasCoreValues, type FoodProduct, type ProductPrefill } from '../domain/openFoodFacts';
 import { checkDraft, draftFromPrefill, MAX_NAME_LENGTH, type CustomProductDraft, type DraftField } from '../domain/customProduct';
+
+/**
+ * The line above a prefilled form, naming who knows the product. With all
+ * four core values there, nothing is missing, so it asks for a check
+ * instead: a shop's values that don't add up, or OFF's estimates.
+ */
+function prefillLine(prefill: ProductPrefill, from: 'off' | 'shops' | null): string {
+  if (from === 'shops') return hasCoreValues(prefill) ? 'add.check_shop' : 'add.incomplete_shop';
+  return hasCoreValues(prefill) && prefill.estimated ? 'add.check_estimated' : 'add.incomplete';
+}
 
 /**
  * The phone's custom-food dialog for a product added under its barcode: name,
  * brand, the four label values per 100 g (per 100 ml for a drink), an
  * optional portion and the optional details. Starts from what Open Food Facts
- * knows (`prefill`) or empty. Save stays disabled until the input is sane.
+ * or a Ukrainian shop knows (`prefill`, from `prefillFrom`) or empty. Save
+ * stays disabled until the input is sane.
  *
  * The parent keys this component by its barcode, so reopening it for another
  * product starts from that product's values, not the last one's.
@@ -17,6 +28,7 @@ export function CustomProductForm({
   barcode,
   country,
   prefill,
+  prefillFrom = 'off',
   saving,
   onSave,
   onCancel,
@@ -24,6 +36,8 @@ export function CustomProductForm({
   barcode: string;
   country: BarcodeCountry | null;
   prefill: ProductPrefill | null;
+  /** Who knows the product in part, for the line above the form. */
+  prefillFrom?: 'off' | 'shops' | null;
   saving: boolean;
   onSave: (product: FoodProduct) => void;
   onCancel: () => void;
@@ -45,7 +59,7 @@ export function CustomProductForm({
   return (
     <div className="card" role="dialog" aria-label={t('cf.title')}>
       <h2 style={{ marginTop: 0 }}>{t('cf.title')}</h2>
-      {prefill && <p className="muted" style={{ marginTop: -4 }}>{t('add.incomplete')}</p>}
+      {prefill && <p className="muted" style={{ marginTop: -4 }}>{t(prefillLine(prefill, prefillFrom))}</p>}
       <p className="muted" style={{ fontSize: '0.85rem', marginTop: prefill ? -6 : -4 }}>{t(`add.barcode_line.${country ?? 'other'}`, { code: barcode })}</p>
 
       {field('name', t('cf.name'), <input type="text" maxLength={MAX_NAME_LENGTH} value={draft.name} onChange={set('name')} aria-invalid={!ok.name} />)}

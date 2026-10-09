@@ -89,7 +89,8 @@ so both clients print the same target for the same person.
   the phone; ids are `web:<f|w>:<uuid>`, so the two clients can never collide.
 - Food comes from Open Food Facts (search and barcode) through a small
   same-origin Vercel function (`web/api/off.ts`) that sets the User-Agent
-  OFF asks for and caches answers; the mapping uses the phone's barcode
+  OFF asks for and caches answers (a scanned code OFF lacks may then come
+  from Ukrainian shops, below); the mapping uses the phone's barcode
   normalisation (UPC-E, EAN-8, UK codes with a leading 0) and the same
   per-100 g label maths. A typed barcode works when the camera does not.
 - The barcode scanner is a camera view built on `@zxing/browser`, loaded only
@@ -120,6 +121,66 @@ OFF knows) or not found (the form opens empty, with the barcode attached).
   and a failed save still lets the food be logged, with a note.
 - A GS1 prefix tells which national office issued the number, not where the
   food was made, so the screens say "Ukrainian product", never "made in".
+
+### Where a scanned product comes from, and what each request reveals
+
+Open Food Facts has only a few thousand usable Ukrainian products and fewer
+Belarusian ones, and a busy OFF used to look like "not found". Both
+clients now run the same lookup (`BarcodeLookup.kt` on the phone,
+`web/src/lib/openFoodFacts.ts` on the website), with the same test vectors
+for every pure rule:
+
+1. The user's own product under any normalised form of the code.
+2. On the phone, a cached OFF row with its details, then a cached shop row
+   (`zakaz:<code>`, never refreshed: the shops have no detail nutrients).
+3. **Open Food Facts**, once per code form that differs by more than
+   leading zeros (OFF strips them itself, and allows 15 product reads a
+   minute per address). A 429 or 503 is "busy": asked again once per scan
+   after `Retry-After` (1–5 s, else not at all). Busy again, or any other
+   failure, ends the OFF part; the scan carries on and remembers it.
+   OFF's `nutriments_estimated` (values guessed from the ingredients) only
+   ever prefill the form, never make a product by themselves. On the phone
+   a cached OFF row without details answers next, if there is one.
+4. **Ukrainian shops** (the zakaz.ua stores API behind Auchan, Novus, METRO,
+   EKO Market and other chains), only when OFF had no usable product and
+   the code is not Belarusian (481) or British (500–509), which the shops
+   practically never list. Up to six stores are asked in parallel for the
+   one code. A card is logged as is only with a name and four label values
+   that agree with each other (energy within 20 kcal + 35 % of the 4/9/4
+   sum, or of that sum plus the alcohol a drink's title states, so a wine
+   or a vodka passes); anything less prefills the form for the user to
+   check. When a store list cannot be had, both clients ask the same five
+   built-in stores.
+5. A partial product (OFF's first, else a shop's): the form, prefilled. An
+   OFF record with neither a name nor a core value is a bare stub and does
+   not count, so a shop's partial product is used instead. The line above
+   the form names the source; with all four core values filled in (a
+   shop's values that don't add up, or OFF's estimates) it asks the user to
+   check them against the label rather than fill in what is missing.
+6. Otherwise "not found", and the message says which source did not answer
+   (`lookupNotice`): a source that did not answer is never said to lack the
+   product, and the message says to try again later. On both clients the
+   one action is to add the product (the form opens with the barcode); a
+   new scan is the retry. OFF out of reach with no shop answering either is
+   still the "you are offline" message.
+
+What leaves the device for each source:
+
+| Request | Who receives it | What it carries |
+| --- | --- | --- |
+| OFF product or search (phone) | Open Food Facts | The barcode or search text, the phone's IP, the app's User-Agent |
+| OFF product or search (website) | `web/api/off.ts` on Vercel, which asks OFF; directly from the browser only when that fails | The barcode or search text; OFF sees Vercel's address, or the visitor's on the direct fallback |
+| Shops (phone) | zakaz.ua (`stores-api.zakaz.ua`), straight from the phone | The barcode as a GTIN-14, the phone's IP, the app's User-Agent; the store list once a day |
+| Shops (website) | `web/api/zakaz.ts` on Vercel, which asks zakaz.ua | To Vercel: the barcode and the visitor's Supabase access token, which is checked with this project's Supabase (`/auth/v1/user`) and goes nowhere else. To zakaz.ua: the barcode only, from Vercel's address |
+
+zakaz.ua's API is unofficial and undocumented. It is used for point lookups
+only, one scan at a time and only after OFF came up empty, with an honest
+User-Agent and nothing posing as a shop's own web page. Nothing is crawled,
+no dataset is built or shipped (the phone keeps only the products its user
+scanned, as it does OFF's), and nothing from the shops is sent to Open
+Food Facts. A product from the shops says so where its nutrition is shown
+("Source: Ukrainian shop catalogue (zakaz.ua)"), and a form prefilled from
+a shop says a shop lists it, not Open Food Facts.
 
 ## Milestone 3: one account everywhere, two-way sync
 

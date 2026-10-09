@@ -13,7 +13,10 @@ import { isLiquid } from './liquid';
  */
 
 export interface FoodProduct {
-  /** "off:<barcode>" — the same id the phone uses in its cache; "local:barcode:<digits>" for one the user added. */
+  /**
+   * "off:<barcode>" — the same id the phone uses in its cache; "local:barcode:<digits>" for one the user
+   * added; "zakaz:<digits>" for one found in the Ukrainian shops' catalogue (domain/zakaz.ts).
+   */
   id: string;
   barcode: string;
   name: string;
@@ -32,7 +35,11 @@ export interface FoodProduct {
   additives: string[];
 }
 
-/** A product OFF knows but cannot use yet: every value resolved by the same rules, any of them may be missing. */
+/**
+ * A product a source knows but cannot be logged yet (Open Food Facts, or a
+ * Ukrainian shop's card): every value resolved by that source's rules, any
+ * of them may be missing.
+ */
 export interface ProductPrefill {
   barcode: string;
   name: string | null;
@@ -47,7 +54,25 @@ export interface ProductPrefill {
   sugarsPer100g: number | null;
   saltPer100g: number | null;
   saturatedFatPer100g: number | null;
+  /**
+   * A core value (energy, protein, fat or carbs) is Open Food Facts' estimate
+   * from the ingredients, not a stated one. With all four core values known
+   * (hasCoreValues) the form asks the user to check the numbers rather than
+   * fill gaps. Absent means false.
+   */
+  estimated?: boolean;
 }
+
+/**
+ * All four core values are filled in. In a prefill (a product that was not
+ * usable as is) the numbers then mostly need checking rather than
+ * completing: OFF's estimates, or shop values that don't add up.
+ */
+export const hasCoreValues = (p: ProductPrefill) => p.kcalPer100g !== null && p.proteinPer100g !== null && p.fatPer100g !== null && p.carbsPer100g !== null;
+
+/** Any name or core value at all; an OFF record with neither is a bare stub, no better than nothing. */
+export const knowsAnything = (p: ProductPrefill) =>
+  p.name !== null || p.kcalPer100g !== null || p.proteinPer100g !== null || p.fatPer100g !== null || p.carbsPer100g !== null;
 
 /** `12.5`, `"12.5"`, `"12,5"` -> number; `""`, `"<0.5"`, `"n/a"`, null -> null. */
 export function lenientNumber(value: unknown): number | null {
@@ -65,6 +90,8 @@ const num = (n: Raw | null, key: string) => (n ? lenientNumber(n[key]) : null);
  * small, and OFF returns only what is asked. The per-language names are there
  * because Ukrainian and Belarusian products often have no `product_name`,
  * only `product_name_uk` / `_ru` / `_be`, or only a generic name.
+ * `nutriments_estimated` is OFF's guess from the ingredient list: only ever
+ * a starting value in the form the user checks (toPrefill), never a product.
  */
 export const OFF_FIELDS = [
   'code',
@@ -80,6 +107,7 @@ export const OFF_FIELDS = [
   'generic_name_be',
   'brands',
   'nutriments',
+  'nutriments_estimated',
   'serving_quantity',
   'serving_size',
   'quantity',
@@ -190,13 +218,61 @@ export function toProduct(raw: Raw): FoodProduct | null {
   return { ...p, id: `off:${barcode}`, name, kcalPer100g, proteinPer100g, fatPer100g, carbsPer100g, additives };
 }
 
+/** The core values among ESTIMATED: one of them estimated makes the prefill `estimated`. */
+const CORE = ['kcalPer100g', 'proteinPer100g', 'fatPer100g', 'carbsPer100g'] as const;
+
+/** The per-100 g values OFF estimates from the ingredients, for the ones the label data lacks. */
+const ESTIMATED = {
+  kcalPer100g: 'energy-kcal_100g',
+  proteinPer100g: 'proteins_100g',
+  fatPer100g: 'fat_100g',
+  carbsPer100g: 'carbohydrates_100g',
+  fiberPer100g: 'fiber_100g',
+  sugarsPer100g: 'sugars_100g',
+  saltPer100g: 'salt_100g',
+  saturatedFatPer100g: 'saturated-fat_100g',
+} as const;
+
 /**
  * What OFF knows about a product even when toProduct() drops it, to prefill
  * the "add this product" form. `lookedUpCode` stands in when OFF's answer
  * carries no code of its own.
+ *
+ * A value the label data cannot give in any form (per 100 g, per serving,
+ * kJ) is taken from `nutriments_estimated` when OFF has one: a named product
+ * with only estimates then opens the form with numbers the user confirms
+ * against the label, instead of an empty one, and `estimated` tells the form
+ * to ask for a check of those numbers. toProduct() never does this, so an
+ * estimate is never logged without the user seeing it.
  */
 export function toPrefill(raw: Raw, lookedUpCode: string): ProductPrefill {
-  return resolve(raw, codeOf(raw) || lookedUpCode.trim()).prefill;
+  const prefill = resolve(raw, codeOf(raw) || lookedUpCode.trim()).prefill;
+  const estimated = raw.nutriments_estimated && typeof raw.nutriments_estimated === 'object' ? (raw.nutriments_estimated as Raw) : null;
+  if (!estimated) return prefill;
+  const filled = { ...prefill };
+  for (const [field, key] of Object.entries(ESTIMATED) as [keyof typeof ESTIMATED, string][]) {
+    filled[field] ??= num(estimated, key);
+  }
+  // Set only when true, so a prefill without estimates looks exactly as before.
+  if (CORE.some((field) => prefill[field] === null && filled[field] !== null)) filled.estimated = true;
+  return filled;
+}
+
+/**
+ * The codes worth asking OFF for, in order: OFF ignores leading zeros when
+ * it looks a code up, so `012345678905` and `0012345678905` are one request,
+ * not two. Asking once per stripped form keeps a scan within OFF's limit of
+ * 15 product reads a minute per address. The user's own products are still
+ * checked under every candidate.
+ */
+export function offCodes(candidates: readonly string[]): string[] {
+  const seen = new Set<string>();
+  return candidates.filter((code) => {
+    const key = code.replace(/^0+/, '');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**

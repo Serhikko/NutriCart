@@ -11,11 +11,29 @@ export type BarcodeCountry = 'UKRAINE' | 'BELARUS';
 
 const PREFIXES: Record<string, BarcodeCountry> = { '482': 'UKRAINE', '481': 'BELARUS' };
 
-export function countryOf(scanned: string): BarcodeCountry | null {
+/**
+ * The first three digits of the code's 13-digit form, its GS1 prefix: an
+ * EAN-13 and an EAN-8 start with it, a 12-digit UPC-A is an EAN-13 with a
+ * leading 0 (so always 0xx, US/Canada numbering), and a GTIN-14 wraps the
+ * retail code behind a packaging-level digit. Null for any other length.
+ */
+export function gs1Prefix(scanned: string): string | null {
   const digits = scanned.replace(/\D/g, '');
-  // GTIN-14 wraps the retail code behind a packaging-level digit.
-  const code = digits.length === 14 ? digits.slice(1) : digits;
-  // EAN-13 and EAN-8 only; a 12-digit UPC-A is US/Canada numbering.
-  if (code.length !== 13 && code.length !== 8) return null;
-  return PREFIXES[code.slice(0, 3)] ?? null;
+  switch (digits.length) {
+    case 8:
+    case 13:
+      return digits.slice(0, 3);
+    case 12:
+      return `0${digits.slice(0, 2)}`;
+    case 14:
+      return digits.slice(1, 4);
+    default:
+      return null;
+  }
+}
+
+export function countryOf(scanned: string): BarcodeCountry | null {
+  // A UPC-A's prefix is 0xx, so it never reads as Ukrainian or Belarusian.
+  const prefix = gs1Prefix(scanned);
+  return prefix === null ? null : (PREFIXES[prefix] ?? null);
 }

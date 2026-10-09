@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { OFF_FIELDS, nameLanguages, productName, toPrefill, toProduct } from '../openFoodFacts';
+import { OFF_FIELDS, hasCoreValues, knowsAnything, nameLanguages, productName, toPrefill, toProduct } from '../openFoodFacts';
 
 const UA = '4820024700016';
 const BY = '4810268000013';
@@ -85,5 +85,66 @@ describe('prefill of an incomplete product', () => {
     const { id: _id, additives: _a, ...product } = toProduct(raw)!;
     expect(product).toEqual(toPrefill(raw, UA));
     expect(product.liquid).toBe(true);
+  });
+});
+
+// Shared with the phone's ProductDto test: OFF's estimates (from the ingredient list) only ever start the form.
+describe('estimated values', () => {
+  const estimated = { 'energy-kcal_100g': 386.5, proteins_100g: 7.1, fat_100g: 21, carbohydrates_100g: 42.3, sugars_100g: 30.2, salt_100g: 0.4 };
+
+  it('a named product with only estimates is a prefill with them, never a product', () => {
+    const raw = { code: UA, product_name_uk: 'Цукерки', nutriments: {}, nutriments_estimated: estimated };
+    expect(toProduct(raw)).toBeNull();
+    expect(toPrefill(raw, UA)).toMatchObject({ name: 'Цукерки', kcalPer100g: 386.5, proteinPer100g: 7.1, fatPer100g: 21, carbsPer100g: 42.3, sugarsPer100g: 30.2, saltPer100g: 0.4, fiberPer100g: null, estimated: true });
+    expect(hasCoreValues(toPrefill(raw, UA))).toBe(true);
+  });
+
+  it('is marked estimated only when a core value is an estimate', () => {
+    // Energy and macros from the label, only the details estimated (the name is what is missing).
+    const raw = { code: UA, nutriments: complete, nutriments_estimated: estimated };
+    expect(toPrefill(raw, UA)).toMatchObject({ name: null, sugarsPer100g: 30.2 });
+    expect(toPrefill(raw, UA).estimated ?? false).toBe(false);
+    expect(toPrefill({ code: UA, product_name_uk: 'Цукерки', nutriments: {} }, UA).estimated ?? false).toBe(false);
+  });
+
+  it('a value from the label in any form beats the estimate', () => {
+    const raw = {
+      code: UA,
+      product_name_uk: 'Цукерки',
+      serving_quantity: 20,
+      nutriments: { 'energy-kj_100g': 1674, proteins_serving: 1 },
+      nutriments_estimated: estimated,
+    };
+    const prefill = toPrefill(raw, UA);
+    expect(prefill.kcalPer100g).toBeCloseTo(400.1, 1); // from kJ
+    expect(prefill.proteinPer100g).toBe(5); // per serving, rescaled
+    expect(prefill.fatPer100g).toBe(21); // estimated
+    expect(prefill.estimated).toBe(true);
+  });
+
+  it('a complete product ignores the estimates', () => {
+    const raw = { code: UA, product_name_uk: 'Цукерки', nutriments: complete, nutriments_estimated: estimated };
+    expect(toProduct(raw)).toMatchObject({ kcalPer100g: 100, proteinPer100g: 3, sugarsPer100g: null });
+  });
+
+  it('estimates that are missing or not numbers change nothing', () => {
+    expect(toPrefill({ code: UA, nutriments_estimated: 'n/a' }, UA).kcalPer100g).toBeNull();
+    expect(toPrefill({ code: UA, nutriments_estimated: { fat_100g: 'x' } }, UA).fatPer100g).toBeNull();
+  });
+
+  it('is asked for', () => expect(OFF_FIELDS.split(',')).toContain('nutriments_estimated'));
+});
+
+describe('what a prefill knows', () => {
+  it('a bare stub knows nothing; a name or any core value is something', () => {
+    expect(knowsAnything(toPrefill({ code: UA }, UA))).toBe(false);
+    expect(knowsAnything(toPrefill({ code: UA, brands: 'Хтось', nutriments: { salt_100g: 1 } }, UA))).toBe(false);
+    expect(knowsAnything(toPrefill({ code: UA, product_name_uk: 'Хліб' }, UA))).toBe(true);
+    expect(knowsAnything(toPrefill({ code: UA, nutriments: { fat_100g: 0 } }, UA))).toBe(true);
+  });
+
+  it('all four core values, or not', () => {
+    expect(hasCoreValues(toPrefill({ code: UA, nutriments: complete }, UA))).toBe(true);
+    expect(hasCoreValues(toPrefill({ code: UA, product_name_uk: 'Хліб', nutriments: { 'energy-kcal_100g': 240, proteins_100g: 8 } }, UA))).toBe(false);
   });
 });
