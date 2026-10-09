@@ -1,3 +1,6 @@
+// process.env below is Node's: say so here rather than rely on another
+// package's types pulling Node's in (Vercel's npm leaves those out).
+/// <reference types="node" />
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 /**
