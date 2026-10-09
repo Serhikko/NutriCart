@@ -1,3 +1,4 @@
+import { countryOf } from './barcodeOrigin';
 import { per100gFromServing, resolveKcalPer100g } from './food';
 import { isLiquid } from './liquid';
 
@@ -5,10 +6,14 @@ import { isLiquid } from './liquid';
  * Port of the phone's ProductDto mapping and LenientDoubleSerializer: an Open
  * Food Facts product, community-filled and often incomplete, turned into a
  * usable product or dropped. Same rules as the phone, same test cases.
+ *
+ * Both mappings below share one resolution path: toProduct() is a usable
+ * product or nothing, toPrefill() is everything OFF knows about a product
+ * that is not complete yet, so the user can fill in the rest from the label.
  */
 
 export interface FoodProduct {
-  /** "off:<barcode>" — the same id the phone uses in its cache. */
+  /** "off:<barcode>" — the same id the phone uses in its cache; "local:barcode:<digits>" for one the user added. */
   id: string;
   barcode: string;
   name: string;
@@ -27,6 +32,23 @@ export interface FoodProduct {
   additives: string[];
 }
 
+/** A product OFF knows but cannot use yet: every value resolved by the same rules, any of them may be missing. */
+export interface ProductPrefill {
+  barcode: string;
+  name: string | null;
+  brand: string | null;
+  kcalPer100g: number | null;
+  proteinPer100g: number | null;
+  fatPer100g: number | null;
+  carbsPer100g: number | null;
+  servingSizeG: number | null;
+  liquid: boolean;
+  fiberPer100g: number | null;
+  sugarsPer100g: number | null;
+  saltPer100g: number | null;
+  saturatedFatPer100g: number | null;
+}
+
 /** `12.5`, `"12.5"`, `"12,5"` -> number; `""`, `"<0.5"`, `"n/a"`, null -> null. */
 export function lenientNumber(value: unknown): number | null {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -36,21 +58,79 @@ export function lenientNumber(value: unknown): number | null {
 }
 
 type Raw = Record<string, unknown>;
-const num = (n: Raw | undefined, key: string) => (n ? lenientNumber(n[key]) : null);
+const num = (n: Raw | null, key: string) => (n ? lenientNumber(n[key]) : null);
 
-/** The fields the phone asks for; the same `fields` parameter keeps answers small. */
-export const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments,serving_quantity,serving_size,quantity,nutrition_data_per,additives_tags';
+/**
+ * The fields the phone asks for; the same `fields` parameter keeps answers
+ * small, and OFF returns only what is asked. The per-language names are there
+ * because Ukrainian and Belarusian products often have no `product_name`,
+ * only `product_name_uk` / `_ru` / `_be`, or only a generic name.
+ */
+export const OFF_FIELDS = [
+  'code',
+  'product_name',
+  'product_name_en',
+  'product_name_uk',
+  'product_name_ru',
+  'product_name_be',
+  'generic_name',
+  'generic_name_en',
+  'generic_name_uk',
+  'generic_name_ru',
+  'generic_name_be',
+  'brands',
+  'nutriments',
+  'serving_quantity',
+  'serving_size',
+  'quantity',
+  'nutrition_data_per',
+  'additives_tags',
+].join(',');
 
-export function toProduct(raw: Raw): FoodProduct | null {
-  const barcode = typeof raw.code === 'string' ? raw.code.trim() : String(raw.code ?? '').trim();
-  if (!barcode) return null;
-  const name =
-    (typeof raw.product_name === 'string' && raw.product_name.trim()) ||
-    (typeof raw.product_name_en === 'string' && raw.product_name_en.trim()) ||
-    '';
-  if (!name) return null;
-  const n = (raw.nutriments && typeof raw.nutriments === 'object' ? (raw.nutriments as Raw) : null) ?? null;
-  if (!n) return null;
+/**
+ * Which language's name to prefer, by the barcode's GS1 origin. Never the
+ * site's own language: the phone caches the name, and both must agree.
+ */
+export function nameLanguages(code: string): readonly string[] {
+  switch (countryOf(code)) {
+    case 'UKRAINE':
+      return ['uk', 'ru', 'en', 'be'];
+    case 'BELARUS':
+      return ['be', 'ru', 'en', 'uk'];
+    default:
+      return ['en', 'uk', 'ru', 'be'];
+  }
+}
+
+/** Trimmed, whitespace runs collapsed to one space; blank -> null. */
+function cleanName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const s = value.replace(/\s+/g, ' ').trim();
+  return s === '' ? null : s;
+}
+
+/**
+ * The product's name: `product_name`, then `product_name_<lang>` in the
+ * order of nameLanguages(code), then `generic_name`, then `generic_name_<lang>`
+ * in the same order. The first one that is not blank wins.
+ */
+export function productName(raw: Raw, code: string): string | null {
+  const langs = nameLanguages(code);
+  const keys = ['product_name', ...langs.map((l) => `product_name_${l}`), 'generic_name', ...langs.map((l) => `generic_name_${l}`)];
+  for (const key of keys) {
+    const name = cleanName(raw[key]);
+    if (name !== null) return name;
+  }
+  return null;
+}
+
+function codeOf(raw: Raw): string {
+  return typeof raw.code === 'string' ? raw.code.trim() : String(raw.code ?? '').trim();
+}
+
+/** The one resolution path: per 100 g, else per serving rescaled; energy kcal -> kJ -> serving -> macros. */
+function resolve(raw: Raw, barcode: string): { prefill: ProductPrefill; additives: string[] } {
+  const n = raw.nutriments && typeof raw.nutriments === 'object' ? (raw.nutriments as Raw) : null;
 
   const servingSizeG = (() => {
     const s = lenientNumber(raw.serving_quantity);
@@ -71,7 +151,6 @@ export function toProduct(raw: Raw): FoodProduct | null {
     fatPer100g: fat,
     carbsPer100g: carbs,
   });
-  if (kcal === null || protein === null || fat === null || carbs === null) return null;
 
   const brands = typeof raw.brands === 'string' ? raw.brands.split(',')[0]?.trim() : '';
   const additives = Array.isArray(raw.additives_tags)
@@ -82,22 +161,42 @@ export function toProduct(raw: Raw): FoodProduct | null {
     : [];
 
   return {
-    id: `off:${barcode}`,
-    barcode,
-    name,
-    brand: brands || null,
-    kcalPer100g: kcal,
-    proteinPer100g: protein,
-    fatPer100g: fat,
-    carbsPer100g: carbs,
-    servingSizeG,
-    liquid: isLiquid(raw.nutrition_data_per, raw.quantity, raw.serving_size),
-    fiberPer100g: core(num(n, 'fiber_100g'), num(n, 'fiber_serving')),
-    sugarsPer100g: core(num(n, 'sugars_100g'), num(n, 'sugars_serving')),
-    saltPer100g: core(num(n, 'salt_100g'), num(n, 'salt_serving')),
-    saturatedFatPer100g: core(num(n, 'saturated-fat_100g'), num(n, 'saturated-fat_serving')),
+    prefill: {
+      barcode,
+      name: productName(raw, barcode),
+      brand: brands || null,
+      kcalPer100g: kcal,
+      proteinPer100g: protein,
+      fatPer100g: fat,
+      carbsPer100g: carbs,
+      servingSizeG,
+      liquid: isLiquid(raw.nutrition_data_per, raw.quantity, raw.serving_size),
+      fiberPer100g: core(num(n, 'fiber_100g'), num(n, 'fiber_serving')),
+      sugarsPer100g: core(num(n, 'sugars_100g'), num(n, 'sugars_serving')),
+      saltPer100g: core(num(n, 'salt_100g'), num(n, 'salt_serving')),
+      saturatedFatPer100g: core(num(n, 'saturated-fat_100g'), num(n, 'saturated-fat_serving')),
+    },
     additives,
   };
+}
+
+/** A usable product: a code, a name, energy and all three macros. Anything less is dropped (see toPrefill). */
+export function toProduct(raw: Raw): FoodProduct | null {
+  const barcode = codeOf(raw);
+  if (!barcode) return null;
+  const { prefill: p, additives } = resolve(raw, barcode);
+  const { name, kcalPer100g, proteinPer100g, fatPer100g, carbsPer100g } = p;
+  if (name === null || kcalPer100g === null || proteinPer100g === null || fatPer100g === null || carbsPer100g === null) return null;
+  return { ...p, id: `off:${barcode}`, name, kcalPer100g, proteinPer100g, fatPer100g, carbsPer100g, additives };
+}
+
+/**
+ * What OFF knows about a product even when toProduct() drops it, to prefill
+ * the "add this product" form. `lookedUpCode` stands in when OFF's answer
+ * carries no code of its own.
+ */
+export function toPrefill(raw: Raw, lookedUpCode: string): ProductPrefill {
+  return resolve(raw, codeOf(raw) || lookedUpCode.trim()).prefill;
 }
 
 /**

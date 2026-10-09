@@ -99,6 +99,28 @@ A partner sees a web-only account exactly like a phone account: same Day and
 Week pages, same nudge button (the nudge then has nowhere to land until
 milestone 3's web push).
 
+### Products added under their barcode (`custom_products`, migration `0005`)
+
+Ukrainian (GS1 `482`) and Belarusian (GS1 `481`) products are often missing
+from Open Food Facts, or there with a name only in `product_name_uk` / `_ru`
+/ `_be` and without all of their nutrition. Both clients now read those name
+fields (language order by the barcode's GS1 prefix, never the UI language),
+read Cyrillic pack sizes ("500 мл", "0,5 л") as drinks, and turn a scan into
+one of three outcomes: found, incomplete (the form opens prefilled with what
+OFF knows) or not found (the form opens empty, with the barcode attached).
+
+- On the phone the added product is a local Room product with id
+  `local:barcode:<digits>`; no schema change, nothing synced.
+- On the website it is a row in `custom_products`, keyed by
+  `(owner_id, barcode)`, readable and writable by its owner only (no partner
+  access). The site maps it to the same `local:barcode:<digits>` id. A
+  barcode lookup checks it first, under every normalised form of the code;
+  a name search lists matching rows before the OFF results. A project that
+  has not run `0005` keeps scanning: reads treat the missing table as empty,
+  and a failed save still lets the food be logged, with a note.
+- A GS1 prefix tells which national office issued the number, not where the
+  food was made, so the screens say "Ukrainian product", never "made in".
+
 ## Milestone 3: one account everywhere, two-way sync
 
 The phone user's account is anonymous, so nothing could open it elsewhere.

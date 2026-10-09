@@ -34,7 +34,8 @@ What is where:
 - `src/lib/diary.ts` — row shapes and the small sums the screens need (the target itself comes from the phone)
 - `src/lib/queries.ts` — the partner-side reads and writes, as React Query hooks, plus the Realtime subscription
 - `src/lib/tracker.ts` — the own-tracker writes (profile, food, water, weight) and the day-summary refresh
-- `src/lib/openFoodFacts.ts` — search and barcode lookup against Open Food Facts, through `api/off.ts` on the deployed site (a Vercel function that adds the User-Agent OFF asks for, caches answers and keeps VPN and corporate networks out of OFF's bot protection); the dev server calls OFF directly
-- `src/domain/` — the phone's `domain/logic` in TypeScript: calories and macros, nutrient scaling, barcode normalisation, habits
+- `src/lib/customProducts.ts` — the user's own products under their barcodes (`custom_products`, migration 0005): checked before Open Food Facts on a scan, listed first in a name search, never blocking either when the table is missing
+- `src/lib/openFoodFacts.ts` — search and barcode lookup against Open Food Facts (found, incomplete with a prefill, or not found with the code's GS1 origin), through `api/off.ts` on the deployed site (a Vercel function that adds the User-Agent OFF asks for, caches answers and keeps VPN and corporate networks out of OFF's bot protection); the dev server calls OFF directly
+- `src/domain/` — the phone's `domain/logic` in TypeScript: calories and macros, nutrient scaling, barcode normalisation and GS1 origin (482 Ukraine, 481 Belarus), product names by language, drink detection (Latin and Cyrillic units), habits
 - `src/lib/session.tsx` — anonymous sign-in, kept by supabase-js
 - `src/pages/` — Welcome, Day, Week, Settings (partner view); Onboarding (also the profile and manual-targets editor), MyDay, AddFood, MyWeek (own tracker)

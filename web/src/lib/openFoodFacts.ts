@@ -1,4 +1,5 @@
-import { OFF_FIELDS, barcodeCandidates, toProduct, type FoodProduct } from '../domain/openFoodFacts';
+import { OFF_FIELDS, barcodeCandidates, toPrefill, toProduct, type FoodProduct, type ProductPrefill } from '../domain/openFoodFacts';
+import { countryOf, type BarcodeCountry } from '../domain/barcodeOrigin';
 
 /**
  * Open Food Facts: the same two endpoints the phone uses, the same field
@@ -58,15 +59,57 @@ export async function searchProducts(query: string, signal?: AbortSignal): Promi
   return (body.products ?? []).map(toProduct).filter((p): p is FoodProduct => p !== null);
 }
 
-/** Tries every form the code may be stored under; a 404 means "try the next". */
-export async function productByBarcode(scanned: string, signal?: AbortSignal): Promise<FoodProduct | null> {
-  for (const code of barcodeCandidates(scanned)) {
-    const res = await offFetch(`/api/v2/product/${encodeURIComponent(code)}?fields=${OFF_FIELDS}&${APP}`, signal);
-    if (res.status === 404) continue;
-    const body = (await res.json()) as { status?: number; product?: Record<string, unknown> };
-    if (!body.product) continue;
-    const product = toProduct(body.product);
-    if (product) return product;
+/**
+ * What a scanned code turned out to be: a product to log, a product Open Food
+ * Facts knows only in part (the form starts from what it knows), or nothing,
+ * with the scanned digits and their GS1 origin for the "add it" message.
+ */
+export type BarcodeLookup =
+  | { kind: 'found'; product: FoodProduct }
+  | { kind: 'incomplete'; prefill: ProductPrefill }
+  | { kind: 'not_found'; barcode: string; country: BarcodeCountry | null };
+
+export interface LookupSources {
+  /** The user's own product saved under one of these codes (custom_products). A failure counts as none. */
+  saved?: (candidates: string[]) => Promise<FoodProduct | null>;
+  /** Open Food Facts; offFetch unless a test says otherwise. */
+  fetchOff?: (path: string, signal?: AbortSignal) => Promise<Response>;
+}
+
+/**
+ * Barcode lookup, in the phone's order: the user's own product under any form
+ * of the code wins; then Open Food Facts, every form in turn, where a usable
+ * product ends the search and an incomplete one is remembered (the first such)
+ * while the other forms are tried, since another form may be complete; a 404
+ * or "status 0" means "try the next". Failures of OFF itself throw OffError.
+ */
+export async function lookupBarcode(scanned: string, sources: LookupSources = {}, signal?: AbortSignal): Promise<BarcodeLookup> {
+  const candidates = barcodeCandidates(scanned);
+  const barcode = candidates[0] ?? '';
+  const notFound: BarcodeLookup = { kind: 'not_found', barcode, country: countryOf(barcode) };
+  if (candidates.length === 0) return notFound;
+
+  if (sources.saved) {
+    let saved: FoodProduct | null = null;
+    try {
+      saved = await sources.saved(candidates);
+    } catch {
+      saved = null; // never let the user's own table block a scan
+    }
+    if (saved) return { kind: 'found', product: saved };
   }
-  return null;
+
+  const get = sources.fetchOff ?? offFetch;
+  let prefill: ProductPrefill | null = null;
+  for (const code of candidates) {
+    const res = await get(`/api/v2/product/${encodeURIComponent(code)}?fields=${OFF_FIELDS}&${APP}`, signal);
+    if (res.status === 404) continue;
+    const body = (await res.json()) as { status?: number; product?: unknown };
+    if (body.status === 0 || !body.product || typeof body.product !== 'object') continue;
+    const raw = body.product as Record<string, unknown>;
+    const product = toProduct(raw);
+    if (product) return { kind: 'found', product };
+    prefill ??= toPrefill(raw, code);
+  }
+  return prefill ? { kind: 'incomplete', prefill } : notFound;
 }
