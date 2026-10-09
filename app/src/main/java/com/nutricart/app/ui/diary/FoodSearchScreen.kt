@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -35,8 +36,10 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -59,8 +62,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.nutricart.app.R
 import com.nutricart.app.data.local.dao.SavedMealSummary
 import com.nutricart.app.data.local.entity.FoodProductEntity
+import com.nutricart.app.domain.logic.BarcodeOrigin
 import com.nutricart.app.domain.logic.FoodMath
+import com.nutricart.app.domain.model.BarcodeCountry
 import com.nutricart.app.domain.model.ProductSource
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -95,17 +102,38 @@ fun FoodSearchScreen(
 
     // One-shot barcode messages -> snackbar.
     val notFoundMessage = stringResource(R.string.barcode_not_found)
+    val notFoundUkraineMessage = stringResource(R.string.barcode_not_found_ukraine)
+    val notFoundBelarusMessage = stringResource(R.string.barcode_not_found_belarus)
+    val notFoundOtherMessage = stringResource(R.string.barcode_not_found_other)
+    val addActionLabel = stringResource(R.string.add_action)
     val offlineMessage = stringResource(R.string.barcode_offline)
     val scanFailedMessage = stringResource(R.string.barcode_scan_failed)
     LaunchedEffect(state.scanMessage) {
         val message = state.scanMessage ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(
-            when (message) {
-                ScanMessage.PRODUCT_NOT_FOUND -> notFoundMessage
-                ScanMessage.OFFLINE -> offlineMessage
-                ScanMessage.SCANNER_FAILED -> scanFailedMessage
+        when (message) {
+            is ScanMessage.ProductNotFound -> {
+                if (message.barcode.isBlank()) {
+                    snackbarHostState.showSnackbar(notFoundMessage)
+                } else {
+                    // Not a dead end: "Add" opens the form tied to this barcode,
+                    // and the next scan of the pack finds the user's entry.
+                    val result = snackbarHostState.showSnackbar(
+                        message = when (message.country) {
+                            BarcodeCountry.UKRAINE -> notFoundUkraineMessage
+                            BarcodeCountry.BELARUS -> notFoundBelarusMessage
+                            null -> notFoundOtherMessage
+                        },
+                        actionLabel = addActionLabel,
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.openBarcodeForm(message.barcode)
+                    }
+                }
             }
-        )
+            ScanMessage.Offline -> snackbarHostState.showSnackbar(offlineMessage)
+            ScanMessage.ScannerFailed -> snackbarHostState.showSnackbar(scanFailedMessage)
+        }
         viewModel.clearScanMessage()
     }
 
@@ -312,7 +340,7 @@ fun FoodSearchScreen(
     // Create/edit form for the user's own products.
     state.customForm?.let { form ->
         CustomFoodDialog(
-            editing = form.editing,
+            target = form,
             onSave = viewModel::saveCustomProduct,
             onDelete = if (form.editing != null) viewModel::deleteCustomProduct else null,
             onDismiss = viewModel::dismissCustomForm,
@@ -525,26 +553,54 @@ private fun ProductRow(
 /**
  * Create/edit form for a user-defined product. All numbers are per 100 g,
  * like on any nutrition label. Save stays disabled until the input is sane.
+ *
+ * Opened from a scan, the form also says which barcode the product will be
+ * found under next time, and — when Open Food Facts knew the product only
+ * partly — starts with everything OFF knew filled in.
  */
 @Composable
 private fun CustomFoodDialog(
-    editing: FoodProductEntity?,
+    target: CustomFormTarget,
     onSave: (CustomFoodDraft) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
+    val editing = target.editing
+    val prefill = target.prefill
     // rememberSaveable: typed values survive rotation, like the amount dialog.
-    var name by rememberSaveable { mutableStateOf(editing?.name ?: "") }
-    var brand by rememberSaveable { mutableStateOf(editing?.brand ?: "") }
-    var kcalText by rememberSaveable { mutableStateOf(editing?.kcalPer100g?.roundToInt()?.toString() ?: "") }
-    var proteinText by rememberSaveable { mutableStateOf(editing?.proteinPer100g?.toString() ?: "") }
-    var fatText by rememberSaveable { mutableStateOf(editing?.fatPer100g?.toString() ?: "") }
-    var carbsText by rememberSaveable { mutableStateOf(editing?.carbsPer100g?.toString() ?: "") }
-    var servingText by rememberSaveable { mutableStateOf(editing?.servingSizeG?.roundToInt()?.toString() ?: "") }
-    var fiberText by rememberSaveable { mutableStateOf(editing?.fiberPer100g?.toString() ?: "") }
-    var sugarsText by rememberSaveable { mutableStateOf(editing?.sugarsPer100g?.toString() ?: "") }
-    var saltText by rememberSaveable { mutableStateOf(editing?.saltPer100g?.toString() ?: "") }
-    var satFatText by rememberSaveable { mutableStateOf(editing?.saturatedFatPer100g?.toString() ?: "") }
+    // Keyed by the target: reopened for another product or barcode, the
+    // fields start over instead of showing the previous one's values.
+    var name by rememberSaveable(target) { mutableStateOf(editing?.name ?: prefill?.name ?: "") }
+    var brand by rememberSaveable(target) { mutableStateOf(editing?.brand ?: prefill?.brand ?: "") }
+    var kcalText by rememberSaveable(target) {
+        mutableStateOf(editing?.kcalPer100g?.roundToInt()?.toString() ?: prefillText(prefill?.kcalPer100g, decimals = 0))
+    }
+    var proteinText by rememberSaveable(target) {
+        mutableStateOf(editing?.proteinPer100g?.toString() ?: prefillText(prefill?.proteinPer100g))
+    }
+    var fatText by rememberSaveable(target) {
+        mutableStateOf(editing?.fatPer100g?.toString() ?: prefillText(prefill?.fatPer100g))
+    }
+    var carbsText by rememberSaveable(target) {
+        mutableStateOf(editing?.carbsPer100g?.toString() ?: prefillText(prefill?.carbsPer100g))
+    }
+    var servingText by rememberSaveable(target) {
+        mutableStateOf(editing?.servingSizeG?.roundToInt()?.toString() ?: prefillText(prefill?.servingSizeG, decimals = 0))
+    }
+    var fiberText by rememberSaveable(target) {
+        mutableStateOf(editing?.fiberPer100g?.toString() ?: prefillText(prefill?.fiberPer100g))
+    }
+    var sugarsText by rememberSaveable(target) {
+        mutableStateOf(editing?.sugarsPer100g?.toString() ?: prefillText(prefill?.sugarsPer100g))
+    }
+    var saltText by rememberSaveable(target) {
+        mutableStateOf(editing?.saltPer100g?.toString() ?: prefillText(prefill?.saltPer100g))
+    }
+    var satFatText by rememberSaveable(target) {
+        mutableStateOf(editing?.saturatedFatPer100g?.toString() ?: prefillText(prefill?.saturatedFatPer100g))
+    }
+    // A drink is typed and shown in ml; the per-100 values stay as they are.
+    var isLiquid by rememberSaveable(target) { mutableStateOf(target.startsAsLiquid) }
 
     fun parse(text: String): Double? = text.replace(',', '.').toDoubleOrNull()
     // Optional field: blank is fine (null), a typed value must be sane.
@@ -578,6 +634,19 @@ private fun CustomFoodDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (prefill != null) {
+                    Text(
+                        stringResource(R.string.barcode_incomplete),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                target.barcode?.let { barcode ->
+                    Text(
+                        barcodeLine(barcode),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -594,6 +663,13 @@ private fun CustomFoodDialog(
                 NumberField(proteinText, { proteinText = it }, R.string.custom_food_protein)
                 NumberField(fatText, { fatText = it }, R.string.custom_food_fat)
                 NumberField(carbsText, { carbsText = it }, R.string.custom_food_carbs)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = isLiquid, onCheckedChange = { isLiquid = it })
+                    Text(
+                        stringResource(R.string.custom_food_liquid),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
                 NumberField(servingText, { servingText = it }, R.string.custom_food_serving)
                 Text(
                     stringResource(R.string.custom_food_optional_header),
@@ -632,6 +708,7 @@ private fun CustomFoodDialog(
                                 sugarsPer100g = optional(sugarsText),
                                 saltPer100g = optional(saltText),
                                 saturatedFatPer100g = optional(satFatText),
+                                isLiquid = isLiquid,
                             )
                         )
                     }
@@ -642,6 +719,28 @@ private fun CustomFoodDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
+}
+
+/** "Barcode 4820024700016 (Ukraine)": the code a scanned product is saved under. */
+@Composable
+private fun barcodeLine(barcode: String): String = when (BarcodeOrigin.countryOf(barcode)) {
+    BarcodeCountry.UKRAINE -> stringResource(R.string.barcode_line_ukraine, barcode)
+    BarcodeCountry.BELARUS -> stringResource(R.string.barcode_line_belarus, barcode)
+    null -> stringResource(R.string.barcode_line, barcode)
+}
+
+/**
+ * An Open Food Facts value as the user would type it: at most [decimals]
+ * decimals, no trailing zeros ("13.33", "8", "240"); unknown -> blank field.
+ * A per-serving value rescaled to 100 g would otherwise show as
+ * "13.333333333333334".
+ */
+private fun prefillText(value: Double?, decimals: Int = 2): String {
+    if (value == null || !value.isFinite()) return ""
+    return BigDecimal.valueOf(value)
+        .setScale(decimals, RoundingMode.HALF_UP)
+        .stripTrailingZeros()
+        .toPlainString()
 }
 
 /** One label row of the per-100g table; null renders as a dash, never 0. */

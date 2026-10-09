@@ -5,10 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutricart.app.data.local.dao.SavedMealSummary
 import com.nutricart.app.data.local.entity.FoodProductEntity
+import com.nutricart.app.data.repository.BarcodeLookup
 import com.nutricart.app.data.repository.DiaryRepository
 import com.nutricart.app.data.repository.FoodRepository
 import com.nutricart.app.data.repository.SavedMealRepository
+import com.nutricart.app.domain.model.BarcodeCountry
 import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.domain.model.ProductPrefill
 import com.nutricart.app.domain.model.ProductSource
 import com.nutricart.app.scanner.BarcodeScanner
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,10 +27,36 @@ import javax.inject.Inject
 import kotlin.math.roundToInt
 
 /** One-shot messages of the barcode flow, shown as a snackbar and cleared. */
-enum class ScanMessage { PRODUCT_NOT_FOUND, OFFLINE, SCANNER_FAILED }
+sealed interface ScanMessage {
+    /**
+     * Nobody knows this code: the snackbar offers to add it under [barcode]
+     * (blank only if the scan held no digits — then there is nothing to add).
+     */
+    data class ProductNotFound(val barcode: String, val country: BarcodeCountry?) : ScanMessage
 
-/** The create/edit form target: editing == null means "new product". */
-data class CustomFormTarget(val editing: FoodProductEntity?)
+    data object Offline : ScanMessage
+
+    data object ScannerFailed : ScanMessage
+}
+
+/**
+ * The create/edit form target: editing == null means "new product".
+ *
+ * A new product opened from a scan carries its [barcode] (saved as
+ * "local:barcode:<digits>", so the next scan finds it) and, when Open Food
+ * Facts knew the product only partly, the [prefill] that fills the form.
+ */
+data class CustomFormTarget(
+    val editing: FoodProductEntity?,
+    val barcode: String? = null,
+    val prefill: ProductPrefill? = null,
+) {
+    /**
+     * Where the form's "drink" box starts: the product being edited, else
+     * what Open Food Facts' pack size said, else food. The user can change it.
+     */
+    val startsAsLiquid: Boolean get() = editing?.isLiquid ?: prefill?.isLiquid ?: false
+}
 
 /** One product waiting in the multi-add basket; grams stay as typed text. */
 data class BasketItem(val product: FoodProductEntity, val gramsText: String)
@@ -50,6 +79,8 @@ data class CustomFoodDraft(
     val sugarsPer100g: Double? = null,
     val saltPer100g: Double? = null,
     val saturatedFatPer100g: Double? = null,
+    /** A drink: amounts are typed and shown in ml (values stay per 100). */
+    val isLiquid: Boolean = false,
 )
 
 data class FoodSearchUiState(
@@ -329,7 +360,12 @@ class FoodSearchViewModel @Inject constructor(
         scanBarcode()
     }
 
-    /** Opens the system scanner; a found product goes straight to the amount dialog. */
+    /**
+     * Opens the system scanner. A found product goes straight to the amount
+     * dialog; one Open Food Facts knows only partly opens the new-food form
+     * prefilled; an unknown one shows a snackbar whose "Add" action opens the
+     * form tied to the barcode (openBarcodeForm).
+     */
     fun scanBarcode() {
         if (scanning) return // the scanner UI takes a moment — ignore double-taps
         scanning = true
@@ -337,25 +373,39 @@ class FoodSearchViewModel @Inject constructor(
             try {
                 val barcode = barcodeScanner.scan() ?: return@launch // user cancelled
                 _uiState.update { it.copy(searching = true) }
-                val product = foodRepository.byBarcode(barcode)
+                val result = foodRepository.byBarcode(barcode)
                 _uiState.update {
-                    it.copy(
-                        searching = false,
-                        selected = product,
-                        scanMessage = if (product == null) ScanMessage.PRODUCT_NOT_FOUND else null,
-                    )
+                    when (result) {
+                        is BarcodeLookup.Found ->
+                            it.copy(searching = false, selected = result.product, scanMessage = null)
+                        // OFF knows it only partly: the form, prefilled, instead
+                        // of a dead end — the user copies the rest from the label.
+                        is BarcodeLookup.Incomplete -> it.copy(
+                            searching = false,
+                            scanMessage = null,
+                            customForm = CustomFormTarget(
+                                editing = null,
+                                barcode = result.prefill.barcode,
+                                prefill = result.prefill,
+                            ),
+                        )
+                        is BarcodeLookup.NotFound -> it.copy(
+                            searching = false,
+                            scanMessage = ScanMessage.ProductNotFound(result.barcode, result.country),
+                        )
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: IOException) {
                 // The scan worked, the phone is just offline.
                 _uiState.update {
-                    it.copy(searching = false, scanMessage = ScanMessage.OFFLINE)
+                    it.copy(searching = false, scanMessage = ScanMessage.Offline)
                 }
             } catch (e: Exception) {
                 // E.g. the scanner module is still downloading on first use.
                 _uiState.update {
-                    it.copy(searching = false, scanMessage = ScanMessage.SCANNER_FAILED)
+                    it.copy(searching = false, scanMessage = ScanMessage.ScannerFailed)
                 }
             } finally {
                 scanning = false
@@ -366,6 +416,12 @@ class FoodSearchViewModel @Inject constructor(
     fun clearScanMessage() = _uiState.update { it.copy(scanMessage = null) }
 
     fun openCreateForm() = _uiState.update { it.copy(customForm = CustomFormTarget(null)) }
+
+    /** The "Add" action of a not-found scan: an empty form tied to [barcode]. */
+    fun openBarcodeForm(barcode: String) {
+        if (barcode.isBlank()) return
+        _uiState.update { it.copy(customForm = CustomFormTarget(editing = null, barcode = barcode)) }
+    }
 
     fun openEditForm(product: FoodProductEntity) {
         // Only user-created products are editable; OFF data is not ours to change.
@@ -395,7 +451,12 @@ class FoodSearchViewModel @Inject constructor(
                     sugarsPer100g = draft.sugarsPer100g,
                     saltPer100g = draft.saltPer100g,
                     saturatedFatPer100g = draft.saturatedFatPer100g,
+                    barcode = target.barcode,
+                    isLiquid = draft.isLiquid,
                 )
+                // Saved under a barcode that already had a product: the lists
+                // (and the basket) must not keep the old copy.
+                if (target.barcode != null) patchEverywhere(created)
                 // Straight into the amount dialog: after creating a product
                 // the user almost always wants to log it right away.
                 _uiState.update { it.copy(selected = created) }
@@ -412,6 +473,7 @@ class FoodSearchViewModel @Inject constructor(
                     sugarsPer100g = draft.sugarsPer100g,
                     saltPer100g = draft.saltPer100g,
                     saturatedFatPer100g = draft.saturatedFatPer100g,
+                    isLiquid = draft.isLiquid,
                 )
                 foodRepository.updateCustomProduct(updated)
                 // ALL lists, not just results: the same product may sit in

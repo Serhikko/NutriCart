@@ -1,5 +1,6 @@
 package com.nutricart.app.data.remote
 
+import com.nutricart.app.data.remote.dto.OFF_PRODUCT_FIELDS
 import com.nutricart.app.data.remote.dto.ProductResponseDto
 import com.nutricart.app.data.remote.dto.SearchResponseDto
 import retrofit2.http.GET
@@ -31,13 +32,10 @@ interface OpenFoodFactsApi {
     companion object {
         const val BASE_URL = "https://world.openfoodfacts.org/"
 
-        // OFF returns ONLY the requested fields — a field missing here is
-        // silently absent from every response (review-caught: the additives
-        // feature shipped dead because additives_tags wasn't listed).
-        // product_name_en: the fallback name for products whose main-language
-        // name is blank (see ProductDto). nutriments covers every _100g and
-        // _serving column at once.
-        const val FIELDS =
-            "code,product_name,product_name_en,brands,nutriments,serving_quantity,serving_size,quantity,nutrition_data_per,additives_tags"
+        // OFF returns ONLY the requested fields. The list lives next to
+        // ProductDto (a test checks every DTO field is in it) and includes the
+        // _uk/_ru/_be and generic names that Ukrainian and Belarusian
+        // products are often known by (see ProductNames).
+        const val FIELDS = OFF_PRODUCT_FIELDS
     }
 }

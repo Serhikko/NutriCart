@@ -159,6 +159,14 @@
     <string name="barcode_not_found">Продукт із цим штрихкодом не знайдено.</string>
     <string name="barcode_offline">Немає інтернету, а цього продукту ще немає в кеші — спробуй з мережею.</string>
     <string name="barcode_scan_failed">Сканер недоступний — спробуй ще раз за мить.</string>
+    <!-- Scanned code unknown everywhere; the snackbar's action is add_action. -->
+    <string name="barcode_not_found_ukraine">Цього українського продукту ще немає в Open Food Facts. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <string name="barcode_not_found_belarus">Цього білоруського продукту ще немає в Open Food Facts. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <string name="barcode_not_found_other">Цього продукту ще немає в Open Food Facts. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <string name="barcode_incomplete">Open Food Facts знає цей продукт, але не всю його поживну цінність. Допиши відсутні значення з етикетки.</string>
+    <string name="barcode_line">Штрихкод %1$s</string>
+    <string name="barcode_line_ukraine">Штрихкод %1$s (Україна)</string>
+    <string name="barcode_line_belarus">Штрихкод %1$s (Білорусь)</string>
     <string name="offline_results_note">Офлайн — показані лише раніше завантажені продукти.</string>
     <string name="kcal_per_100g">%1$d ккал / 100 г</string>
     <string name="kcal_per_100ml">%1$d ккал / 100 мл</string>
@@ -211,6 +219,7 @@
     <string name="custom_food_fat">Жири (г / 100 г)</string>
     <string name="custom_food_carbs">Вуглеводи (г / 100 г)</string>
     <string name="custom_food_serving">Розмір порції (г, необов\'язково)</string>
+    <string name="custom_food_liquid">Напій: значення на 100 мл, кількість у мл</string>
     <string name="custom_food_delete">Видалити цей продукт</string>
     <string name="custom_food_optional_header">Більше деталей (необов\'язково)</string>
     <string name="custom_food_fiber">Клітковина (г / 100 г)</string>

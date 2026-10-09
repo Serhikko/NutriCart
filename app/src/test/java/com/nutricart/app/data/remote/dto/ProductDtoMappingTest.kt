@@ -2,7 +2,9 @@ package com.nutricart.app.data.remote.dto
 
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -158,5 +160,165 @@ class ProductDtoMappingTest {
                "nutriments":{"energy-kcal_100g":350,"proteins_100g":7,"fat_100g":1,"carbohydrates_100g":78}}"""
         ).toEntityOrNull(0L)!!
         assertEquals(false, food.isLiquid)
+    }
+
+    // --- Names: the shared vectors (same as the website's tests) ----------
+
+    private fun nameOf(body: String): String? = checkNotNull(product(body).toPrefill()).name
+
+    @Test
+    fun `name vector 1 - a Ukrainian product named only in Ukrainian`() {
+        assertEquals(
+            "Молоко 2,5%",
+            nameOf("""{"code":"4820024700016","product_name":"","product_name_uk":"Молоко 2,5%"}"""),
+        )
+    }
+
+    @Test
+    fun `name vector 2 - Ukrainian barcode, Ukrainian name before English`() {
+        assertEquals(
+            "Молоко",
+            nameOf("""{"code":"4820024700016","product_name":"","product_name_en":"Milk","product_name_uk":"Молоко"}"""),
+        )
+    }
+
+    @Test
+    fun `name vector 3 - other barcodes keep English first`() {
+        assertEquals(
+            "Milk",
+            nameOf("""{"code":"5000112637922","product_name":"","product_name_en":"Milk","product_name_uk":"Молоко"}"""),
+        )
+    }
+
+    @Test
+    fun `name vector 4 - Belarusian barcode, Belarusian name before Russian`() {
+        assertEquals(
+            "Сырок беларускі",
+            nameOf("""{"code":"4810268000013","product_name":"","product_name_ru":"Сырок","product_name_be":"Сырок беларускі"}"""),
+        )
+    }
+
+    @Test
+    fun `name vector 5 - the main name always wins`() {
+        assertEquals(
+            "Kefir",
+            nameOf("""{"code":"4820024700016","product_name":"Kefir","product_name_uk":"Кефір"}"""),
+        )
+    }
+
+    @Test
+    fun `name vector 6 - a generic name when no product name exists`() {
+        assertEquals(
+            "Сир кисломолочний",
+            nameOf("""{"code":"4820024700016","generic_name":"","generic_name_uk":"Сир кисломолочний"}"""),
+        )
+    }
+
+    @Test
+    fun `name vector 7 - whitespace runs collapse and the ends are trimmed`() {
+        assertEquals(
+            "Хліб житній",
+            nameOf("""{"code":"4820024700016","product_name":"  Хліб\n  житній  "}"""),
+        )
+    }
+
+    @Test
+    fun `name vector 8 - a blank main name falls through to the next language`() {
+        assertEquals(
+            "Хлеб",
+            nameOf("""{"code":"4820024700016","product_name":"   ","product_name_ru":"Хлеб"}"""),
+        )
+    }
+
+    @Test
+    fun `a complete Ukrainian product named only in Ukrainian is no longer dropped`() {
+        val e = checkNotNull(
+            product(
+                """{"code":"4820024700016","product_name":"","product_name_uk":"Кефір 2,5%","quantity":"900 мл",
+                   "nutriments":{"energy-kcal_100g":53,"proteins_100g":3,"fat_100g":2.5,"carbohydrates_100g":4}}"""
+            ).toEntityOrNull(1L)
+        )
+        assertEquals("Кефір 2,5%", e.name)
+        assertTrue(e.isLiquid) // "900 мл"
+    }
+
+    // --- Incomplete products: the prefill --------------------------------
+
+    @Test
+    fun `an incomplete product is dropped by the full mapping but prefills the form`() {
+        val p = product(
+            """{"code":"4820024700016","product_name_uk":"Хліб","brands":"Київхліб, Інше",
+               "nutriments":{"energy-kcal_100g":240,"proteins_100g":8}}"""
+        )
+        assertNull(p.toEntityOrNull(1L))
+        val prefill = checkNotNull(p.toPrefill("4820024700016"))
+        assertEquals("4820024700016", prefill.barcode)
+        assertEquals("Хліб", prefill.name)
+        assertEquals("Київхліб", prefill.brand)
+        assertEquals(240.0, prefill.kcalPer100g!!, 0.0)
+        assertEquals(8.0, prefill.proteinPer100g!!, 0.0)
+        assertNull(prefill.fatPer100g)
+        assertNull(prefill.carbsPer100g)
+        assertNull(prefill.servingSizeG)
+        assertFalse(prefill.isLiquid)
+    }
+
+    @Test
+    fun `the prefill resolves values exactly like the full mapping`() {
+        // Per-serving only, kJ only, and a pack size in litres — but no name.
+        val p = product(
+            """{"code":"4820000000001","serving_quantity":"250","quantity":"1 л",
+               "nutriments":{"energy-kj_serving":523,"proteins_serving":7.5,"fat_serving":6.25,
+                             "carbohydrates_serving":10,"sugars_serving":10}}"""
+        )
+        assertNull(p.toEntityOrNull(1L)) // no name
+        val prefill = checkNotNull(p.toPrefill(null))
+        assertNull(prefill.name)
+        assertEquals(50.0, prefill.kcalPer100g!!, 0.1) // 523 kJ / 4.184 per 250 ml
+        assertEquals(3.0, prefill.proteinPer100g!!, 0.001)
+        assertEquals(2.5, prefill.fatPer100g!!, 0.001)
+        assertEquals(4.0, prefill.carbsPer100g!!, 0.001)
+        assertEquals(4.0, prefill.sugarsPer100g!!, 0.001)
+        assertEquals(250.0, prefill.servingSizeG!!, 0.0)
+        assertTrue(prefill.isLiquid)
+
+        // The same product WITH a name maps to the same numbers.
+        val named = product(
+            """{"code":"4820000000001","product_name":"Молоко","serving_quantity":"250","quantity":"1 л",
+               "nutriments":{"energy-kj_serving":523,"proteins_serving":7.5,"fat_serving":6.25,
+                             "carbohydrates_serving":10,"sugars_serving":10}}"""
+        ).toEntityOrNull(1L)!!
+        assertEquals(prefill.kcalPer100g!!, named.kcalPer100g, 0.0)
+        assertEquals(prefill.proteinPer100g!!, named.proteinPer100g, 0.0)
+        assertEquals(prefill.sugarsPer100g, named.sugarsPer100g)
+        assertTrue(named.isLiquid)
+    }
+
+    @Test
+    fun `the prefill uses the looked-up code when OFF gives none`() {
+        val p = product("""{"product_name":"Сирок","nutriments":{}}""")
+        assertEquals("4810268000013", checkNotNull(p.toPrefill("4810268000013")).barcode)
+        assertNull(p.toPrefill(null)) // no code anywhere: nothing to save it under
+        // The looked-up code also decides the name's language order.
+        val q = product("""{"product_name_ru":"Сырок","product_name_be":"Сырок беларускі"}""")
+        assertEquals("Сырок беларускі", checkNotNull(q.toPrefill("4810268000013")).name)
+    }
+
+    // --- The requested field list ----------------------------------------
+
+    @Test
+    fun `every field ProductDto reads is requested from Open Food Facts`() {
+        // OFF returns ONLY the requested fields: a field missing from the list
+        // would silently be null in every response.
+        val requested = OFF_PRODUCT_FIELDS.split(",").toSet()
+        val descriptor = ProductDto.serializer().descriptor
+        val declared = (0 until descriptor.elementsCount).map { descriptor.getElementName(it) }
+        for (name in declared) assertTrue("$name is not in OFF_PRODUCT_FIELDS", name in requested)
+        for (name in listOf(
+            "product_name_uk", "product_name_ru", "product_name_be",
+            "generic_name", "generic_name_en", "generic_name_uk", "generic_name_ru", "generic_name_be",
+        )) {
+            assertTrue(name, name in requested)
+        }
     }
 }

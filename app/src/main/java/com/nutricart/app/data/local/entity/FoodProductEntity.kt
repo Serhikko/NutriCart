@@ -9,7 +9,12 @@ import com.nutricart.app.domain.model.ProductSource
  * stored here, so search keeps working without internet.
  *
  * id format: "off:<barcode>" for Open Food Facts products,
- *            "local:<uuid>" for user-created foods (future).
+ *            "local:<uuid>" for foods the user created from scratch,
+ *            "local:barcode:<digits>" for foods the user added from a scan
+ *            that Open Food Facts didn't know (or knew only partly). The
+ *            scanner checks this id FIRST, so the user's own entry wins
+ *            over Open Food Facts on the next scan. Both "local:" kinds are
+ *            ProductSource.LOCAL and behave alike (edit, delete, search).
  *
  * The four per-100g values are NON-null on purpose: the API mapper simply
  * drops incomplete products, so everything in this table is fully usable.
@@ -49,4 +54,9 @@ data class FoodProductEntity(
      * fresh DTO would silently wipe the star.
      */
     val isFavorite: Boolean = false,
-)
+) {
+    companion object {
+        /** Id of the user's own product saved under a scanned barcode. */
+        fun localBarcodeId(barcode: String): String = "local:barcode:$barcode"
+    }
+}

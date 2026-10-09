@@ -162,6 +162,14 @@
     <string name="barcode_not_found">Product not found for this barcode.</string>
     <string name="barcode_offline">You\'re offline and this product isn\'t cached yet — try again with internet.</string>
     <string name="barcode_scan_failed">Scanner unavailable — try again in a moment.</string>
+    <!-- Scanned code unknown everywhere; the snackbar's action is add_action. -->
+    <string name="barcode_not_found_ukraine">This Ukrainian product isn\'t in Open Food Facts yet. Add it once and the scanner will find it next time.</string>
+    <string name="barcode_not_found_belarus">This Belarusian product isn\'t in Open Food Facts yet. Add it once and the scanner will find it next time.</string>
+    <string name="barcode_not_found_other">This product isn\'t in Open Food Facts yet. Add it once and the scanner will find it next time.</string>
+    <string name="barcode_incomplete">Open Food Facts knows this product, but not all of its nutrition. Fill in the missing values from the label.</string>
+    <string name="barcode_line">Barcode %1$s</string>
+    <string name="barcode_line_ukraine">Barcode %1$s (Ukraine)</string>
+    <string name="barcode_line_belarus">Barcode %1$s (Belarus)</string>
     <string name="offline_results_note">Offline — showing previously loaded products only.</string>
     <string name="kcal_per_100g">%1$d kcal / 100 g</string>
     <string name="kcal_per_100ml">%1$d kcal / 100 ml</string>
@@ -217,6 +225,7 @@
     <string name="custom_food_fat">Fat (g / 100 g)</string>
     <string name="custom_food_carbs">Carbs (g / 100 g)</string>
     <string name="custom_food_serving">Portion size (g, optional)</string>
+    <string name="custom_food_liquid">Drink: values per 100 ml, amounts in ml</string>
     <string name="custom_food_delete">Delete this food</string>
     <string name="custom_food_optional_header">More details (optional)</string>
     <string name="custom_food_fiber">Fiber (g / 100 g)</string>
