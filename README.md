@@ -78,6 +78,24 @@ Cloud sync is optional and off in a plain build. To enable it, create a free
 Supabase project and put its URL and anon key in `local.properties` as
 described in [supabase/README.md](supabase/README.md).
 
+## Screenshots without an emulator
+
+Every screen has a stateless `XxxContent(state, callbacks)` half, and
+`app/src/test/java/com/nutricart/app/screenshots/` renders them with fake data
+through [Roborazzi](https://github.com/takahirom/roborazzi) on Robolectric
+(no device, no emulator) — phone size 393×852 dp at 440 dpi, light and dark,
+key screens also in Ukrainian and at font scale 1.3.
+
+```
+./gradlew :app:testDebugUnitTest -Pscreenshots                           # all of them
+./gradlew :app:testDebugUnitTest -Pscreenshots --tests '*DiaryScreenshots*'
+./gradlew :app:testDebugUnitTest -Pscreenshots -Pscreenshots.variants=light
+```
+
+PNGs land in `app/build/outputs/screenshots/<light|dark|uk|fs130>/`. Without
+`-Pscreenshots` (CI, a plain `./gradlew :app:testDebugUnitTest`) the
+screenshot tests are excluded and the unit tests run exactly as before.
+
 ## License
 
 [MIT](LICENSE)
