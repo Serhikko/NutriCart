@@ -67,6 +67,7 @@ import com.nutricart.app.domain.logic.BarcodeOrigin
 import com.nutricart.app.domain.logic.FoodMath
 import com.nutricart.app.domain.model.BarcodeCountry
 import com.nutricart.app.domain.model.LookupNotice
+import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.domain.model.ProductPrefill
 import com.nutricart.app.domain.model.ProductSource
 import java.math.BigDecimal
@@ -136,20 +137,72 @@ fun FoodSearchScreen(
         viewModel.clearScanMessage()
     }
 
+    FoodSearchContent(
+        state = state,
+        mealSlot = viewModel.mealSlot,
+        epochDay = viewModel.epochDay,
+        snackbarHostState = snackbarHostState,
+        onDone = onDone,
+        actions = viewModel,
+    )
+}
+
+/**
+ * Everything the food search screen can ask for. [FoodSearchViewModel]
+ * implements it; screenshot tests pass a no-op implementation.
+ */
+interface FoodSearchActions {
+    fun setQuery(text: String)
+    fun search()
+    fun scanBarcode()
+    fun toggleFavoritesMode()
+    fun toggleSavedMealsMode()
+    fun openCreateForm()
+    fun openBasket()
+    fun closeBasket()
+    fun logBasket()
+    fun logSavedMeal(meal: SavedMealSummary)
+    fun deleteSavedMeal(meal: SavedMealSummary)
+    fun select(product: FoodProductEntity?)
+    fun addToBasket(product: FoodProductEntity)
+    fun removeFromBasket(productId: String)
+    fun setBasketGrams(productId: String, text: String)
+    fun toggleFavorite(product: FoodProductEntity)
+    fun openEditForm(product: FoodProductEntity)
+    fun dismissCustomForm()
+    fun saveCustomProduct(draft: CustomFoodDraft)
+    fun deleteCustomProduct()
+    fun log(product: FoodProductEntity, grams: Double, servings: Double?)
+}
+
+/**
+ * The stateless half of [FoodSearchScreen]: the search UI plus the dialogs
+ * that [state] asks for (amount, custom food form, basket).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FoodSearchContent(
+    state: FoodSearchUiState,
+    mealSlot: MealSlot,
+    epochDay: Long,
+    snackbarHostState: SnackbarHostState,
+    onDone: () -> Unit,
+    actions: FoodSearchActions,
+) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text(mealSlotLabel(viewModel.mealSlot))
+                        Text(mealSlotLabel(mealSlot))
                         // The day is spelled out because this screen is now
                         // reachable from the quick-add sheet, which always
                         // means TODAY even when the diary is showing another
                         // day. Silently logging into the wrong day would be
                         // invisible until the numbers stopped adding up.
                         Text(
-                            targetDayLabel(viewModel.epochDay),
+                            targetDayLabel(epochDay),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -174,11 +227,11 @@ fun FoodSearchScreen(
         ) {
             OutlinedTextField(
                 value = state.query,
-                onValueChange = viewModel::setQuery,
+                onValueChange = actions::setQuery,
                 label = { Text(stringResource(R.string.search_hint)) },
                 singleLine = true,
                 trailingIcon = {
-                    IconButton(onClick = viewModel::search) {
+                    IconButton(onClick = actions::search) {
                         Icon(
                             Icons.Filled.Search,
                             contentDescription = stringResource(R.string.search_action),
@@ -186,7 +239,7 @@ fun FoodSearchScreen(
                     }
                 },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { viewModel.search() }),
+                keyboardActions = KeyboardActions(onSearch = { actions.search() }),
                 supportingText = {
                     if (state.queryTooShort) Text(stringResource(R.string.search_min_chars))
                 },
@@ -194,7 +247,7 @@ fun FoodSearchScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
-                onClick = viewModel::scanBarcode,
+                onClick = actions::scanBarcode,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.scan_barcode))
@@ -207,16 +260,16 @@ fun FoodSearchScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = state.favoritesMode,
-                        onClick = viewModel::toggleFavoritesMode,
+                        onClick = actions::toggleFavoritesMode,
                         label = { Text(stringResource(R.string.favorites_chip)) },
                     )
                     FilterChip(
                         selected = state.savedMealsMode,
-                        onClick = viewModel::toggleSavedMealsMode,
+                        onClick = actions::toggleSavedMealsMode,
                         label = { Text(stringResource(R.string.saved_meals_chip)) },
                     )
                 }
-                TextButton(onClick = viewModel::openCreateForm) {
+                TextButton(onClick = actions::openCreateForm) {
                     Text(stringResource(R.string.create_food))
                 }
             }
@@ -225,7 +278,7 @@ fun FoodSearchScreen(
             // The basket bar appears as soon as something is collected.
             if (state.basket.isNotEmpty() && !state.savedMealsMode) {
                 FilledTonalButton(
-                    onClick = viewModel::openBasket,
+                    onClick = actions::openBasket,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.basket_button, state.basket.size))
@@ -303,8 +356,8 @@ fun FoodSearchScreen(
                     items(state.savedMeals, key = { it.id }) { meal ->
                         SavedMealRow(
                             meal = meal,
-                            onClick = { viewModel.logSavedMeal(meal) },
-                            onDelete = { viewModel.deleteSavedMeal(meal) },
+                            onClick = { actions.logSavedMeal(meal) },
+                            onDelete = { actions.deleteSavedMeal(meal) },
                         )
                         HorizontalDivider()
                     }
@@ -315,10 +368,10 @@ fun FoodSearchScreen(
                         ProductRow(
                             product = product,
                             inBasket = state.basket.any { it.product.id == product.id },
-                            onClick = { viewModel.select(product) },
-                            onQuickAdd = { viewModel.addToBasket(product) },
-                            onToggleFavorite = { viewModel.toggleFavorite(product) },
-                            onEdit = { viewModel.openEditForm(product) },
+                            onClick = { actions.select(product) },
+                            onQuickAdd = { actions.addToBasket(product) },
+                            onToggleFavorite = { actions.toggleFavorite(product) },
+                            onEdit = { actions.openEditForm(product) },
                         )
                         HorizontalDivider()
                     }
@@ -331,8 +384,8 @@ fun FoodSearchScreen(
     state.selected?.let { product ->
         AmountDialog(
             product = product,
-            onConfirm = { grams, servings -> viewModel.log(product, grams, servings) },
-            onDismiss = { viewModel.select(null) },
+            onConfirm = { grams, servings -> actions.log(product, grams, servings) },
+            onDismiss = { actions.select(null) },
         )
     }
 
@@ -340,9 +393,9 @@ fun FoodSearchScreen(
     state.customForm?.let { form ->
         CustomFoodDialog(
             target = form,
-            onSave = viewModel::saveCustomProduct,
-            onDelete = if (form.editing != null) viewModel::deleteCustomProduct else null,
-            onDismiss = viewModel::dismissCustomForm,
+            onSave = actions::saveCustomProduct,
+            onDelete = if (form.editing != null) actions::deleteCustomProduct else null,
+            onDismiss = actions::dismissCustomForm,
         )
     }
 
@@ -350,10 +403,10 @@ fun FoodSearchScreen(
     if (state.basketOpen) {
         BasketDialog(
             items = state.basket,
-            onGramsChange = viewModel::setBasketGrams,
-            onRemove = viewModel::removeFromBasket,
-            onConfirm = viewModel::logBasket,
-            onDismiss = viewModel::closeBasket,
+            onGramsChange = actions::setBasketGrams,
+            onRemove = actions::removeFromBasket,
+            onConfirm = actions::logBasket,
+            onDismiss = actions::closeBasket,
         )
     }
 }

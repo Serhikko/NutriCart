@@ -127,7 +127,7 @@ class FoodSearchViewModel @Inject constructor(
     private val savedMealRepository: SavedMealRepository,
     private val barcodeScanner: BarcodeScanner, // interface — Hilt injects the ML Kit one
     private val savedStateHandle: SavedStateHandle, // navigation arguments arrive here
-) : ViewModel() {
+) : ViewModel(), FoodSearchActions {
 
     /** Which meal and which day this search will log into (from the route). */
     val mealSlot: MealSlot = MealSlot.valueOf(checkNotNull(savedStateHandle["slot"]))
@@ -161,21 +161,21 @@ class FoodSearchViewModel @Inject constructor(
         }
     }
 
-    fun setQuery(text: String) {
+    override fun setQuery(text: String) {
         _uiState.update { it.copy(query = text, queryTooShort = false) }
         // Favorites live locally, so they filter on every keystroke — no
         // "min 2 chars + search button" ceremony like the online search.
         if (_uiState.value.favoritesMode) refreshFavorites()
     }
 
-    fun toggleFavoritesMode() {
+    override fun toggleFavoritesMode() {
         val on = !_uiState.value.favoritesMode
         // The two chips are exclusive: one list, one mode at a time.
         _uiState.update { it.copy(favoritesMode = on, savedMealsMode = false) }
         if (on) refreshFavorites()
     }
 
-    fun toggleSavedMealsMode() {
+    override fun toggleSavedMealsMode() {
         val on = !_uiState.value.savedMealsMode
         _uiState.update { it.copy(savedMealsMode = on, favoritesMode = false) }
         if (on) refreshSavedMeals()
@@ -190,7 +190,7 @@ class FoodSearchViewModel @Inject constructor(
     private var loggingMeal = false
 
     /** One tap: every item of the saved meal goes into this slot and day. */
-    fun logSavedMeal(meal: SavedMealSummary) {
+    override fun logSavedMeal(meal: SavedMealSummary) {
         // The row stays tappable until navigation — without this flag a
         // double-tap would write the whole meal twice (review finding).
         if (loggingMeal) return
@@ -221,7 +221,7 @@ class FoodSearchViewModel @Inject constructor(
 
     fun clearBasketReminder() = _uiState.update { it.copy(basketReminder = false) }
 
-    fun deleteSavedMeal(meal: SavedMealSummary) {
+    override fun deleteSavedMeal(meal: SavedMealSummary) {
         viewModelScope.launch {
             savedMealRepository.delete(meal.id)
             _uiState.update { s -> s.copy(savedMeals = s.savedMeals.filter { it.id != meal.id }) }
@@ -229,7 +229,7 @@ class FoodSearchViewModel @Inject constructor(
     }
 
     /** Quick "+": into the basket with the label portion (or 100 g) prefilled. */
-    fun addToBasket(product: FoodProductEntity) {
+    override fun addToBasket(product: FoodProductEntity) {
         _uiState.update { s ->
             // Already collected — nothing to do; grams are edited in the basket.
             if (s.basket.any { it.product.id == product.id }) return@update s
@@ -238,22 +238,22 @@ class FoodSearchViewModel @Inject constructor(
         }
     }
 
-    fun removeFromBasket(productId: String) = _uiState.update { s ->
+    override fun removeFromBasket(productId: String) = _uiState.update { s ->
         s.copy(basket = s.basket.filter { it.product.id != productId })
     }
 
-    fun setBasketGrams(productId: String, text: String) = _uiState.update { s ->
+    override fun setBasketGrams(productId: String, text: String) = _uiState.update { s ->
         s.copy(basket = s.basket.map {
             if (it.product.id == productId) it.copy(gramsText = text) else it
         })
     }
 
-    fun openBasket() = _uiState.update { it.copy(basketOpen = true) }
+    override fun openBasket() = _uiState.update { it.copy(basketOpen = true) }
 
-    fun closeBasket() = _uiState.update { it.copy(basketOpen = false) }
+    override fun closeBasket() = _uiState.update { it.copy(basketOpen = false) }
 
     /** Writes every basket line into the diary; the screen then navigates back. */
-    fun logBasket() {
+    override fun logBasket() {
         val items = _uiState.value.basket
         val parsed = items.mapNotNull { item -> basketGrams(item)?.let { item.product to it } }
         // The dialog disables the button on invalid input — this is the last guard.
@@ -313,7 +313,7 @@ class FoodSearchViewModel @Inject constructor(
     }
 
     /** Star / un-star a product; every visible list updates in place. */
-    fun toggleFavorite(product: FoodProductEntity) {
+    override fun toggleFavorite(product: FoodProductEntity) {
         val newValue = !product.isFavorite
         viewModelScope.launch {
             foodRepository.setFavorite(product.id, newValue)
@@ -322,7 +322,7 @@ class FoodSearchViewModel @Inject constructor(
         }
     }
 
-    fun search() {
+    override fun search() {
         val query = _uiState.value.query.trim()
         if (query.length < 2) {
             // One letter would match half the database — tell the user instead
@@ -347,7 +347,7 @@ class FoodSearchViewModel @Inject constructor(
         }
     }
 
-    fun select(product: FoodProductEntity?) = _uiState.update { it.copy(selected = product) }
+    override fun select(product: FoodProductEntity?) = _uiState.update { it.copy(selected = product) }
 
     private var scanning = false
 
@@ -370,7 +370,7 @@ class FoodSearchViewModel @Inject constructor(
      * which sources were checked) whose "Add" action opens the form tied to
      * the barcode (openBarcodeForm).
      */
-    fun scanBarcode() {
+    override fun scanBarcode() {
         if (scanning) return // the scanner UI takes a moment — ignore double-taps
         scanning = true
         viewModelScope.launch {
@@ -420,7 +420,7 @@ class FoodSearchViewModel @Inject constructor(
 
     fun clearScanMessage() = _uiState.update { it.copy(scanMessage = null) }
 
-    fun openCreateForm() = _uiState.update { it.copy(customForm = CustomFormTarget(null)) }
+    override fun openCreateForm() = _uiState.update { it.copy(customForm = CustomFormTarget(null)) }
 
     /** The "Add" action of a not-found scan: an empty form tied to [barcode]. */
     fun openBarcodeForm(barcode: String) {
@@ -428,16 +428,16 @@ class FoodSearchViewModel @Inject constructor(
         _uiState.update { it.copy(customForm = CustomFormTarget(editing = null, barcode = barcode)) }
     }
 
-    fun openEditForm(product: FoodProductEntity) {
+    override fun openEditForm(product: FoodProductEntity) {
         // Only user-created products are editable; OFF and shop data are not ours to change.
         if (product.source != ProductSource.LOCAL) return
         _uiState.update { it.copy(customForm = CustomFormTarget(product)) }
     }
 
-    fun dismissCustomForm() = _uiState.update { it.copy(customForm = null) }
+    override fun dismissCustomForm() = _uiState.update { it.copy(customForm = null) }
 
     /** Create or update, depending on what the form was opened for. */
-    fun saveCustomProduct(draft: CustomFoodDraft) {
+    override fun saveCustomProduct(draft: CustomFoodDraft) {
         val target = _uiState.value.customForm ?: return
         // Close first — same double-tap protection as the amount dialog.
         _uiState.update { it.copy(customForm = null) }
@@ -489,7 +489,7 @@ class FoodSearchViewModel @Inject constructor(
     }
 
     /** Deletes the product currently open in the edit form. */
-    fun deleteCustomProduct() {
+    override fun deleteCustomProduct() {
         val editing = _uiState.value.customForm?.editing ?: return
         _uiState.update { it.copy(customForm = null) }
         viewModelScope.launch {
@@ -501,7 +501,7 @@ class FoodSearchViewModel @Inject constructor(
     }
 
     /** Called by the amount dialog with the final grams (and portions, if used). */
-    fun log(product: FoodProductEntity, grams: Double, servings: Double?) {
+    override fun log(product: FoodProductEntity, grams: Double, servings: Double?) {
         // Close the dialog IMMEDIATELY, before the database write: while an
         // insert is in flight a still-open dialog would let a double-tap
         // insert the same entry twice.

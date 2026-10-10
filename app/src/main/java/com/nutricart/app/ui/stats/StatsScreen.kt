@@ -76,6 +76,20 @@ fun StatsBody(range: StatsRange, viewModel: StatsViewModel = hiltViewModel()) {
         onPauseOrDispose { }
     }
 
+    StatsContent(
+        state = state,
+        onPreviousMonth = viewModel::previousMonth,
+        onNextMonth = viewModel::nextMonth,
+    )
+}
+
+/** The stateless half of [StatsBody]: draws [state], forwards the month arrows. */
+@Composable
+fun StatsContent(
+    state: StatsUiState,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+) {
     if (state.loading) {
         LoadingBox()
         return
@@ -91,8 +105,8 @@ fun StatsBody(range: StatsRange, viewModel: StatsViewModel = hiltViewModel()) {
         Spacer(modifier = Modifier.height(16.dp))
         CalendarCard(
             state = state,
-            onPreviousMonth = viewModel::previousMonth,
-            onNextMonth = viewModel::nextMonth,
+            onPreviousMonth = onPreviousMonth,
+            onNextMonth = onNextMonth,
         )
 
         Spacer(modifier = Modifier.height(16.dp))

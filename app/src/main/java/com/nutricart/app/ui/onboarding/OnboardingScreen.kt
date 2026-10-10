@@ -64,7 +64,31 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    OnboardingContent(state = state, actions = viewModel)
+}
 
+/** Everything the questionnaire can ask for; [OnboardingViewModel] implements it. */
+interface OnboardingActions {
+    fun selectSex(sex: Sex)
+    fun selectBirthDate(date: LocalDate)
+    fun setHeightText(text: String)
+    fun setWeightText(text: String)
+    fun selectActivityLevel(level: ActivityLevel)
+    fun selectGoal(goal: Goal)
+    fun selectRate(rate: Double)
+    fun selectSnacksPerDay(count: Int)
+    fun selectCookingSessions(sessions: Int)
+    fun toggleVegetarian(enabled: Boolean)
+    fun toggleNoPork(enabled: Boolean)
+    fun toggleAllergen(allergen: Allergen)
+    fun next()
+    fun back()
+    fun finish()
+}
+
+/** The stateless half of [OnboardingScreen]: draws the current step of [state]. */
+@Composable
+fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions) {
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
@@ -107,18 +131,18 @@ fun OnboardingScreen(
                         .padding(vertical = 24.dp),
                 ) {
                     when (step) {
-                        OnboardingUiState.STEP_SEX -> SexStep(state, viewModel::selectSex)
-                        OnboardingUiState.STEP_BIRTH -> BirthDateStep(state, viewModel::selectBirthDate)
-                        OnboardingUiState.STEP_BODY -> BodyStep(state, viewModel::setHeightText, viewModel::setWeightText)
-                        OnboardingUiState.STEP_ACTIVITY -> ActivityStep(state, viewModel::selectActivityLevel)
-                        OnboardingUiState.STEP_GOAL -> GoalStep(state, viewModel::selectGoal, viewModel::selectRate)
+                        OnboardingUiState.STEP_SEX -> SexStep(state, actions::selectSex)
+                        OnboardingUiState.STEP_BIRTH -> BirthDateStep(state, actions::selectBirthDate)
+                        OnboardingUiState.STEP_BODY -> BodyStep(state, actions::setHeightText, actions::setWeightText)
+                        OnboardingUiState.STEP_ACTIVITY -> ActivityStep(state, actions::selectActivityLevel)
+                        OnboardingUiState.STEP_GOAL -> GoalStep(state, actions::selectGoal, actions::selectRate)
                         OnboardingUiState.STEP_DIET -> DietStep(
                             state,
-                            viewModel::toggleVegetarian,
-                            viewModel::toggleNoPork,
-                            viewModel::toggleAllergen,
-                            viewModel::selectSnacksPerDay,
-                            viewModel::selectCookingSessions,
+                            actions::toggleVegetarian,
+                            actions::toggleNoPork,
+                            actions::toggleAllergen,
+                            actions::selectSnacksPerDay,
+                            actions::selectCookingSessions,
                         )
                         OnboardingUiState.STEP_SUMMARY -> SummaryStep(state)
                     }
@@ -127,17 +151,17 @@ fun OnboardingScreen(
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 if (state.step > OnboardingUiState.STEP_SEX) {
-                    OutlinedButton(onClick = viewModel::back) {
+                    OutlinedButton(onClick = actions::back) {
                         Text(stringResource(R.string.back))
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 if (state.step < OnboardingUiState.STEP_SUMMARY) {
-                    Button(onClick = viewModel::next, enabled = state.canGoNext) {
+                    Button(onClick = actions::next, enabled = state.canGoNext) {
                         Text(stringResource(R.string.next))
                     }
                 } else {
-                    Button(onClick = viewModel::finish, enabled = !state.finished) {
+                    Button(onClick = actions::finish, enabled = !state.finished) {
                         Text(stringResource(R.string.start))
                     }
                 }

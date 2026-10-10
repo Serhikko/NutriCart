@@ -64,21 +64,6 @@ fun MealPlanScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    // Which meal is being confirmed as cooked; null = the dialog is closed.
-    var cookingMeal by remember { mutableStateOf<PlanMealUi?>(null) }
-    val cookedMessage = stringResource(R.string.fridge_cooked_toast)
-
-    cookingMeal?.let { meal ->
-        CookedPortionsDialog(
-            onConfirm = { portions ->
-                viewModel.cook(meal, portions)
-                cookingMeal = null
-                scope.launch { snackbarHostState.showSnackbar(cookedMessage) }
-            },
-            onDismiss = { cookingMeal = null },
-        )
-    }
 
     // Roll the week forward if the app slept past midnight.
     LifecycleResumeEffect(Unit) {
@@ -109,6 +94,47 @@ fun MealPlanScreen(
         }
     }
 
+    MealPlanContent(
+        state = state,
+        snackbarHostState = snackbarHostState,
+        onOpenRecipe = onOpenRecipe,
+        onGenerate = viewModel::generate,
+        onToggleLock = viewModel::toggleLock,
+        onSwap = viewModel::swap,
+        onAddToDiary = viewModel::addToDiary,
+        onCook = viewModel::cook,
+    )
+}
+
+/** The stateless half of [MealPlanScreen]; it owns only the "cooked" dialog. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MealPlanContent(
+    state: MealPlanUiState,
+    snackbarHostState: SnackbarHostState,
+    onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
+    onGenerate: () -> Unit,
+    onToggleLock: (PlanMealUi) -> Unit,
+    onSwap: (PlanMealUi) -> Unit,
+    onAddToDiary: (PlanMealUi) -> Unit,
+    onCook: (meal: PlanMealUi, portions: Int) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    // Which meal is being confirmed as cooked; null = the dialog is closed.
+    var cookingMeal by remember { mutableStateOf<PlanMealUi?>(null) }
+    val cookedMessage = stringResource(R.string.fridge_cooked_toast)
+
+    cookingMeal?.let { meal ->
+        CookedPortionsDialog(
+            onConfirm = { portions ->
+                onCook(meal, portions)
+                cookingMeal = null
+                scope.launch { snackbarHostState.showSnackbar(cookedMessage) }
+            },
+            onDismiss = { cookingMeal = null },
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text(stringResource(R.string.plan_title)) }) },
@@ -124,7 +150,7 @@ fun MealPlanScreen(
             ) {
                 item {
                     Button(
-                        onClick = viewModel::generate,
+                        onClick = onGenerate,
                         enabled = !state.generating,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -158,9 +184,9 @@ fun MealPlanScreen(
                         // or delete until that day — offer "+" only for today.
                         canLogToDiary = day.epochDay <= LocalDate.now().toEpochDay(),
                         onOpenRecipe = onOpenRecipe,
-                        onToggleLock = viewModel::toggleLock,
-                        onSwap = viewModel::swap,
-                        onAddToDiary = viewModel::addToDiary,
+                        onToggleLock = onToggleLock,
+                        onSwap = onSwap,
+                        onAddToDiary = onAddToDiary,
                         onCooked = { cookingMeal = it },
                     )
                     Spacer(modifier = Modifier.height(12.dp))

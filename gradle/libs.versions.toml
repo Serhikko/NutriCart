@@ -26,6 +26,12 @@ codeScanner = "16.1.0"
 # Home-screen widget (Compose-style API for RemoteViews)
 glance = "1.1.1"
 junit = "4.13.2"
+# Screenshot tests only (test classpath; see app/build.gradle.kts, -Pscreenshots).
+# Robolectric 4.17 is the first release that supports SDK 37 (our compileSdk/targetSdk).
+robolectric = "4.17"
+roborazzi = "1.75.0"
+# Roborazzi pulls Espresso 3.5.1, which calls InputManager.getInstance() — gone on SDK 37.
+espresso = "3.7.0"
 # Icons were split out of the Compose release train; they keep their own version
 # and are NOT managed by the Compose BOM anymore.
 materialIcons = "1.7.8"
@@ -64,6 +70,11 @@ play-services-code-scanner = { group = "com.google.android.gms", name = "play-se
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+# Screenshot tests (testImplementation only). ui-test-junit4 follows the Compose BOM.
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }
+androidx-test-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -87,6 +87,46 @@ fun DiaryScreen(
         }
     }
 
+    DiaryContent(
+        state = state,
+        savingSlot = savingSlot,
+        editingNote = editingNote,
+        snackbarHostState = snackbarHostState,
+        onAddFood = onAddFood,
+        onPreviousDay = viewModel::previousDay,
+        onNextDay = viewModel::nextDay,
+        onEditNote = viewModel::startEditingNote,
+        onDelete = viewModel::delete,
+        onSaveAsMeal = viewModel::startSavingMeal,
+        onSaveMeal = viewModel::saveMeal,
+        onCancelSavingMeal = viewModel::cancelSavingMeal,
+        onSaveNote = viewModel::saveNote,
+        onCancelEditingNote = viewModel::cancelEditingNote,
+    )
+}
+
+/**
+ * The stateless half of [DiaryScreen]. [savingSlot] non-null shows the
+ * "name this meal" dialog; [editingNote] shows the day-note editor.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DiaryContent(
+    state: DiaryUiState,
+    savingSlot: MealSlot?,
+    editingNote: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onAddFood: (epochDay: Long, slot: MealSlot) -> Unit,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    onEditNote: () -> Unit,
+    onDelete: (FoodLogEntryEntity) -> Unit,
+    onSaveAsMeal: (MealSlot) -> Unit,
+    onSaveMeal: (name: String) -> Unit,
+    onCancelSavingMeal: () -> Unit,
+    onSaveNote: (text: String) -> Unit,
+    onCancelEditingNote: () -> Unit,
+) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -105,11 +145,11 @@ fun DiaryScreen(
             DaySelector(
                 epochDay = state.epochDay,
                 canGoForward = !state.isToday,
-                onPrevious = viewModel::previousDay,
-                onNext = viewModel::nextDay,
+                onPrevious = onPreviousDay,
+                onNext = onNextDay,
             )
 
-            NoteRow(note = state.note, onEdit = viewModel::startEditingNote)
+            NoteRow(note = state.note, onEdit = onEditNote)
 
             Column(
                 modifier = Modifier
@@ -121,8 +161,8 @@ fun DiaryScreen(
                         slot = slot,
                         entries = state.entriesBySlot[slot].orEmpty(),
                         onAdd = { onAddFood(state.epochDay, slot) },
-                        onDelete = viewModel::delete,
-                        onSaveAsMeal = { viewModel.startSavingMeal(slot) },
+                        onDelete = onDelete,
+                        onSaveAsMeal = { onSaveAsMeal(slot) },
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -151,16 +191,16 @@ fun DiaryScreen(
     // "Name this meal" dialog for the section being saved.
     savingSlot?.let {
         SaveMealDialog(
-            onConfirm = viewModel::saveMeal,
-            onDismiss = viewModel::cancelSavingMeal,
+            onConfirm = onSaveMeal,
+            onDismiss = onCancelSavingMeal,
         )
     }
 
     if (editingNote) {
         NoteDialog(
             initialText = state.note ?: "",
-            onConfirm = viewModel::saveNote,
-            onDismiss = viewModel::cancelEditingNote,
+            onConfirm = onSaveNote,
+            onDismiss = onCancelEditingNote,
         )
     }
 }

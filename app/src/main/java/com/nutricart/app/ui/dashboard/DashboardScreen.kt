@@ -53,6 +53,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.nutricart.app.R
+import com.nutricart.app.domain.model.WorkoutType
 import com.nutricart.app.ui.common.AddWorkoutDialog
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.dashboard.cards.ActivityCard
@@ -88,8 +89,6 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    var range by rememberSaveable { mutableStateOf(TodayRange.TODAY) }
-    val bodyState = rememberSaveableStateHolder()
 
     // Sync every time the screen comes to the foreground (first open included).
     LifecycleResumeEffect(Unit) {
@@ -123,6 +122,46 @@ fun DashboardScreen(
             viewModel.clearSyncFailed()
         }
     }
+
+    DashboardContent(
+        state = state,
+        snackbarHostState = snackbarHostState,
+        onOpenSettings = onOpenSettings,
+        onOpenRecipe = onOpenRecipe,
+        onRefresh = viewModel::refresh,
+        onGrantPermissions = { permissionLauncher.launch(viewModel.healthPermissions) },
+        onAddWater = viewModel::addWater,
+        onUndoWater = viewModel::undoWater,
+        onAddWorkout = viewModel::addWorkout,
+        onDeleteWorkout = viewModel::deleteWorkout,
+        statsBody = { statsRange -> StatsBody(statsRange) },
+    )
+}
+
+/**
+ * The stateless half of [DashboardScreen]: everything it draws, driven only by
+ * [state] and callbacks (screenshot tests render this directly). [statsBody]
+ * draws the Week / Month / 90-day horizons; [initialRange] is the chip that is
+ * selected when the screen first appears.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DashboardContent(
+    state: DashboardUiState,
+    snackbarHostState: SnackbarHostState,
+    onOpenSettings: () -> Unit,
+    onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
+    onRefresh: () -> Unit,
+    onGrantPermissions: () -> Unit,
+    onAddWater: (ml: Int) -> Unit,
+    onUndoWater: () -> Unit,
+    onAddWorkout: (type: WorkoutType, amount: Int) -> Unit,
+    onDeleteWorkout: (id: Long) -> Unit,
+    statsBody: @Composable (StatsRange) -> Unit,
+    initialRange: TodayRange = TodayRange.TODAY,
+) {
+    var range by rememberSaveable { mutableStateOf(initialRange) }
+    val bodyState = rememberSaveableStateHolder()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -161,14 +200,16 @@ fun DashboardScreen(
                     if (statsRange == null) {
                         DashboardBody(
                             state = state,
-                            viewModel = viewModel,
                             onOpenRecipe = onOpenRecipe,
-                            onGrantPermissions = {
-                                permissionLauncher.launch(viewModel.healthPermissions)
-                            },
+                            onRefresh = onRefresh,
+                            onGrantPermissions = onGrantPermissions,
+                            onAddWater = onAddWater,
+                            onUndoWater = onUndoWater,
+                            onAddWorkout = onAddWorkout,
+                            onDeleteWorkout = onDeleteWorkout,
                         )
                     } else {
-                        StatsBody(statsRange)
+                        statsBody(statsRange)
                     }
                 }
             }
@@ -200,15 +241,19 @@ private fun RangeChips(selected: TodayRange, onSelect: (TodayRange) -> Unit) {
 @Composable
 private fun DashboardBody(
     state: DashboardUiState,
-    viewModel: DashboardViewModel,
     onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
+    onRefresh: () -> Unit,
     onGrantPermissions: () -> Unit,
+    onAddWater: (ml: Int) -> Unit,
+    onUndoWater: () -> Unit,
+    onAddWorkout: (type: WorkoutType, amount: Int) -> Unit,
+    onDeleteWorkout: (id: Long) -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
 
     PullToRefreshBox(
         isRefreshing = state.refreshing,
-        onRefresh = viewModel::refresh,
+        onRefresh = onRefresh,
         modifier = Modifier.fillMaxSize(),
     ) {
         if (state.loading) {
@@ -281,8 +326,8 @@ private fun DashboardBody(
                 Spacer(modifier = Modifier.height(16.dp))
                 WaterCard(
                     waterMl = state.waterMl,
-                    onAdd = viewModel::addWater,
-                    onUndo = viewModel::undoWater,
+                    onAdd = onAddWater,
+                    onUndo = onUndoWater,
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -290,13 +335,13 @@ private fun DashboardBody(
                 ActivityCard(
                     state = state,
                     onAddWorkout = { showAddWorkout = true },
-                    onDeleteWorkout = viewModel::deleteWorkout,
+                    onDeleteWorkout = onDeleteWorkout,
                 )
                 if (showAddWorkout) {
                     AddWorkoutDialog(
                         weightKg = state.weightKg,
                         onConfirm = { type, amount ->
-                            viewModel.addWorkout(type, amount)
+                            onAddWorkout(type, amount)
                             showAddWorkout = false
                         },
                         onDismiss = { showAddWorkout = false },

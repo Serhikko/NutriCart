@@ -61,6 +61,7 @@ import com.nutricart.app.data.local.entity.RecurringWorkoutEntity
 import com.nutricart.app.domain.model.ActivityLevel
 import com.nutricart.app.domain.model.Allergen
 import com.nutricart.app.domain.model.Goal
+import com.nutricart.app.domain.model.MealSlot
 import com.nutricart.app.domain.model.ProfileOptions
 import com.nutricart.app.domain.model.Sex
 import com.nutricart.app.domain.model.WorkoutKind
@@ -76,6 +77,7 @@ import com.nutricart.app.ui.common.cookingSessionsLabel
 import com.nutricart.app.ui.common.workoutTypeLabel
 import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -100,6 +102,70 @@ fun SettingsScreen(
         if (state.saved) onBack()
     }
 
+    SettingsContent(state = state, onBack = onBack, actions = viewModel)
+}
+
+/**
+ * Everything the settings screen can ask for. [SettingsViewModel] implements
+ * it; screenshot tests pass a no-op implementation.
+ */
+interface SettingsActions {
+    fun toggleReminder(slot: MealSlot, enabled: Boolean)
+    fun startEditingReminder(slot: MealSlot)
+    fun cancelEditingReminder()
+    fun setReminderTime(minutesOfDay: Int)
+    fun setShowRecurringDialog(show: Boolean)
+    fun addRecurring(type: WorkoutType, amount: Int, days: Set<DayOfWeek>)
+    fun deleteRecurring(rule: RecurringWorkoutEntity)
+    fun selectSex(sex: Sex)
+    fun selectBirthDate(date: LocalDate)
+    fun setHeightText(text: String)
+    fun setWeightText(text: String)
+    fun selectActivityLevel(level: ActivityLevel)
+    fun selectGoal(goal: Goal)
+    fun selectRate(rate: Double)
+    fun selectSnacksPerDay(count: Int)
+    fun selectCookingSessions(sessions: Int)
+    fun toggleVegetarian(enabled: Boolean)
+    fun toggleNoPork(enabled: Boolean)
+    fun toggleAllergen(allergen: Allergen)
+    fun toggleManualTargets(enabled: Boolean)
+    fun setCustomKcalText(text: String)
+    fun setCustomProteinText(text: String)
+    fun setCustomFatText(text: String)
+    fun setCustomCarbsText(text: String)
+    fun setShowResetDialog(show: Boolean)
+    fun setAiKeyText(value: String)
+    fun saveAiKey()
+    fun deleteAiKey()
+    fun setBotTokenText(value: String)
+    fun saveBotToken()
+    fun deleteBotToken()
+    fun connectPartner(greeting: String)
+    fun unlinkPartner()
+    fun sendPartnerTest(text: String)
+    fun setPartnerShareMeals(enabled: Boolean)
+    fun setPartnerNotifyMissed(enabled: Boolean)
+    fun setPartnerInboxEnabled(enabled: Boolean)
+    fun setCloudNameText(value: String)
+    fun dismissCloudNameDialog()
+    fun toggleCloudSync(enabled: Boolean)
+    fun enableCloudSync(displayName: String)
+    fun saveCloudName()
+    fun newPairingCode()
+    fun setCloudEmailText(value: String)
+    fun setCloudPasswordText(value: String)
+    fun generateCloudPassword()
+    fun linkCloudEmail()
+    fun unlinkCloudPartner(linkId: String)
+    fun save()
+    fun confirmReset()
+}
+
+/** The stateless half of [SettingsScreen]: the form and the dialogs [state] asks for. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsContent(state: SettingsUiState, onBack: () -> Unit, actions: SettingsActions) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -120,7 +186,7 @@ fun SettingsScreen(
         } else {
             SettingsForm(
                 state = state,
-                viewModel = viewModel,
+                actions = actions,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -132,23 +198,23 @@ fun SettingsScreen(
 
     if (state.showResetDialog) {
         ResetConfirmDialog(
-            onConfirm = viewModel::confirmReset,
-            onDismiss = { viewModel.setShowResetDialog(false) },
+            onConfirm = actions::confirmReset,
+            onDismiss = { actions.setShowResetDialog(false) },
         )
     }
 
     if (state.showCloudNameDialog) {
         CloudNameDialog(
             initialName = state.cloudNameText,
-            onConfirm = viewModel::enableCloudSync,
-            onDismiss = viewModel::dismissCloudNameDialog,
+            onConfirm = actions::enableCloudSync,
+            onDismiss = actions::dismissCloudNameDialog,
         )
     }
 
     if (state.showRecurringDialog) {
         RecurringDialog(
-            onConfirm = viewModel::addRecurring,
-            onDismiss = { viewModel.setShowRecurringDialog(false) },
+            onConfirm = actions::addRecurring,
+            onDismiss = { actions.setShowRecurringDialog(false) },
         )
     }
 
@@ -156,8 +222,8 @@ fun SettingsScreen(
         val minutes = state.reminders.firstOrNull { it.slot == slot }?.minutesOfDay ?: 0
         ReminderTimeDialog(
             initialMinutes = minutes,
-            onConfirm = viewModel::setReminderTime,
-            onDismiss = viewModel::cancelEditingReminder,
+            onConfirm = actions::setReminderTime,
+            onDismiss = actions::cancelEditingReminder,
         )
     }
 }
@@ -335,7 +401,7 @@ private fun RecurringDialog(
 @Composable
 private fun SettingsForm(
     state: SettingsUiState,
-    viewModel: SettingsViewModel,
+    actions: SettingsActions,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -345,17 +411,17 @@ private fun SettingsForm(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FilterChip(
                 selected = state.sex == Sex.MALE,
-                onClick = { viewModel.selectSex(Sex.MALE) },
+                onClick = { actions.selectSex(Sex.MALE) },
                 label = { Text(stringResource(R.string.sex_male)) },
             )
             FilterChip(
                 selected = state.sex == Sex.FEMALE,
-                onClick = { viewModel.selectSex(Sex.FEMALE) },
+                onClick = { actions.selectSex(Sex.FEMALE) },
                 label = { Text(stringResource(R.string.sex_female)) },
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
-        DatePickerField(date = state.birthDate, onDatePicked = viewModel::selectBirthDate)
+        DatePickerField(date = state.birthDate, onDatePicked = actions::selectBirthDate)
         if (state.underageBlocked) {
             Spacer(modifier = Modifier.height(12.dp))
             ErrorCard(stringResource(R.string.underage_error))
@@ -367,7 +433,7 @@ private fun SettingsForm(
         val heightInvalid = state.heightCmText.isNotEmpty() && state.heightCm == null
         OutlinedTextField(
             value = state.heightCmText,
-            onValueChange = viewModel::setHeightText,
+            onValueChange = actions::setHeightText,
             label = { Text(stringResource(R.string.height_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             isError = heightInvalid,
@@ -379,7 +445,7 @@ private fun SettingsForm(
         val weightInvalid = state.weightKgText.isNotEmpty() && state.weightKg == null
         OutlinedTextField(
             value = state.weightKgText,
-            onValueChange = viewModel::setWeightText,
+            onValueChange = actions::setWeightText,
             label = { Text(stringResource(R.string.weight_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             isError = weightInvalid,
@@ -408,7 +474,7 @@ private fun SettingsForm(
                 titleRes = titleRes,
                 descRes = descRes,
                 selected = state.activityLevel == level,
-                onClick = { viewModel.selectActivityLevel(level) },
+                onClick = { actions.selectActivityLevel(level) },
             )
         }
 
@@ -425,7 +491,7 @@ private fun SettingsForm(
                 titleRes = titleRes,
                 descRes = null,
                 selected = state.goal == goal,
-                onClick = { viewModel.selectGoal(goal) },
+                onClick = { actions.selectGoal(goal) },
             )
         }
         if (state.goal != Goal.MAINTAIN) {
@@ -436,7 +502,7 @@ private fun SettingsForm(
                 ProfileOptions.RATE_OPTIONS.forEach { rate ->
                     FilterChip(
                         selected = state.targetKgPerWeek == rate,
-                        onClick = { viewModel.selectRate(rate) },
+                        onClick = { actions.selectRate(rate) },
                         label = { Text(rate.toString()) },
                     )
                 }
@@ -446,7 +512,7 @@ private fun SettingsForm(
         // --- Daily targets (manual override) ---
         SectionSpace()
         SectionTitle(R.string.targets_section)
-        SwitchRow(R.string.targets_manual_switch, state.manualTargets, viewModel::toggleManualTargets)
+        SwitchRow(R.string.targets_manual_switch, state.manualTargets, actions::toggleManualTargets)
         if (state.manualTargets) {
             Text(
                 stringResource(R.string.targets_manual_note),
@@ -456,25 +522,25 @@ private fun SettingsForm(
             Spacer(modifier = Modifier.height(12.dp))
             TargetField(
                 value = state.customKcalText,
-                onChange = viewModel::setCustomKcalText,
+                onChange = actions::setCustomKcalText,
                 labelRes = R.string.target_kcal_label,
                 invalid = state.customKcalText.isNotEmpty() && state.customKcal == null,
             )
             TargetField(
                 value = state.customProteinText,
-                onChange = viewModel::setCustomProteinText,
+                onChange = actions::setCustomProteinText,
                 labelRes = R.string.target_protein_label,
                 invalid = state.customProteinText.isNotEmpty() && state.customProtein == null,
             )
             TargetField(
                 value = state.customFatText,
-                onChange = viewModel::setCustomFatText,
+                onChange = actions::setCustomFatText,
                 labelRes = R.string.target_fat_label,
                 invalid = state.customFatText.isNotEmpty() && state.customFat == null,
             )
             TargetField(
                 value = state.customCarbsText,
-                onChange = viewModel::setCustomCarbsText,
+                onChange = actions::setCustomCarbsText,
                 labelRes = R.string.target_carbs_label,
                 invalid = state.customCarbsText.isNotEmpty() && state.customCarbs == null,
             )
@@ -491,10 +557,10 @@ private fun SettingsForm(
             )
         } else {
             state.recurring.forEach { rule ->
-                RecurringRow(rule = rule, onDelete = { viewModel.deleteRecurring(rule) })
+                RecurringRow(rule = rule, onDelete = { actions.deleteRecurring(rule) })
             }
         }
-        TextButton(onClick = { viewModel.setShowRecurringDialog(true) }) {
+        TextButton(onClick = { actions.setShowRecurringDialog(true) }) {
             Text(stringResource(R.string.recurring_add))
         }
 
@@ -512,9 +578,9 @@ private fun SettingsForm(
                     if (enabled && Build.VERSION.SDK_INT >= 33) {
                         notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
-                    viewModel.toggleReminder(reminder.slot, enabled)
+                    actions.toggleReminder(reminder.slot, enabled)
                 },
-                onEditTime = { viewModel.startEditingReminder(reminder.slot) },
+                onEditTime = { actions.startEditingReminder(reminder.slot) },
             )
         }
         Text(
@@ -526,8 +592,8 @@ private fun SettingsForm(
         // --- Diet ---
         SectionSpace()
         SectionTitle(R.string.onboarding_title_diet)
-        SwitchRow(R.string.vegetarian_label, state.isVegetarian, viewModel::toggleVegetarian)
-        SwitchRow(R.string.no_pork_label, state.noPork, viewModel::toggleNoPork)
+        SwitchRow(R.string.vegetarian_label, state.isVegetarian, actions::toggleVegetarian)
+        SwitchRow(R.string.no_pork_label, state.noPork, actions::toggleNoPork)
         Spacer(modifier = Modifier.height(12.dp))
         Text(stringResource(R.string.allergies_label), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
@@ -535,7 +601,7 @@ private fun SettingsForm(
             Allergen.entries.forEach { allergen ->
                 FilterChip(
                     selected = allergen in state.allergies,
-                    onClick = { viewModel.toggleAllergen(allergen) },
+                    onClick = { actions.toggleAllergen(allergen) },
                     label = { Text(allergenLabel(allergen)) },
                 )
             }
@@ -547,7 +613,7 @@ private fun SettingsForm(
             ProfileOptions.SNACK_OPTIONS.forEach { count ->
                 FilterChip(
                     selected = state.snacksPerDay == count,
-                    onClick = { viewModel.selectSnacksPerDay(count) },
+                    onClick = { actions.selectSnacksPerDay(count) },
                     label = { Text(count.toString()) },
                 )
             }
@@ -559,7 +625,7 @@ private fun SettingsForm(
             ProfileOptions.COOKING_OPTIONS.forEach { sessions ->
                 FilterChip(
                     selected = state.cookingSessionsPerWeek == sessions,
-                    onClick = { viewModel.selectCookingSessions(sessions) },
+                    onClick = { actions.selectCookingSessions(sessions) },
                     label = { Text(cookingSessionsLabel(sessions)) },
                 )
             }
@@ -568,17 +634,17 @@ private fun SettingsForm(
         // --- AI assistant (optional) ---
         SectionSpace()
         SectionTitle(R.string.ai_section)
-        AiKeySection(state = state, viewModel = viewModel)
+        AiKeySection(state = state, actions = actions)
 
         // --- Partner sharing (optional) ---
         SectionSpace()
         SectionTitle(R.string.partner_section)
-        PartnerSection(state = state, viewModel = viewModel)
+        PartnerSection(state = state, actions = actions)
 
         // --- Cloud sync and the website (optional) ---
         SectionSpace()
         SectionTitle(R.string.cloud_section)
-        CloudSection(state = state, viewModel = viewModel)
+        CloudSection(state = state, actions = actions)
 
         // --- Health Connect ---
         // Diagnostics, not daily numbers: they used to sit at the bottom of the
@@ -610,7 +676,7 @@ private fun SettingsForm(
         // --- Save ---
         SectionSpace()
         Button(
-            onClick = viewModel::save,
+            onClick = actions::save,
             enabled = state.canSave && !state.saved,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -620,7 +686,7 @@ private fun SettingsForm(
         // --- Reset ---
         Spacer(modifier = Modifier.height(32.dp))
         OutlinedButton(
-            onClick = { viewModel.setShowResetDialog(true) },
+            onClick = { actions.setShowResetDialog(true) },
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = MaterialTheme.colorScheme.error,
             ),
@@ -660,12 +726,12 @@ private fun ResetConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
  * there is always a way to delete it.
  */
 @Composable
-private fun AiKeySection(state: SettingsUiState, viewModel: SettingsViewModel) {
+private fun AiKeySection(state: SettingsUiState, actions: SettingsActions) {
     var revealed by rememberSaveable { mutableStateOf(false) }
 
     OutlinedTextField(
         value = state.aiKeyText,
-        onValueChange = viewModel::setAiKeyText,
+        onValueChange = actions::setAiKeyText,
         label = { Text(stringResource(R.string.ai_key_label)) },
         isError = state.aiKeyText.isNotBlank() && !state.aiKeyValid,
         supportingText = {
@@ -701,11 +767,11 @@ private fun AiKeySection(state: SettingsUiState, viewModel: SettingsViewModel) {
             )
         }
         TextButton(
-            onClick = viewModel::saveAiKey,
+            onClick = actions::saveAiKey,
             enabled = state.aiKeyValid,
         ) { Text(stringResource(R.string.save)) }
         if (state.aiKeyStored) {
-            TextButton(onClick = viewModel::deleteAiKey) {
+            TextButton(onClick = actions::deleteAiKey) {
                 Text(
                     stringResource(R.string.delete),
                     color = MaterialTheme.colorScheme.error,
@@ -737,7 +803,7 @@ private fun AiKeySection(state: SettingsUiState, viewModel: SettingsViewModel) {
  * different treatments would make one of them look less serious.
  */
 @Composable
-private fun PartnerSection(state: SettingsUiState, viewModel: SettingsViewModel) {
+private fun PartnerSection(state: SettingsUiState, actions: SettingsActions) {
     var revealed by rememberSaveable { mutableStateOf(false) }
     val greeting = stringResource(R.string.partner_greeting)
     val testText = stringResource(R.string.partner_test_text)
@@ -756,7 +822,7 @@ private fun PartnerSection(state: SettingsUiState, viewModel: SettingsViewModel)
 
     OutlinedTextField(
         value = state.botTokenText,
-        onValueChange = viewModel::setBotTokenText,
+        onValueChange = actions::setBotTokenText,
         label = { Text(stringResource(R.string.partner_token_label)) },
         isError = state.botTokenText.isNotBlank() && !state.botTokenValid,
         supportingText = {
@@ -786,11 +852,11 @@ private fun PartnerSection(state: SettingsUiState, viewModel: SettingsViewModel)
             Text(stringResource(if (revealed) R.string.ai_key_hide else R.string.ai_key_show))
         }
         TextButton(
-            onClick = viewModel::saveBotToken,
+            onClick = actions::saveBotToken,
             enabled = state.botTokenValid && !state.partnerBusy,
         ) { Text(stringResource(R.string.save)) }
         if (state.botTokenStored) {
-            TextButton(onClick = viewModel::deleteBotToken, enabled = !state.partnerBusy) {
+            TextButton(onClick = actions::deleteBotToken, enabled = !state.partnerBusy) {
                 Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
             }
         }
@@ -809,7 +875,7 @@ private fun PartnerSection(state: SettingsUiState, viewModel: SettingsViewModel)
                 )
             }
             OutlinedButton(
-                onClick = { viewModel.connectPartner(greeting) },
+                onClick = { actions.connectPartner(greeting) },
                 enabled = !state.partnerBusy,
             ) {
                 Text(stringResource(R.string.partner_connect_action))
@@ -824,21 +890,21 @@ private fun PartnerSection(state: SettingsUiState, viewModel: SettingsViewModel)
                     stringResource(R.string.partner_linked_label, partnerName),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                TextButton(onClick = viewModel::unlinkPartner, enabled = !state.partnerBusy) {
+                TextButton(onClick = actions::unlinkPartner, enabled = !state.partnerBusy) {
                     Text(stringResource(R.string.partner_unlink_action))
                 }
             }
             // Step 3: what flows in each direction.
-            SwitchRow(R.string.partner_share_meals, state.partnerShareMeals, viewModel::setPartnerShareMeals)
-            SwitchRow(R.string.partner_notify_missed, state.partnerNotifyMissed, viewModel::setPartnerNotifyMissed)
+            SwitchRow(R.string.partner_share_meals, state.partnerShareMeals, actions::setPartnerShareMeals)
+            SwitchRow(R.string.partner_notify_missed, state.partnerNotifyMissed, actions::setPartnerNotifyMissed)
             SwitchRow(R.string.partner_inbox, state.partnerInboxEnabled) { enabled ->
                 if (enabled && Build.VERSION.SDK_INT >= 33) {
                     notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
-                viewModel.setPartnerInboxEnabled(enabled)
+                actions.setPartnerInboxEnabled(enabled)
             }
             TextButton(
-                onClick = { viewModel.sendPartnerTest(testText) },
+                onClick = { actions.sendPartnerTest(testText) },
                 enabled = !state.partnerBusy,
             ) {
                 Text(stringResource(R.string.partner_test_action))
@@ -881,7 +947,7 @@ private fun partnerNoticeText(notice: PartnerNotice, state: SettingsUiState): St
  * up here; the schema and policies are in supabase/.
  */
 @Composable
-private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
+private fun CloudSection(state: SettingsUiState, actions: SettingsActions) {
     if (!state.cloudConfigured) {
         // A build without keys (see supabase/README.md): say so, offer nothing.
         Text(
@@ -898,13 +964,13 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Spacer(modifier = Modifier.height(8.dp))
-    SwitchRow(R.string.cloud_switch, state.cloudEnabled, viewModel::toggleCloudSync)
+    SwitchRow(R.string.cloud_switch, state.cloudEnabled, actions::toggleCloudSync)
 
     if (state.cloudEnabled) {
         // Name
         OutlinedTextField(
             value = state.cloudNameText,
-            onValueChange = viewModel::setCloudNameText,
+            onValueChange = actions::setCloudNameText,
             label = { Text(stringResource(R.string.cloud_name_label)) },
             singleLine = true,
             isError = state.cloudNameText.isNotEmpty() && !state.cloudNameValid,
@@ -913,7 +979,7 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
         )
         if (state.cloudNameText.trim() != state.cloudNameStored.orEmpty()) {
             TextButton(
-                onClick = viewModel::saveCloudName,
+                onClick = actions::saveCloudName,
                 enabled = state.cloudNameValid && !state.cloudBusy,
             ) { Text(stringResource(R.string.save)) }
         }
@@ -935,7 +1001,7 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
             )
             OutlinedTextField(
                 value = state.cloudEmailText,
-                onValueChange = viewModel::setCloudEmailText,
+                onValueChange = actions::setCloudEmailText,
                 label = { Text(stringResource(R.string.cloud_email_label)) },
                 singleLine = true,
                 isError = state.cloudEmailText.isNotEmpty() && !state.cloudEmailValid,
@@ -946,7 +1012,7 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
             // this screen to type it into the website, and it is never stored here.
             OutlinedTextField(
                 value = state.cloudPasswordText,
-                onValueChange = viewModel::setCloudPasswordText,
+                onValueChange = actions::setCloudPasswordText,
                 label = { Text(stringResource(R.string.cloud_password_label)) },
                 singleLine = true,
                 isError = state.cloudPasswordText.isNotEmpty() && !state.cloudPasswordValid,
@@ -955,11 +1021,11 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = viewModel::generateCloudPassword, enabled = !state.cloudBusy) {
+                TextButton(onClick = actions::generateCloudPassword, enabled = !state.cloudBusy) {
                     Text(stringResource(R.string.cloud_password_generate))
                 }
                 TextButton(
-                    onClick = viewModel::linkCloudEmail,
+                    onClick = actions::linkCloudEmail,
                     enabled = state.cloudEmailValid && state.cloudPasswordValid && !state.cloudBusy,
                 ) { Text(stringResource(R.string.cloud_email_link)) }
             }
@@ -995,7 +1061,7 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        OutlinedButton(onClick = viewModel::newPairingCode, enabled = !state.cloudBusy) {
+        OutlinedButton(onClick = actions::newPairingCode, enabled = !state.cloudBusy) {
             Text(stringResource(R.string.cloud_code_new))
         }
 
@@ -1017,7 +1083,7 @@ private fun CloudSection(state: SettingsUiState, viewModel: SettingsViewModel) {
                 ) {
                     Text(partner.name, style = MaterialTheme.typography.bodyLarge)
                     TextButton(
-                        onClick = { viewModel.unlinkCloudPartner(partner.linkId) },
+                        onClick = { actions.unlinkCloudPartner(partner.linkId) },
                         enabled = !state.cloudBusy,
                     ) {
                         Text(stringResource(R.string.cloud_unlink), color = MaterialTheme.colorScheme.error)

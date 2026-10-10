@@ -205,7 +205,7 @@ class SettingsViewModel @Inject constructor(
     private val cloudRepository: CloudRepository,
     healthConnectManager: HealthConnectManager,
     @ApplicationContext private val appContext: Context,
-) : ViewModel() {
+) : ViewModel(), SettingsActions {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -332,7 +332,7 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(reminders = rows) }
     }
 
-    fun toggleReminder(slot: MealSlot, enabled: Boolean) {
+    override fun toggleReminder(slot: MealSlot, enabled: Boolean) {
         viewModelScope.launch {
             settings.setReminderEnabled(slot, enabled)
             if (enabled) {
@@ -346,13 +346,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun startEditingReminder(slot: MealSlot) =
+    override fun startEditingReminder(slot: MealSlot) =
         _uiState.update { it.copy(editingReminderSlot = slot) }
 
-    fun cancelEditingReminder() =
+    override fun cancelEditingReminder() =
         _uiState.update { it.copy(editingReminderSlot = null) }
 
-    fun setReminderTime(minutesOfDay: Int) {
+    override fun setReminderTime(minutesOfDay: Int) {
         val slot = _uiState.value.editingReminderSlot ?: return
         _uiState.update { it.copy(editingReminderSlot = null) }
         viewModelScope.launch {
@@ -370,11 +370,11 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(recurring = rules) }
     }
 
-    fun setShowRecurringDialog(show: Boolean) =
+    override fun setShowRecurringDialog(show: Boolean) =
         _uiState.update { it.copy(showRecurringDialog = show) }
 
     /** Adds a rule; if it covers today, today's entry appears immediately. */
-    fun addRecurring(type: WorkoutType, amount: Int, days: Set<DayOfWeek>) {
+    override fun addRecurring(type: WorkoutType, amount: Int, days: Set<DayOfWeek>) {
         _uiState.update { it.copy(showRecurringDialog = false) }
         if (amount <= 0 || days.isEmpty()) return
         viewModelScope.launch {
@@ -392,16 +392,16 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun deleteRecurring(rule: RecurringWorkoutEntity) {
+    override fun deleteRecurring(rule: RecurringWorkoutEntity) {
         viewModelScope.launch {
             workoutRepository.deleteRecurring(rule.id)
             refreshRecurring()
         }
     }
 
-    fun selectSex(sex: Sex) = _uiState.update { it.copy(sex = sex) }
+    override fun selectSex(sex: Sex) = _uiState.update { it.copy(sex = sex) }
 
-    fun selectBirthDate(date: LocalDate) = _uiState.update { state ->
+    override fun selectBirthDate(date: LocalDate) = _uiState.update { state ->
         state.copy(
             birthDate = date,
             // The 18+ rule applies when editing too, not only in onboarding.
@@ -409,14 +409,14 @@ class SettingsViewModel @Inject constructor(
         )
     }
 
-    fun setHeightText(text: String) = _uiState.update { it.copy(heightCmText = text) }
+    override fun setHeightText(text: String) = _uiState.update { it.copy(heightCmText = text) }
 
-    fun setWeightText(text: String) = _uiState.update { it.copy(weightKgText = text) }
+    override fun setWeightText(text: String) = _uiState.update { it.copy(weightKgText = text) }
 
-    fun selectActivityLevel(level: ActivityLevel) =
+    override fun selectActivityLevel(level: ActivityLevel) =
         _uiState.update { it.copy(activityLevel = level) }
 
-    fun selectGoal(goal: Goal) = _uiState.update { state ->
+    override fun selectGoal(goal: Goal) = _uiState.update { state ->
         val rate = when {
             goal == Goal.MAINTAIN -> 0.0
             state.targetKgPerWeek > 0.0 -> state.targetKgPerWeek
@@ -425,18 +425,18 @@ class SettingsViewModel @Inject constructor(
         state.copy(goal = goal, targetKgPerWeek = rate)
     }
 
-    fun selectRate(rate: Double) = _uiState.update { it.copy(targetKgPerWeek = rate) }
+    override fun selectRate(rate: Double) = _uiState.update { it.copy(targetKgPerWeek = rate) }
 
-    fun selectSnacksPerDay(count: Int) = _uiState.update { it.copy(snacksPerDay = count) }
+    override fun selectSnacksPerDay(count: Int) = _uiState.update { it.copy(snacksPerDay = count) }
 
-    fun selectCookingSessions(sessions: Int) =
+    override fun selectCookingSessions(sessions: Int) =
         _uiState.update { it.copy(cookingSessionsPerWeek = sessions) }
 
-    fun toggleVegetarian(enabled: Boolean) = _uiState.update { it.copy(isVegetarian = enabled) }
+    override fun toggleVegetarian(enabled: Boolean) = _uiState.update { it.copy(isVegetarian = enabled) }
 
-    fun toggleNoPork(enabled: Boolean) = _uiState.update { it.copy(noPork = enabled) }
+    override fun toggleNoPork(enabled: Boolean) = _uiState.update { it.copy(noPork = enabled) }
 
-    fun toggleAllergen(allergen: Allergen) = _uiState.update { state ->
+    override fun toggleAllergen(allergen: Allergen) = _uiState.update { state ->
         val newSet =
             if (allergen in state.allergies) state.allergies - allergen
             else state.allergies + allergen
@@ -447,7 +447,7 @@ class SettingsViewModel @Inject constructor(
      * Turning manual targets ON with empty fields prefills them with what the
      * automatic math computes RIGHT NOW — the user edits numbers, not a void.
      */
-    fun toggleManualTargets(enabled: Boolean) = _uiState.update { state ->
+    override fun toggleManualTargets(enabled: Boolean) = _uiState.update { state ->
         val weightKg = state.weightKg
         val heightCm = state.heightCm
         if (enabled && state.customKcalText.isBlank() && weightKg != null && heightCm != null) {
@@ -474,18 +474,18 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setCustomKcalText(text: String) = _uiState.update { it.copy(customKcalText = text) }
+    override fun setCustomKcalText(text: String) = _uiState.update { it.copy(customKcalText = text) }
 
-    fun setCustomProteinText(text: String) = _uiState.update { it.copy(customProteinText = text) }
+    override fun setCustomProteinText(text: String) = _uiState.update { it.copy(customProteinText = text) }
 
-    fun setCustomFatText(text: String) = _uiState.update { it.copy(customFatText = text) }
+    override fun setCustomFatText(text: String) = _uiState.update { it.copy(customFatText = text) }
 
-    fun setCustomCarbsText(text: String) = _uiState.update { it.copy(customCarbsText = text) }
+    override fun setCustomCarbsText(text: String) = _uiState.update { it.copy(customCarbsText = text) }
 
-    fun setShowResetDialog(show: Boolean) = _uiState.update { it.copy(showResetDialog = show) }
+    override fun setShowResetDialog(show: Boolean) = _uiState.update { it.copy(showResetDialog = show) }
 
     /** Saves the profile and today's weight; the screen navigates back on `saved`. */
-    fun setAiKeyText(value: String) =
+    override fun setAiKeyText(value: String) =
         _uiState.update { it.copy(aiKeyText = value, aiKeySavedNotice = false) }
 
     /**
@@ -493,7 +493,7 @@ class SettingsViewModel @Inject constructor(
      * save() is gated on canSave, and refusing to store a key because the
      * weight field happens to be empty would make no sense.
      */
-    fun saveAiKey() {
+    override fun saveAiKey() {
         val key = _uiState.value.aiKeyText.trim()
         if (!_uiState.value.aiKeyValid) return
         viewModelScope.launch {
@@ -504,7 +504,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun deleteAiKey() {
+    override fun deleteAiKey() {
         viewModelScope.launch {
             secrets.clearAiApiKey()
             _uiState.update { it.copy(aiKeyText = "", aiKeyStored = false) }
@@ -513,7 +513,7 @@ class SettingsViewModel @Inject constructor(
 
     // --- Partner sharing ---
 
-    fun setBotTokenText(value: String) =
+    override fun setBotTokenText(value: String) =
         _uiState.update { it.copy(botTokenText = value, partnerNotice = null) }
 
     fun clearPartnerNotice() = _uiState.update { it.copy(partnerNotice = null) }
@@ -543,7 +543,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     /** Verifies the token with Telegram and stores it only if accepted. */
-    fun saveBotToken() {
+    override fun saveBotToken() {
         val token = _uiState.value.botTokenText.trim()
         if (!_uiState.value.botTokenValid) return
         partnerAction(PartnerNotice.BOT_SAVED) {
@@ -556,7 +556,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun deleteBotToken() {
+    override fun deleteBotToken() {
         viewModelScope.launch {
             partnerRepository.deleteToken()
             partnerScheduling.cancelAll()
@@ -565,7 +565,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     /** Links whoever last wrote to the bot, then greets them (string from the UI language). */
-    fun connectPartner(greeting: String) {
+    override fun connectPartner(greeting: String) {
         partnerAction(PartnerNotice.LINKED) {
             partnerRepository.connectPartner(greeting).also { result ->
                 if (result == PartnerResult.Ok) partnerScheduling.reanchor()
@@ -573,7 +573,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun unlinkPartner() {
+    override fun unlinkPartner() {
         viewModelScope.launch {
             partnerRepository.unlinkPartner()
             partnerScheduling.cancelAll()
@@ -581,20 +581,20 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun sendPartnerTest(text: String) {
+    override fun sendPartnerTest(text: String) {
         partnerAction(PartnerNotice.TEST_SENT) { partnerRepository.sendText(text) }
     }
 
-    fun setPartnerShareMeals(enabled: Boolean) {
+    override fun setPartnerShareMeals(enabled: Boolean) {
         viewModelScope.launch { settings.setPartnerShareMeals(enabled) }
     }
 
-    fun setPartnerNotifyMissed(enabled: Boolean) {
+    override fun setPartnerNotifyMissed(enabled: Boolean) {
         viewModelScope.launch { settings.setPartnerNotifyMissed(enabled) }
     }
 
     /** The inbox toggle also starts or stops the polling cycle. */
-    fun setPartnerInboxEnabled(enabled: Boolean) {
+    override fun setPartnerInboxEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settings.setPartnerInboxEnabled(enabled)
             partnerScheduling.reanchor()
@@ -603,18 +603,18 @@ class SettingsViewModel @Inject constructor(
 
     // --- Cloud sync ---
 
-    fun setCloudNameText(value: String) = _uiState.update { it.copy(cloudNameText = value, cloudNotice = null) }
+    override fun setCloudNameText(value: String) = _uiState.update { it.copy(cloudNameText = value, cloudNotice = null) }
 
     fun clearCloudNotice() = _uiState.update { it.copy(cloudNotice = null) }
 
-    fun dismissCloudNameDialog() = _uiState.update { it.copy(showCloudNameDialog = false) }
+    override fun dismissCloudNameDialog() = _uiState.update { it.copy(showCloudNameDialog = false) }
 
     /**
      * The switch. Turning it on needs a display name first (the website says
      * "<name>'s day"), so without one the dialog opens and the real enable
      * happens from there. Turning it off is immediate and keeps the account.
      */
-    fun toggleCloudSync(enabled: Boolean) {
+    override fun toggleCloudSync(enabled: Boolean) {
         if (!enabled) {
             viewModelScope.launch {
                 cloudRepository.disable()
@@ -631,7 +631,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun enableCloudSync(displayName: String) {
+    override fun enableCloudSync(displayName: String) {
         _uiState.update { it.copy(showCloudNameDialog = false, cloudNameText = displayName.trim()) }
         cloudAction(CloudNotice.ENABLED) {
             cloudRepository.enable(displayName).also { result ->
@@ -644,7 +644,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun saveCloudName() {
+    override fun saveCloudName() {
         val name = _uiState.value.cloudNameText.trim()
         if (!_uiState.value.cloudNameValid) return
         cloudAction(CloudNotice.NAME_SAVED) {
@@ -654,7 +654,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun newPairingCode() {
+    override fun newPairingCode() {
         cloudAction(CloudNotice.CODE_READY) { cloudRepository.newPairingCode() }
     }
 
@@ -666,12 +666,12 @@ class SettingsViewModel @Inject constructor(
 
     // --- Account email (milestone 3) ---
 
-    fun setCloudEmailText(value: String) = _uiState.update { it.copy(cloudEmailText = value, cloudNotice = null) }
+    override fun setCloudEmailText(value: String) = _uiState.update { it.copy(cloudEmailText = value, cloudNotice = null) }
 
-    fun setCloudPasswordText(value: String) = _uiState.update { it.copy(cloudPasswordText = value, cloudNotice = null) }
+    override fun setCloudPasswordText(value: String) = _uiState.update { it.copy(cloudPasswordText = value, cloudNotice = null) }
 
     /** Fills the password field with a made-up one, shown in clear so it can be copied down. */
-    fun generateCloudPassword() = _uiState.update { it.copy(cloudPasswordText = PasswordGenerator.generate(), cloudNotice = null) }
+    override fun generateCloudPassword() = _uiState.update { it.copy(cloudPasswordText = PasswordGenerator.generate(), cloudNotice = null) }
 
     /** Asks the server whether the account has an email yet; the field defaults to the one typed last. */
     fun refreshCloudAccount() {
@@ -687,7 +687,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun linkCloudEmail() {
+    override fun linkCloudEmail() {
         val state = _uiState.value
         val email = state.cloudEmailText.trim()
         if (!state.cloudEmailValid || !state.cloudPasswordValid) return
@@ -698,7 +698,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun unlinkCloudPartner(linkId: String) {
+    override fun unlinkCloudPartner(linkId: String) {
         cloudAction(CloudNotice.UNLINKED) {
             cloudRepository.unlink(linkId).also { refreshCloudPartners() }
         }
@@ -724,7 +724,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun save() {
+    override fun save() {
         val state = _uiState.value
         if (!state.canSave) return
         val heightCm = state.heightCm ?: return
@@ -764,7 +764,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     /** Wipes everything; AppRoot then automatically returns to onboarding. */
-    fun confirmReset() {
+    override fun confirmReset() {
         // Close the dialog immediately: it must not stay tappable while the
         // reset runs (double-confirm would launch the reset twice).
         _uiState.update { it.copy(showResetDialog = false) }

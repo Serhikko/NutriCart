@@ -38,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.nutricart.app.R
+import com.nutricart.app.data.local.entity.IngredientEntity
 import com.nutricart.app.domain.logic.FridgeMath
 import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.common.aisleLabel
@@ -56,9 +57,7 @@ fun FridgeScreen(
     onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    var showStock by rememberSaveable { mutableStateOf(true) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val bodyState = rememberSaveableStateHolder()
     // The scope lives HERE, next to the host: a scope remembered inside the
     // swapped body dies with it, and switching halves would cut the snackbar
     // off mid-sentence.
@@ -67,6 +66,31 @@ fun FridgeScreen(
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
+    FridgeContent(
+        snackbarHostState = snackbarHostState,
+        shareAction = { ShareListAction() },
+        stockBody = { StockBody(onOpenRecipe = onOpenRecipe, onOpenSettings = onOpenSettings) },
+        shoppingBody = { ShoppingBody(onMessage = showMessage) },
+    )
+}
+
+/**
+ * The stateless frame of [FridgeScreen]: app bar, the In stock / To buy chips
+ * and whichever half is chosen. The halves come in as slots so screenshot
+ * tests can pass [FridgeStockContent] / ShoppingContent with fake state.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FridgeContent(
+    snackbarHostState: SnackbarHostState,
+    shareAction: @Composable () -> Unit,
+    stockBody: @Composable () -> Unit,
+    shoppingBody: @Composable () -> Unit,
+    initialShowStock: Boolean = true,
+) {
+    var showStock by rememberSaveable { mutableStateOf(initialShowStock) }
+    val bodyState = rememberSaveableStateHolder()
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -74,7 +98,7 @@ fun FridgeScreen(
                 title = { Text(stringResource(R.string.fridge_title)) },
                 // The share icon belongs to the list, so it only exists while
                 // the list is the thing on screen.
-                actions = { if (!showStock) ShareListAction() },
+                actions = { if (!showStock) shareAction() },
             )
         },
     ) { innerPadding ->
@@ -105,14 +129,7 @@ fun FridgeScreen(
             // other one's scroll position.
             Box(modifier = Modifier.weight(1f)) {
                 bodyState.SaveableStateProvider(key = showStock) {
-                    if (showStock) {
-                        StockBody(
-                            onOpenRecipe = onOpenRecipe,
-                            onOpenSettings = onOpenSettings,
-                        )
-                    } else {
-                        ShoppingBody(onMessage = showMessage)
-                    }
+                    if (showStock) stockBody() else shoppingBody()
                 }
             }
         }
@@ -128,6 +145,34 @@ private fun StockBody(
     val state by viewModel.uiState.collectAsState()
     val aiState by viewModel.aiState.collectAsState()
     val pickable by viewModel.pickable.collectAsState()
+    FridgeStockContent(
+        state = state,
+        aiState = aiState,
+        pickable = pickable,
+        onOpenRecipe = onOpenRecipe,
+        onOpenSettings = onOpenSettings,
+        onAskAi = viewModel::askAi,
+        onDismissAi = viewModel::dismissAiAnswer,
+        onAdd = viewModel::add,
+        onSetGrams = viewModel::setGrams,
+        onRemove = viewModel::remove,
+    )
+}
+
+/** The stateless "in stock" half; it owns only its add / edit dialogs. */
+@Composable
+fun FridgeStockContent(
+    state: FridgeUiState,
+    aiState: AiUiState,
+    pickable: List<IngredientEntity>,
+    onOpenRecipe: (recipeId: Long, portionFactor: Double) -> Unit,
+    onOpenSettings: () -> Unit,
+    onAskAi: () -> Unit,
+    onDismissAi: () -> Unit,
+    onAdd: (ingredient: IngredientEntity, grams: Double) -> Unit,
+    onSetGrams: (item: FridgeItemUi, grams: Double) -> Unit,
+    onRemove: (item: FridgeItemUi) -> Unit,
+) {
     var showAdd by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<FridgeItemUi?>(null) }
 
@@ -153,8 +198,8 @@ private fun StockBody(
             FridgeAiBlock(
                 state = aiState,
                 canAsk = state.itemCount > 0,
-                onAsk = viewModel::askAi,
-                onDismiss = viewModel::dismissAiAnswer,
+                onAsk = onAskAi,
+                onDismiss = onDismissAi,
                 onOpenSettings = onOpenSettings,
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -199,7 +244,7 @@ private fun StockBody(
         AddToFridgeDialog(
             ingredients = pickable,
             onConfirm = { ingredient, grams ->
-                viewModel.add(ingredient, grams)
+                onAdd(ingredient, grams)
                 showAdd = false
             },
             onDismiss = { showAdd = false },
@@ -209,11 +254,11 @@ private fun StockBody(
         EditFridgeItemDialog(
             item = item,
             onConfirm = { grams ->
-                viewModel.setGrams(item, grams)
+                onSetGrams(item, grams)
                 editing = null
             },
             onRemove = {
-                viewModel.remove(item)
+                onRemove(item)
                 editing = null
             },
             onDismiss = { editing = null },

@@ -86,14 +86,14 @@ data class OnboardingUiState(
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val repository: ProfileRepository,
-) : ViewModel() {
+) : ViewModel(), OnboardingActions {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
-    fun selectSex(sex: Sex) = _uiState.update { it.copy(sex = sex) }
+    override fun selectSex(sex: Sex) = _uiState.update { it.copy(sex = sex) }
 
-    fun selectBirthDate(date: LocalDate) = _uiState.update { state ->
+    override fun selectBirthDate(date: LocalDate) = _uiState.update { state ->
         state.copy(
             birthDate = date,
             // Hard rule from the spec: the app refuses to work for users under 18.
@@ -101,14 +101,14 @@ class OnboardingViewModel @Inject constructor(
         )
     }
 
-    fun setHeightText(text: String) = _uiState.update { it.copy(heightCmText = text) }
+    override fun setHeightText(text: String) = _uiState.update { it.copy(heightCmText = text) }
 
-    fun setWeightText(text: String) = _uiState.update { it.copy(weightKgText = text) }
+    override fun setWeightText(text: String) = _uiState.update { it.copy(weightKgText = text) }
 
-    fun selectActivityLevel(level: ActivityLevel) =
+    override fun selectActivityLevel(level: ActivityLevel) =
         _uiState.update { it.copy(activityLevel = level) }
 
-    fun selectGoal(goal: Goal) = _uiState.update { state ->
+    override fun selectGoal(goal: Goal) = _uiState.update { state ->
         val rate = when {
             goal == Goal.MAINTAIN -> 0.0
             state.targetKgPerWeek > 0.0 -> state.targetKgPerWeek
@@ -117,25 +117,25 @@ class OnboardingViewModel @Inject constructor(
         state.copy(goal = goal, targetKgPerWeek = rate)
     }
 
-    fun selectRate(rate: Double) = _uiState.update { it.copy(targetKgPerWeek = rate) }
+    override fun selectRate(rate: Double) = _uiState.update { it.copy(targetKgPerWeek = rate) }
 
-    fun selectSnacksPerDay(count: Int) = _uiState.update { it.copy(snacksPerDay = count) }
+    override fun selectSnacksPerDay(count: Int) = _uiState.update { it.copy(snacksPerDay = count) }
 
-    fun selectCookingSessions(sessions: Int) =
+    override fun selectCookingSessions(sessions: Int) =
         _uiState.update { it.copy(cookingSessionsPerWeek = sessions) }
 
-    fun toggleVegetarian(enabled: Boolean) = _uiState.update { it.copy(isVegetarian = enabled) }
+    override fun toggleVegetarian(enabled: Boolean) = _uiState.update { it.copy(isVegetarian = enabled) }
 
-    fun toggleNoPork(enabled: Boolean) = _uiState.update { it.copy(noPork = enabled) }
+    override fun toggleNoPork(enabled: Boolean) = _uiState.update { it.copy(noPork = enabled) }
 
-    fun toggleAllergen(allergen: Allergen) = _uiState.update { state ->
+    override fun toggleAllergen(allergen: Allergen) = _uiState.update { state ->
         val newSet =
             if (allergen in state.allergies) state.allergies - allergen
             else state.allergies + allergen
         state.copy(allergies = newSet)
     }
 
-    fun next() = _uiState.update { state ->
+    override fun next() = _uiState.update { state ->
         if (!state.canGoNext) return@update state
         val nextStep = state.step + 1
         if (nextStep == OnboardingUiState.STEP_SUMMARY) {
@@ -146,13 +146,13 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    fun back() = _uiState.update { state ->
+    override fun back() = _uiState.update { state ->
         if (state.step == OnboardingUiState.STEP_SEX) state
         else state.copy(step = state.step - 1)
     }
 
     /** Saves everything; AppRoot switches to the main app when the flag flips. */
-    fun finish() {
+    override fun finish() {
         val state = _uiState.value
         // Defense in depth: the under-18 rule is enforced again right before
         // saving, not only by the step navigation.

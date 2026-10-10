@@ -67,6 +67,43 @@ fun ShoppingBody(
     val copiedMessage = stringResource(R.string.copied_toast)
     val movedMessage = stringResource(R.string.fridge_moved_toast)
 
+    ShoppingContent(
+        state = state,
+        onToggleDay = viewModel::toggleDay,
+        onRegenerate = viewModel::regenerate,
+        onSetChecked = viewModel::setChecked,
+        onToggleHave = viewModel::toggleAlreadyHave,
+        onMoveBought = {
+            viewModel.moveBoughtToFridge()
+            onMessage(movedMessage)
+        },
+        onCopy = {
+            clipboard.setText(
+                AnnotatedString(
+                    viewModel.buildShareText(
+                        aisleLabel = { aisleLabels.getValue(it) },
+                        amountLabel = amountLabel,
+                    )
+                )
+            )
+            onMessage(copiedMessage)
+        },
+    )
+}
+
+/** The stateless half of [ShoppingBody]: draws [state], forwards every tap. */
+@Composable
+fun ShoppingContent(
+    state: ShoppingUiState,
+    onToggleDay: (epochDay: Long) -> Unit,
+    onRegenerate: () -> Unit,
+    onSetChecked: (item: ShoppingItemUi, checked: Boolean) -> Unit,
+    onToggleHave: (item: ShoppingItemUi) -> Unit,
+    onMoveBought: () -> Unit,
+    onCopy: () -> Unit,
+) {
+    val aisleLabels = Aisle.entries.associateWith { aisleLabel(it) }
+
     if (state.loading) {
         LoadingBox()
         return
@@ -84,11 +121,11 @@ fun ShoppingBody(
             DayChips(
                 weekDays = state.weekDays,
                 selected = state.selectedDays,
-                onToggle = viewModel::toggleDay,
+                onToggle = onToggleDay,
             )
             Spacer(modifier = Modifier.height(12.dp))
             Button(
-                onClick = viewModel::regenerate,
+                onClick = onRegenerate,
                 enabled = state.hasPlan && !state.generating,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -122,8 +159,8 @@ fun ShoppingBody(
             items(items, key = { it.id }) { item ->
                 ShoppingRow(
                     item = item,
-                    onChecked = { checked -> viewModel.setChecked(item, checked) },
-                    onToggleHave = { viewModel.toggleAlreadyHave(item) },
+                    onChecked = { checked -> onSetChecked(item, checked) },
+                    onToggleHave = { onToggleHave(item) },
                 )
             }
         }
@@ -135,10 +172,7 @@ fun ShoppingBody(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = {
-                        viewModel.moveBoughtToFridge()
-                        onMessage(movedMessage)
-                    },
+                    onClick = onMoveBought,
                     enabled = !state.moving,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -151,17 +185,7 @@ fun ShoppingBody(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 TextButton(
-                    onClick = {
-                        clipboard.setText(
-                            AnnotatedString(
-                                viewModel.buildShareText(
-                                    aisleLabel = { aisleLabels.getValue(it) },
-                                    amountLabel = amountLabel,
-                                )
-                            )
-                        )
-                        onMessage(copiedMessage)
-                    },
+                    onClick = onCopy,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.copy_action))
@@ -183,7 +207,8 @@ fun ShareListAction(viewModel: ShoppingViewModel = hiltViewModel()) {
     val aisleLabels = Aisle.entries.associateWith { aisleLabel(it) }
     val amountLabel = amountLabel()
 
-    IconButton(
+    ShareListButton(
+        enabled = state.hasList,
         onClick = {
             val text = viewModel.buildShareText(
                 aisleLabel = { aisleLabels.getValue(it) },
@@ -195,8 +220,13 @@ fun ShareListAction(viewModel: ShoppingViewModel = hiltViewModel()) {
             }
             context.startActivity(Intent.createChooser(intent, null))
         },
-        enabled = state.hasList,
-    ) {
+    )
+}
+
+/** The stateless share icon of [ShareListAction]. */
+@Composable
+fun ShareListButton(enabled: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled) {
         Icon(
             Icons.Filled.Share,
             contentDescription = stringResource(R.string.share_action),

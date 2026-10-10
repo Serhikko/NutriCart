@@ -107,61 +107,11 @@ private fun AppNavHost() {
         bottomBar = {
             // The tab bar shows only on the four top-level screens.
             if (currentRoute in TAB_ROUTES) {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.DASHBOARD,
-                        onClick = { navController.navigateToTab(Routes.DASHBOARD) },
-                        icon = { Icon(Icons.Filled.Home, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_today)) },
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.PLAN,
-                        onClick = { navController.navigateToTab(Routes.PLAN) },
-                        icon = { Icon(Icons.Filled.DateRange, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_plan)) },
-                    )
-                    // The centre "+" is a bar SLOT, not a floating button:
-                    // Material docks FABs on a BottomAppBar, never on a
-                    // NavigationBar, so a real dock would mean hand-rolled
-                    // offsets fighting the window insets. As a slot it also
-                    // stays evenly spaced with the tabs for free.
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { showQuickAdd = true },
-                        icon = {
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                shape = CircleShape,
-                            ) {
-                                Icon(
-                                    Icons.Filled.Add,
-                                    contentDescription = stringResource(R.string.quick_add_title),
-                                    // 24 dp icon + 4 + 4 = a 32 dp circle, the
-                                    // same height as the tabs' selection pill.
-                                    modifier = Modifier.padding(4.dp),
-                                )
-                            }
-                        },
-                        // A label even though the icon speaks for itself: an
-                        // unlabelled item is laid out by a different branch of
-                        // NavigationBarItem and its icon would sit lower than
-                        // the four tabs beside it.
-                        label = { Text(stringResource(R.string.add_action)) },
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.FRIDGE,
-                        onClick = { navController.navigateToTab(Routes.FRIDGE) },
-                        icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
-                        label = { Text(stringResource(R.string.fridge_title)) },
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.DIARY,
-                        onClick = { navController.navigateToTab(Routes.DIARY) },
-                        icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_diary)) },
-                    )
-                }
+                AppBottomBar(
+                    currentRoute = currentRoute,
+                    onSelectTab = { route -> navController.navigateToTab(route) },
+                    onQuickAdd = { showQuickAdd = true },
+                )
             }
         },
     ) { innerPadding ->
@@ -261,6 +211,73 @@ private fun AppNavHost() {
                     Routes.foodSearch(LocalDate.now().toEpochDay(), slot, autoScan = true)
                 )
             },
+        )
+    }
+}
+
+/**
+ * The bottom tab bar with the centre "+" slot. Stateless: AppNavHost passes
+ * the current route and does the navigating (screenshot tests reuse it).
+ */
+@Composable
+fun AppBottomBar(
+    currentRoute: String?,
+    onSelectTab: (route: String) -> Unit,
+    onQuickAdd: () -> Unit,
+) {
+    NavigationBar {
+        NavigationBarItem(
+            selected = currentRoute == Routes.DASHBOARD,
+            onClick = { onSelectTab(Routes.DASHBOARD) },
+            icon = { Icon(Icons.Filled.Home, contentDescription = null) },
+            label = { Text(stringResource(R.string.tab_today)) },
+        )
+        NavigationBarItem(
+            selected = currentRoute == Routes.PLAN,
+            onClick = { onSelectTab(Routes.PLAN) },
+            icon = { Icon(Icons.Filled.DateRange, contentDescription = null) },
+            label = { Text(stringResource(R.string.tab_plan)) },
+        )
+        // The centre "+" is a bar SLOT, not a floating button:
+        // Material docks FABs on a BottomAppBar, never on a
+        // NavigationBar, so a real dock would mean hand-rolled
+        // offsets fighting the window insets. As a slot it also
+        // stays evenly spaced with the tabs for free.
+        NavigationBarItem(
+            selected = false,
+            onClick = onQuickAdd,
+            icon = {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = CircleShape,
+                ) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.quick_add_title),
+                        // 24 dp icon + 4 + 4 = a 32 dp circle, the
+                        // same height as the tabs' selection pill.
+                        modifier = Modifier.padding(4.dp),
+                    )
+                }
+            },
+            // A label even though the icon speaks for itself: an
+            // unlabelled item is laid out by a different branch of
+            // NavigationBarItem and its icon would sit lower than
+            // the four tabs beside it.
+            label = { Text(stringResource(R.string.add_action)) },
+        )
+        NavigationBarItem(
+            selected = currentRoute == Routes.FRIDGE,
+            onClick = { onSelectTab(Routes.FRIDGE) },
+            icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
+            label = { Text(stringResource(R.string.fridge_title)) },
+        )
+        NavigationBarItem(
+            selected = currentRoute == Routes.DIARY,
+            onClick = { onSelectTab(Routes.DIARY) },
+            icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
+            label = { Text(stringResource(R.string.tab_diary)) },
         )
     }
 }

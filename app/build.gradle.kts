@@ -18,6 +18,11 @@ val localProperties = Properties().apply {
 fun configValue(name: String): String =
     localProperties.getProperty(name) ?: System.getenv(name) ?: ""
 
+// Screenshot tests (Roborazzi on Robolectric) live in src/test/.../screenshots and run
+// ONLY with -Pscreenshots. Without it (CI, `./gradlew :app:testDebugUnitTest`) they are
+// excluded and the unit tests run exactly as before. See README "Screenshots".
+val screenshots = providers.gradleProperty("screenshots").isPresent
+
 android {
     namespace = "com.nutricart.app"
     compileSdk = 37
@@ -50,6 +55,36 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true // for the Supabase keys above
+    }
+
+    testOptions {
+        // Robolectric needs the merged resources and manifest — only the screenshot run does.
+        unitTests.isIncludeAndroidResources = screenshots
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    if (screenshots) {
+        filter.includeTestsMatching("com.nutricart.app.screenshots.*")
+        // Where the PNGs go; shoot.sh collects them from here.
+        val shotsDir = layout.buildDirectory.dir("outputs/screenshots").get().asFile
+        systemProperty("nutricart.screenshots.dir", shotsDir.absolutePath)
+        // -Pscreenshots.variants=light,dark renders only those variants (light, dark, uk, fs130).
+        providers.gradleProperty("screenshots.variants").orNull
+            ?.let { systemProperty("nutricart.screenshots.variants", it) }
+        // Real-GPU-like rendering in Robolectric: elevation shadows, dialogs, sheets.
+        systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+        // Robolectric 4.17 on JDK 17+ reaches into FileDescriptor internals for SDK 37.
+        jvmArgs(
+            "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+            "--add-opens=java.base/java.io=ALL-UNNAMED",
+        )
+        maxHeapSize = "3g"
+        maxParallelForks = 2
+        // Screenshots are an output, not a cacheable test result: always re-render.
+        outputs.upToDateWhen { false }
+    } else {
+        exclude("com/nutricart/app/screenshots/**")
     }
 }
 // Kotlin's jvmTarget automatically follows compileOptions.targetCompatibility (17).
@@ -106,4 +141,11 @@ dependencies {
 
     // Unit tests (pure JVM)
     testImplementation(libs.junit)
+
+    // Screenshot tests (-Pscreenshots only; test classpath only, nothing ships in the APK)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.androidx.test.espresso.core)
 }

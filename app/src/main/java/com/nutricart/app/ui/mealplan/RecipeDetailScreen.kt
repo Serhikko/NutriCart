@@ -46,12 +46,23 @@ fun RecipeDetailScreen(
     viewModel: RecipeDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    RecipeDetailContent(state = state, onBack = onBack, onCook = viewModel::cook)
+}
+
+/** The stateless half of [RecipeDetailScreen]; it owns only the "cooked" dialog. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecipeDetailContent(
+    state: RecipeDetailUiState,
+    onBack: () -> Unit,
+    onCook: (portions: Int) -> Unit,
+) {
     var showCooked by rememberSaveable { mutableStateOf(false) }
 
     if (showCooked) {
         CookedPortionsDialog(
             onConfirm = { portions ->
-                viewModel.cook(portions)
+                onCook(portions)
                 showCooked = false
             },
             onDismiss = { showCooked = false },
