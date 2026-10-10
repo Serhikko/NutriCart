@@ -65,6 +65,19 @@ interface SupabaseRestApi {
         @Body rows: JsonArray,
     ): Response<Unit>
 
+    /**
+     * A plain insert (no conflict target): for rows that are only ever created, like a pairing
+     * code. Naming a conflict target, as [upsert] does, makes the server check the new row against
+     * the table's SELECT policies too.
+     */
+    @Headers("Prefer: return=minimal")
+    @POST("rest/v1/{table}")
+    suspend fun insert(
+        @Header("Authorization") bearer: String,
+        @Path("table") table: String,
+        @Body rows: JsonArray,
+    ): Response<Unit>
+
     /** Filters are PostgREST expressions, e.g. mapOf("owner_id" to "eq.<uuid>"). */
     @Headers("Prefer: return=minimal")
     @DELETE("rest/v1/{table}")

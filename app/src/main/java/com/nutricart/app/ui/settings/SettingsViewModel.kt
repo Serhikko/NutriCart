@@ -33,6 +33,7 @@ import com.nutricart.app.domain.model.WorkoutKind
 import com.nutricart.app.domain.model.WorkoutType
 import java.time.DayOfWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -112,6 +113,8 @@ data class SettingsUiState(
     /** The live pairing code and when it expires (epoch millis); null = none. */
     val cloudPairingCode: Pair<String, Long>? = null,
     val cloudPartners: List<CloudPartner> = emptyList(),
+    /** The last attempt to list them failed: the screen says so instead of "Nobody yet". */
+    val cloudPartnersFailed: Boolean = false,
     val cloudLastSyncEpochMillis: Long? = null,
     /** Short error code of the last failed sync, from CloudSyncWorker; null = fine. */
     val cloudLastError: String? = null,
@@ -177,6 +180,10 @@ data class SettingsUiState(
 
     val cloudPasswordValid: Boolean
         get() = PasswordGenerator.isAcceptable(cloudPasswordText)
+
+    /** After a load of the partner list ([loaded] null = it failed): a failure keeps what was shown. */
+    fun withCloudPartners(loaded: List<CloudPartner>?): SettingsUiState =
+        if (loaded == null) copy(cloudPartnersFailed = true) else copy(cloudPartners = loaded, cloudPartnersFailed = false)
 }
 
 /** What the cloud section reports after an action. */
@@ -209,6 +216,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    // Declared before init, which may already start a load.
+    private var partnersJob: Job? = null
 
     init {
         // Health Connect diagnostics live here now. The "open Health Connect
@@ -269,10 +279,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             cloudRepository.isEnabled.collect { on ->
                 _uiState.update { it.copy(cloudEnabled = on) }
-                if (on) {
-                    refreshCloudPartners()
-                    refreshCloudAccount()
-                }
+                // partners() needs only the session, which disable() keeps.
+                refreshCloudPartners()
+                if (on) refreshCloudAccount()
             }
         }
         viewModelScope.launch {
@@ -560,6 +569,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             partnerRepository.deleteToken()
             partnerScheduling.cancelAll()
+            partnerScheduling.reanchor() // website nudges keep their cycle while cloud sync is on
             _uiState.update { it.copy(botTokenText = "", botTokenStored = false, partnerNotice = null) }
         }
     }
@@ -577,6 +587,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             partnerRepository.unlinkPartner()
             partnerScheduling.cancelAll()
+            partnerScheduling.reanchor() // website nudges keep their cycle while cloud sync is on
             _uiState.update { it.copy(partnerNotice = null) }
         }
     }
@@ -619,7 +630,8 @@ class SettingsViewModel @Inject constructor(
             viewModelScope.launch {
                 cloudRepository.disable()
                 partnerScheduling.reanchor() // stop the nudge polling if Telegram is not linked
-                _uiState.update { it.copy(cloudNotice = null, cloudPartners = emptyList()) }
+                // The partners keep reading what was uploaded: the list and Remove stay.
+                _uiState.update { it.copy(cloudNotice = null) }
             }
             return
         }
@@ -658,9 +670,18 @@ class SettingsViewModel @Inject constructor(
         cloudAction(CloudNotice.CODE_READY) { cloudRepository.newPairingCode() }
     }
 
-    fun refreshCloudPartners() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(cloudPartners = cloudRepository.partners()) }
+    /**
+     * Loads who can see the day: on open, on every return to the screen, and every 10 s while a
+     * code is live. One load at a time, so a late answer never overwrites a newer one. A new request
+     * replaces the load in flight, except the poll's ([replace] false): it leaves that load to finish,
+     * so on a slow or hanging link the load still reaches its answer or its timeout (and the error).
+     */
+    fun refreshCloudPartners(replace: Boolean = true) {
+        if (!replace && partnersJob?.isActive == true) return
+        partnersJob?.cancel()
+        partnersJob = viewModelScope.launch {
+            val list = cloudRepository.partners()
+            _uiState.update { it.withCloudPartners(list) }
         }
     }
 

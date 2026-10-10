@@ -1,7 +1,9 @@
 package com.nutricart.app.domain.logic
 
 import java.security.MessageDigest
+import java.security.SecureRandom
 import kotlin.random.Random
+import kotlin.random.asKotlinRandom
 
 /**
  * The 6-character code that links a partner to an account. The phone shows
@@ -19,8 +21,12 @@ object PairingCode {
     const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     const val VALIDITY_MINUTES = 15L
 
-    fun generate(random: Random = Random.Default): String =
+    // A token that grants read access: from the platform CSPRNG, like PasswordGenerator (tests pass a seeded Random).
+    fun generate(random: Random = secureRandom()): String =
         buildString(LENGTH) { repeat(LENGTH) { append(ALPHABET[random.nextInt(ALPHABET.length)]) } }
+
+    /** What [generate] draws from unless told otherwise; a function of its own so a test can check it. */
+    internal fun secureRandom(): Random = SecureRandom().asKotlinRandom()
 
     /** What a person types, tidied: upper-case, no spaces or dashes. */
     fun normalize(input: String): String =
@@ -28,6 +34,21 @@ object PairingCode {
 
     fun isWellFormed(code: String): Boolean =
         code.length == LENGTH && code.all { it in ALPHABET }
+
+    /**
+     * The minutes a code still works, rounded up (15:00 and 14:01 left both show 15, the last minute
+     * shows 1), or null once it has expired: what the countdown ring shows.
+     */
+    fun minutesLeft(expiresAtEpochMillis: Long, nowEpochMillis: Long): Int? {
+        val left = expiresAtEpochMillis - nowEpochMillis
+        return if (left > 0) ((left + MINUTE_MILLIS - 1) / MINUTE_MILLIS).toInt() else null
+    }
+
+    /** How long until [minutesLeft] changes: to the next whole minute left, or to the expiry. */
+    fun millisToNextTick(expiresAtEpochMillis: Long, nowEpochMillis: Long): Long =
+        ((expiresAtEpochMillis - nowEpochMillis).coerceAtLeast(1) - 1) % MINUTE_MILLIS + 1
+
+    private const val MINUTE_MILLIS = 60_000L
 
     /** Lower-case hex SHA-256 of the normalised code, the only form stored. */
     fun hash(code: String): String {

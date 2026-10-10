@@ -2,10 +2,13 @@ package com.nutricart.app.domain.logic
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.security.MessageDigest
+import java.security.SecureRandom
 import kotlin.random.Random
+import kotlin.random.asJavaRandom
 
 class PairingCodeTest {
 
@@ -16,6 +19,61 @@ class PairingCodeTest {
             assertTrue(code, PairingCode.isWellFormed(code))
             assertFalse(code, code.any { c -> c in "0O1I" })
         }
+    }
+
+    @Test
+    fun `the default generator makes well-formed codes too`() {
+        repeat(50) {
+            val code = PairingCode.generate()
+            assertTrue(code, PairingCode.isWellFormed(code))
+        }
+    }
+
+    @Test
+    fun `the default generator draws from the platform CSPRNG`() {
+        // A code grants read access: Random.Default (not a SecureRandom underneath) would fail this.
+        assertTrue(PairingCode.secureRandom().asJavaRandom() is SecureRandom)
+    }
+
+    @Test
+    fun `the countdown rounds the time left up to whole minutes`() {
+        val expires = 1_000_000_000L
+        assertEquals(15, PairingCode.minutesLeft(expires, expires - 15 * 60_000L))
+        assertEquals(15, PairingCode.minutesLeft(expires, expires - 14 * 60_000L - 1))
+        assertEquals(14, PairingCode.minutesLeft(expires, expires - 14 * 60_000L))
+        assertEquals(1, PairingCode.minutesLeft(expires, expires - 1))
+        assertNull(PairingCode.minutesLeft(expires, expires))
+        assertNull(PairingCode.minutesLeft(expires, expires + 60_000L))
+    }
+
+    @Test
+    fun `the countdown wakes exactly when the minute shown changes`() {
+        val expires = 1_000_000_000L
+        // 9:30 left shows 10; 30 s later 9:00 left shows 9.
+        var now = expires - 9 * 60_000L - 30_000L
+        assertEquals(30_000L, PairingCode.millisToNextTick(expires, now))
+        assertEquals(10, PairingCode.minutesLeft(expires, now))
+        now += PairingCode.millisToNextTick(expires, now)
+        assertEquals(9, PairingCode.minutesLeft(expires, now))
+        // Exactly on a minute: a whole minute to the next one.
+        assertEquals(60_000L, PairingCode.millisToNextTick(expires, now))
+        // In the last minute the next tick is the expiry itself.
+        now = expires - 20_000L
+        now += PairingCode.millisToNextTick(expires, now)
+        assertNull(PairingCode.minutesLeft(expires, now))
+    }
+
+    @Test
+    fun `the countdown from a fresh code reaches the expiry in 15 ticks`() {
+        val expires = 1_000_000_000L
+        var now = expires - PairingCode.VALIDITY_MINUTES * 60_000L + 1_234L
+        val shown = mutableListOf<Int>()
+        while (now < expires) {
+            shown += PairingCode.minutesLeft(expires, now)!!
+            now += PairingCode.millisToNextTick(expires, now)
+        }
+        assertEquals((15 downTo 1).toList(), shown)
+        assertEquals(expires, now)
     }
 
     @Test

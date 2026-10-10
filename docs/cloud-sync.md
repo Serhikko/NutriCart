@@ -57,8 +57,10 @@ The owner makes a 6-character code (`PairingCode`: no 0/O/1/I), on the phone
 Share your day). Either client first deletes the owner's older codes, then
 inserts the new code's SHA-256 and shows the plain code; only the hash is
 stored. An owner may select, insert and delete their own `pairing_codes`
-rows and nobody else's (migration `0007`: the phone's upsert and the
-delete-before-insert both need the owner's SELECT policy). The server sets
+rows and nobody else's (migration `0007`: the delete-before-insert needs the
+owner's SELECT policy, and so did the phone's former upsert; the phone now
+sends a plain insert, after publishing the owner's name so a partner who
+redeems at once sees it). The server sets
 the 15-minute expiry from its own clock on insert, whatever the client sent,
 and keeps one code per account (an insert deletes the account's other
 codes). `code_hash` is not unique (`0007` drops 0001's constraint): with it,
@@ -230,8 +232,12 @@ the phone's `day_summaries` row (it includes the day's activity, which the
 website cannot know), the eaten total from the live rows.
 
 **Pull.** After draining the outbox, `CloudPull` asks each of the three synced
-tables for rows with `updated_at` past a per-table watermark, oldest first,
-500 at a time, and applies them through the DAOs (never the repositories, so
+tables for rows with `updated_at` past a per-table watermark, less a minute
+(`updated_at` is the writing transaction's start, so a row that commits late
+could land behind a watermark already moved past it; a row pulled twice
+changes nothing), oldest first, 500 at a time; for food and water it leaves
+out this install's own live rows, which only a delete can change. It applies
+them through the DAOs (never the repositories, so
 nothing is mirrored back up or announced to the Telegram partner). The rules
 in `PullRules`:
 

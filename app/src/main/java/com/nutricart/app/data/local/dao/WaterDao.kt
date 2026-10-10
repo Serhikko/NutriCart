@@ -53,6 +53,7 @@ interface WaterDao {
     @Query("DELETE FROM water_entry WHERE cloudId = :cloudId")
     suspend fun deleteByCloudId(cloudId: String)
 
+    /** How many rows went (0 or 1): a pull that deletes an already deleted row changes nothing. */
     @Query("DELETE FROM water_entry WHERE id = :id")
-    suspend fun deleteById(id: Long)
+    suspend fun deleteById(id: Long): Int
 }

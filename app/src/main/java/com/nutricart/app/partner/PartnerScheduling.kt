@@ -98,7 +98,10 @@ class PartnerScheduling @Inject constructor(
         )
     }
 
-    /** Part of "reset the app" and of unlinking. */
+    /**
+     * Part of "reset the app". Unlinking Telegram calls reanchor() after it, so the cloud-nudge
+     * cycle survives.
+     */
     fun cancelAll() {
         val wm = WorkManager.getInstance(context)
         wm.cancelUniqueWork(INBOX_PERIODIC)

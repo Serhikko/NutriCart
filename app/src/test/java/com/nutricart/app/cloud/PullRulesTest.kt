@@ -61,4 +61,40 @@ class PullRulesTest {
         // Text order as the fallback for something that is not a timestamp.
         assertEquals("b", PullRules.newest("a", "b"))
     }
+
+    @Test
+    fun `a pull asks again from a minute before the watermark`() {
+        assertEquals("2026-09-28T16:02:44.123456Z", PullRules.since("2026-09-28T16:03:44.123456+00:00"))
+        // Whatever the offset notation, the overlap is an instant a minute earlier.
+        assertEquals("2026-09-28T15:59:00Z", PullRules.since("2026-09-28T18:00:00+02:00"))
+        assertEquals("2026-09-28T23:59:30Z", PullRules.since("2026-09-29T00:00:30Z"))
+    }
+
+    @Test
+    fun `the overlap is behind the watermark the pull keeps`() {
+        val watermark = PullRules.newest("2026-09-28T15:00:00+00:00", "2026-09-28T16:03:44.123456+00:00")
+        val since = java.time.Instant.parse(PullRules.since(watermark))
+        val kept = java.time.OffsetDateTime.parse(watermark).toInstant()
+        assertEquals(PullRules.OVERLAP_SECONDS, java.time.Duration.between(since, kept).seconds)
+    }
+
+    @Test
+    fun `no watermark asks for everything, an unreadable one is used as it is`() {
+        assertEquals(PullRules.EPOCH, PullRules.since(null))
+        assertEquals("not-a-time", PullRules.since("not-a-time"))
+    }
+
+    @Test
+    fun `the server leaves out only this phone's live rows, which the pull skips anyway`() {
+        assertEquals("(deleted_at.not.is.null,id.not.like.ab12cd34:*)", PullRules.actionable(device))
+        // What that filter keeps, row by row, against what forRow does with the row (nothing pending).
+        val prefix = PullRules.actionable(device).substringAfter("id.not.like.").substringBefore("*")
+        listOf("ab12cd34:f:42", "ab12cd34:w:7", "web:abc", "ff00ee11:f:42").forEach { id ->
+            listOf(false, true).forEach { deleted ->
+                val kept = deleted || !id.startsWith(prefix)
+                val acted = PullRules.forRow(device, id, deleted, pendingIds = emptySet()) != PullAction.Skip
+                assertEquals("$id deleted=$deleted", acted, kept)
+            }
+        }
+    }
 }

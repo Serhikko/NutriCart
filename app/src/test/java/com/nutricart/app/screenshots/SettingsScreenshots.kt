@@ -217,6 +217,22 @@ class SettingsScreenshots(private val variant: Variant) : ScreenshotTest(variant
         ),
     )
 
+    /** The partner list could not be loaded: it says so instead of "Nobody yet", and keeps who was shown. */
+    @Test
+    fun cloudPartnersFailed() = section(
+        "settings-cloud-partners-failed",
+        "cloud",
+        FakeData.settings().copy(cloudPartnersFailed = true),
+    )
+
+    /** Sync off: whoever can still read what was uploaded stays listed, with Remove. */
+    @Test
+    fun cloudOffPartnersKept() = section(
+        "settings-cloud-off-partners",
+        "cloud",
+        FakeData.settings().copy(cloudEnabled = false),
+    )
+
     /**
      * The pairing code with its 0.12 em tracking and the countdown ring, scrolled into view in every
      * variant (at 2.0 the cloud section is too tall for the other shots to reach it).

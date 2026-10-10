@@ -58,6 +58,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -92,8 +93,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.nutricart.app.R
 import com.nutricart.app.data.local.entity.RecurringWorkoutEntity
+import com.nutricart.app.domain.logic.PairingCode as PairingCodes
 import com.nutricart.app.domain.model.ActivityLevel
 import com.nutricart.app.domain.model.Allergen
 import com.nutricart.app.domain.model.Goal
@@ -171,6 +177,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.format.TextStyle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -188,6 +195,27 @@ fun SettingsScreen(
     // Leave the screen once saving is done.
     LaunchedEffect(state.saved) {
         if (state.saved) onBack()
+    }
+
+    // Who can see the day changes on the website (a redeem, a removal), not here: ask again on every
+    // return to the screen. Here and not in SettingsContent: `state` is the delegated State, read
+    // afresh each time the lambda runs (LifecycleResumeEffect(Unit) keeps its first lambda).
+    LifecycleResumeEffect(Unit) {
+        if (state.cloudEnabled || state.cloudPartners.isNotEmpty()) viewModel.refreshCloudPartners()
+        onPauseOrDispose { }
+    }
+    val liveCode = state.cloudPairingCode
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(liveCode, lifecycle) {
+        // Someone may be typing the code on the website right now: show them when they appear. Only
+        // while the screen is in front; the refresh on resume covers the way back. A load still
+        // running is left to finish (a slow link must reach its timeout to show the error).
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (liveCode != null && System.currentTimeMillis() < liveCode.second) {
+                viewModel.refreshCloudPartners(replace = false)
+                delay(PartnersPollMillis)
+            }
+        }
     }
 
     SettingsContent(state = state, onBack = onBack, actions = viewModel)
@@ -249,6 +277,9 @@ interface SettingsActions {
     fun save()
     fun confirmReset()
 }
+
+/** How often the partner list is asked again while a pairing code is live. */
+private const val PartnersPollMillis = 10_000L
 
 /** The list key of the Save button, so the floating "Save changes" knows when it is on screen. */
 private const val SaveKey = "save"
@@ -1007,10 +1038,20 @@ private fun CloudSection(state: SettingsUiState, actions: SettingsActions, modif
                 row { CloudNameBlock(state, actions, busy) }
                 row { CloudEmailBlock(state, actions, busy) }
                 row { PairingBlock(state, actions, busy) }
+            }
+            // With sync off the partners keep reading what was uploaded, so the list and Remove stay.
+            if (state.cloudEnabled || state.cloudPartners.isNotEmpty()) {
                 row {
                     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
                         BlockLabel(stringResource(R.string.cloud_partners_title))
-                        if (state.cloudPartners.isEmpty()) {
+                        if (state.cloudPartnersFailed) {
+                            // Not "Nobody yet": the list could not be asked for (what was shown stays below).
+                            GroupText(
+                                stringResource(R.string.cloud_partners_failed),
+                                Modifier.padding(top = 4.dp, bottom = 8.dp),
+                                error = true,
+                            )
+                        } else if (state.cloudPartners.isEmpty()) {
                             GroupText(stringResource(R.string.cloud_partners_none), Modifier.padding(top = 4.dp, bottom = 8.dp))
                         }
                     }
@@ -1149,9 +1190,23 @@ private fun PairingBlock(state: SettingsUiState, actions: SettingsActions, busy:
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BlockLabel(stringResource(R.string.cloud_code_title))
         val code = state.cloudPairingCode
-        val now = System.currentTimeMillis()
-        if (code != null && code.second > now) {
-            val minutes = ((code.second - now) / 60_000L + 1).toInt()
+        // Keyed on the code, so a new code starts from the clock in the same frame it arrives.
+        var now by remember(code) { mutableLongStateOf(System.currentTimeMillis()) }
+        val lifecycle = LocalLifecycleOwner.current.lifecycle
+        LaunchedEffect(code, lifecycle) {
+            // Only while the screen is in front, and from the clock afresh on every return: delay()
+            // counts uptime, which stands still while the phone sleeps.
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                now = System.currentTimeMillis()
+                while (code != null && now < code.second) {
+                    // Wake when the minute shown changes, or the code expires (at most 15 rounds).
+                    delay(PairingCodes.millisToNextTick(code.second, now))
+                    now = System.currentTimeMillis()
+                }
+            }
+        }
+        val minutes = code?.let { PairingCodes.minutesLeft(it.second, now) }
+        if (code != null && minutes != null) {
             PairingCode(code.first)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Ring(
@@ -1697,11 +1752,16 @@ private fun GroupIntro(text: String) {
     )
 }
 
-/** A footnote inside a group (hints, the empty text, the pending line). */
+/** A footnote inside a group (hints, the empty text, the pending line); [error] in the danger tone. */
 @Composable
-private fun GroupText(text: String, modifier: Modifier = Modifier) {
+private fun GroupText(text: String, modifier: Modifier = Modifier, error: Boolean = false) {
     val c = Ember.colors
-    BasicText(text, style = Ember.type.footnote.copy(lineHeight = 18.sp), color = { c.label2 }, modifier = modifier)
+    BasicText(
+        text,
+        style = Ember.type.footnote.copy(lineHeight = 18.sp),
+        color = { if (error) c.danger else c.label2 },
+        modifier = modifier,
+    )
 }
 
 /** A row that is only a note ("None yet — …"). */

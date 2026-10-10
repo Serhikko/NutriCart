@@ -43,6 +43,34 @@ object PullRules {
     fun applyWeight(pendingKey: String, pendingKeys: Set<String>, localKg: Double?, remoteKg: Double): Boolean =
         pendingKey !in pendingKeys && localKg != remoteKg
 
+    /**
+     * The `updated_at` a pull asks past. updated_at is the writing transaction's start time, and a
+     * transaction that started first can commit after a later one the pull has already seen, so the
+     * pull asks again from [OVERLAP_SECONDS] before the watermark (which itself stays the true
+     * newest, see [newest]). Re-applying a row is idempotent: the same insert-or-update, the same
+     * delete. A watermark that does not parse is used as it is; none means everything.
+     */
+    fun since(watermark: String?): String {
+        if (watermark == null) return EPOCH
+        return try {
+            OffsetDateTime.parse(watermark).toInstant().minusSeconds(OVERLAP_SECONDS).toString()
+        } catch (e: java.time.format.DateTimeParseException) {
+            watermark
+        }
+    }
+
+    const val OVERLAP_SECONDS = 60L
+    const val EPOCH = "1970-01-01T00:00:00Z"
+
+    /**
+     * A PostgREST `or` filter for every row [forRow] can act on: any tombstone, and any row another
+     * client minted. It leaves out this install's own live rows, which [forRow] always skips;
+     * without it the overlap would bring the whole backfill (written within seconds) down again on
+     * every pull until a newer row arrived. The device id is 8 hex characters: nothing in it means
+     * anything to LIKE or to PostgREST's filter syntax, and `*` is PostgREST's `%`.
+     */
+    fun actionable(deviceId: String): String = "(deleted_at.not.is.null,id.not.like.$deviceId:*)"
+
     /** The later of two PostgREST timestamps; falls back to text order if one does not parse. */
     fun newest(a: String?, b: String): String {
         if (a == null) return b

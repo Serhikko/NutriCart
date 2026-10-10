@@ -161,27 +161,45 @@ class CloudRepository @Inject constructor(
     /**
      * A fresh pairing code: older unused codes of this account are discarded
      * first, so exactly one code works at a time. The plain code is kept on
-     * the phone for display only; the server sees its hash.
+     * the phone for display only; the server sees its hash. The server sets
+     * the 15-minute expiry from its own clock (0007); the one sent here is
+     * overwritten and only the countdown uses it.
      */
     suspend fun newPairingCode(): CloudResult {
         if (!isConfigured) return CloudResult.NotConfigured
         return call {
             val userId = auth.ensureSignedIn()
             val bearer = bearerOrThrow()
+            publishName(bearer, userId)
             rest.delete(bearer, CloudRows.TABLE_PAIRING_CODES, mapOf("owner_id" to "eq.$userId")).requireSuccess()
             val code = PairingCode.generate()
             val expiresAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(PairingCode.VALIDITY_MINUTES)
             val row = JsonObject(
                 CloudRows.pairingCode(PairingCode.hash(code), expiresAt) + ("owner_id" to JsonPrimitive(userId))
             )
-            rest.upsert(bearer, CloudRows.TABLE_PAIRING_CODES, JsonArray(listOf(row))).requireSuccess()
+            // A plain insert: a code row is never updated, and an upsert would also need the
+            // owner's SELECT policy, which a database without 0007 does not have.
+            rest.insert(bearer, CloudRows.TABLE_PAIRING_CODES, JsonArray(listOf(row))).requireSuccess()
             settings.setCloudPairingCode(code, expiresAt)
             CloudResult.Ok
         }
     }
 
-    /** Who can currently read this account. */
-    suspend fun partners(): List<CloudPartner> {
+    /**
+     * The stored name, published before a code is made: the worker publishes it too, but on the
+     * first enable only after the backfill has drained, and a partner who redeems in that window
+     * would see the server's stand-in ("NutriCart"). Best effort: a refusal here does not stop
+     * the code.
+     */
+    private suspend fun publishName(bearer: String, userId: String) {
+        val name = settings.cloudDisplayName.first()?.takeIf { it.isNotBlank() } ?: return
+        val row = JsonObject(CloudRows.profile(name) + ("user_id" to JsonPrimitive(userId)))
+        val response = rest.upsert(bearer, CloudRows.TABLE_PROFILES, JsonArray(listOf(row)))
+        if (!response.isSuccessful) Log.w(TAG, "Could not publish the name: HTTP ${response.code()}")
+    }
+
+    /** Who can currently read this account; null when the list could not be loaded. */
+    suspend fun partners(): List<CloudPartner>? {
         if (!isConfigured) return emptyList()
         val userId = auth.userId() ?: return emptyList()
         return try {
@@ -196,7 +214,7 @@ class CloudRepository @Inject constructor(
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "Could not list partners: ${e.javaClass.simpleName}")
-            emptyList()
+            null
         }
     }
 
@@ -267,7 +285,7 @@ class CloudRepository @Inject constructor(
         CloudResult.Auth
     } catch (e: HttpException) {
         Log.w(TAG, "Cloud call failed with HTTP ${e.code()}")
-        if (e.code() == 401 || e.code() == 403) CloudResult.Auth else CloudResult.Failed
+        cloudResultFor(e)
     } catch (e: SerializationException) {
         Log.w(TAG, "Cloud answer could not be read: ${e.javaClass.simpleName}")
         CloudResult.Failed
@@ -283,4 +301,15 @@ class CloudRepository @Inject constructor(
         const val BACKFILL_DAYS = 90L
         val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
     }
+}
+
+/**
+ * What an HTTP error of a Settings action means, by where the answer came from. GoTrue (auth/v1)
+ * answers a bad or expired JWT, a revoked session and a deleted user with 401 or 403: the session
+ * is dead. PostgREST (rest/v1) uses 401 for the JWT and 403 for row-level security or a grant
+ * refusing the request (42501), which a new session would not change.
+ */
+internal fun cloudResultFor(e: HttpException): CloudResult {
+    val fromRest = e.response()?.raw()?.request?.url?.encodedPath?.contains("/rest/v1/") == true
+    return if (e.code() == 401 || (e.code() == 403 && !fromRest)) CloudResult.Auth else CloudResult.Failed
 }

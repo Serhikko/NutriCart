@@ -40,8 +40,10 @@ class PartnerInboxWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        // Nudges from the website: same notification, a different inbox.
-        cloud.fetchUnseenNudges().forEach { nudge ->
+        // Nudges from the website: same notification, a different inbox. Fetching marks them seen on
+        // the server (the partner's page then says "seen"), so they are fetched only when they can be
+        // shown; otherwise they wait there for the first poll after notifications are allowed.
+        nudgesToShow(canNotify()) { cloud.fetchUnseenNudges() }.forEach { nudge ->
             val sender = nudge.fromName.ifBlank { applicationContext.getString(R.string.cloud_partner_default_name) }
             notify(nudge.id.hashCode().toLong(), sender, nudge.text)
         }
@@ -108,6 +110,18 @@ class PartnerInboxWorker @AssistedInject constructor(
             .notify((updateId and 0x7fffffff).toInt(), notification)
     }
 
+    /**
+     * Whether a notification would reach the shade. This is false without POST_NOTIFICATIONS on
+     * Android 13+ (areNotificationsEnabled() says so then), with the app's notifications blocked, or
+     * with this channel off.
+     */
+    private fun canNotify(): Boolean {
+        val manager = NotificationManagerCompat.from(applicationContext)
+        if (!manager.areNotificationsEnabled()) return false
+        ensureChannel()
+        return channelShows(manager.getNotificationChannelCompat(CHANNEL_ID)?.importance)
+    }
+
     // Creating an existing channel is a no-op, so "ensure on every show" is safe.
     private fun ensureChannel() {
         val channel = NotificationChannel(
@@ -121,6 +135,15 @@ class PartnerInboxWorker @AssistedInject constructor(
 
     companion object {
         const val CHANNEL_ID = "partner_messages"
+
+        /** Only a channel the user switched off (importance NONE) holds nudges back; an unreadable one (null) does not. */
+        internal fun channelShows(importance: Int?): Boolean =
+            importance != NotificationManagerCompat.IMPORTANCE_NONE
+
+        /** The website's unseen nudges, asked for only when [canNotify]: [fetch] marks them seen. */
+        internal suspend fun <T> nudgesToShow(canNotify: Boolean, fetch: suspend () -> List<T>): List<T> =
+            if (canNotify) fetch() else emptyList()
+
         private const val NOTIFICATION_REQUEST_CODE = 900
         private const val MAX_ATTEMPTS = 3
     }

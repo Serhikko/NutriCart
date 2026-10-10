@@ -20,10 +20,12 @@ import javax.inject.Singleton
 /**
  * The other direction of the sync (milestone 3): what the website wrote comes
  * down to Room. Each table keeps a watermark, the newest `updated_at` the
- * phone has seen; a pull asks for everything past it, oldest first, and
- * applies [PullRules] row by row through the DAOs directly. The repositories
- * are bypassed on purpose: a pulled row must not be mirrored back up, and the
- * partner digest is for meals the user logs, not for what the sync moves.
+ * phone has seen; a pull asks for everything past it (less a minute of
+ * overlap, see [PullRules.since]) except this install's own live rows, oldest
+ * first, and applies [PullRules] row by row through the DAOs directly. The
+ * repositories are bypassed on purpose: a pulled row must not be mirrored
+ * back up, and the partner digest is for meals the user logs, not for what
+ * the sync moves.
  *
  * Returns whether anything changed locally, so the worker knows a fresh day
  * summary is due.
@@ -52,7 +54,7 @@ class CloudPull @Inject constructor(
         val watermark = settings.cloudPullWatermark(CloudRows.TABLE_FOOD).first()
         var offset = 0
         while (true) {
-            val rows = rest.foodRows(bearer(), filters(userId, watermark, offset))
+            val rows = rest.foodRows(bearer(), filters(userId, watermark, offset, deviceId))
             for (row in rows) {
                 when (val action = PullRules.forRow(deviceId, row.id, row.deletedAt != null, pending)) {
                     PullAction.Skip -> Unit
@@ -69,8 +71,12 @@ class CloudPull @Inject constructor(
                     is PullAction.UpsertForeign -> {
                         val existing = foodLogDao.byCloudId(action.cloudId)
                         val fresh = row.toEntity(existing?.id ?: 0)
-                        if (existing == null) foodLogDao.insert(fresh) else if (existing != fresh) foodLogDao.update(fresh)
-                        changed = true
+                        // A re-pulled row (the watermark overlap) maps to an equal entity: no write, no change.
+                        if (existing == null) {
+                            foodLogDao.insert(fresh); changed = true
+                        } else if (existing != fresh) {
+                            foodLogDao.update(fresh); changed = true
+                        }
                     }
                 }
             }
@@ -87,11 +93,11 @@ class CloudPull @Inject constructor(
         val watermark = settings.cloudPullWatermark(CloudRows.TABLE_WATER).first()
         var offset = 0
         while (true) {
-            val rows = rest.waterRows(bearer(), filters(userId, watermark, offset))
+            val rows = rest.waterRows(bearer(), filters(userId, watermark, offset, deviceId))
             for (row in rows) {
                 when (val action = PullRules.forRow(deviceId, row.id, row.deletedAt != null, pending)) {
                     PullAction.Skip -> Unit
-                    is PullAction.DeleteLocal -> { waterDao.deleteById(action.localId); changed = true }
+                    is PullAction.DeleteLocal -> { if (waterDao.deleteById(action.localId) > 0) changed = true }
                     is PullAction.DeleteForeign -> {
                         if (waterDao.byCloudId(action.cloudId) != null) {
                             waterDao.deleteByCloudId(action.cloudId); changed = true
@@ -134,13 +140,19 @@ class CloudPull @Inject constructor(
         return changed
     }
 
-    private fun filters(userId: String, watermark: String?, offset: Int) = mapOf(
-        "owner_id" to "eq.$userId",
-        "updated_at" to "gt.${watermark ?: EPOCH}",
-        "order" to "updated_at.asc",
-        "limit" to PAGE.toString(),
-        "offset" to offset.toString(),
-    )
+    /**
+     * Rows past the watermark, less the overlap (see [PullRules.since]). With [deviceId] (food and
+     * water, whose ids name the install that minted them), only the rows the pull can act on (see
+     * [PullRules.actionable]). Weight rows carry no such id, and there are few of them.
+     */
+    private fun filters(userId: String, watermark: String?, offset: Int, deviceId: String? = null) = buildMap {
+        put("owner_id", "eq.$userId")
+        put("updated_at", "gt.${PullRules.since(watermark)}")
+        if (deviceId != null) put("or", PullRules.actionable(deviceId))
+        put("order", "updated_at.asc")
+        put("limit", PAGE.toString())
+        put("offset", offset.toString())
+    }
 
     private fun SbFoodRowDto.toEntity(localId: Long) = FoodLogEntryEntity(
         id = localId,
@@ -174,6 +186,5 @@ class CloudPull @Inject constructor(
     private companion object {
         const val TAG = "CloudPull"
         const val PAGE = 500
-        const val EPOCH = "1970-01-01T00:00:00Z"
     }
 }
