@@ -10,9 +10,13 @@ phone talks to it over PostgREST and GoTrue (see `docs/cloud-sync.md`).
 2. Authentication → Providers → enable **Anonymous sign-ins**.
 3. SQL Editor → run `migrations/0001_init.sql`, then `0002_web_tracker.sql`,
    then `0003_two_way_sync.sql`, then `0004_fix_redeem_search_path.sql`, then
-   `0005_custom_products.sql` (in order; a project that already has the
-   earlier ones needs only the files after them, and each of 0004 and 0005
-   is safe to run again).
+   `0005_custom_products.sql`, then `0006_fix_redeem_ambiguous_owner.sql` (in
+   order; a project that already has the earlier ones needs only the files
+   after them, and each of 0004, 0005 and 0006 is safe to run again).
+
+   **Run 0006** on an existing project: without it every right pairing code
+   fails with `42702 column reference "owner_id" is ambiguous`, so nobody can
+   follow anybody's day.
 
    **Run 0005** (`custom_products`) on an existing project too: it holds the
    products a user adds under their barcode on the website when Open Food
