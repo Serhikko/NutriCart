@@ -28,6 +28,7 @@ export interface WaterEntry {
   id: string;
   epoch_day: number;
   ml: number;
+  logged_at?: string;
   deleted_at: string | null;
 }
 
@@ -38,6 +39,8 @@ export interface DaySummary {
   active_kcal: number | null;
   steps: number | null;
   workout_kcal: number;
+  /** When the owner's client last wrote the row (the "From your phone · 16:58" line). */
+  updated_at?: string;
 }
 
 export interface WeightEntry {

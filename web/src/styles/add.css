@@ -1,0 +1,312 @@
+/* Add food (pages/AddFood.tsx) and what opens from it: the result rows
+   (components/ResultRow.tsx), the amount sheet (AmountDialog.tsx), the new-product
+   form (CustomProductForm.tsx) and the scanner (BarcodeScanner.tsx), all three inside
+   ui/Sheet. Class names follow the mock (search, code-row, results-meta, result, sh-*,
+   comp, per100); cf- is the product form, vf- the viewfinder. Colours, radii,
+   shadows and curves come from tokens.css; shared keyframes (fade-up, rise, grow-x,
+   fade) live in motion.css. */
+
+/* ================================================================ the page */
+/* One column up to 1239 px. From 1240 the amount docks as a 400 px inspector in the
+   right column; the results keep their width whether or not it is there, so choosing a
+   food never moves the list under the pointer. */
+.add-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; align-items: start; }
+.add-main { min-width: 0; }
+
+/* The search capsule: magnifier, the field, the ink Search pill; the round scan button beside it. */
+.search-row { display: flex; gap: 10px; align-items: center; }
+.search {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+  height: 48px; padding: 0 4px 0 14px; border-radius: var(--r-chip); cursor: text;
+  background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 .5px var(--sep);
+  transition: box-shadow var(--dur-state) var(--ease-out);
+}
+.search:focus-within { box-shadow: var(--shadow-1), inset 0 0 0 2px var(--focus); }
+.search > .icon { color: var(--label-2); }
+.search input {
+  flex: 1; width: 0; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: none;
+  color: var(--label); font-size: var(--t-body); letter-spacing: -0.012em;
+}
+.search input::placeholder { color: var(--label-2); opacity: 1; }
+.search .go {
+  position: relative; flex: none; height: 40px; padding: 0 14px; border-radius: var(--r-chip);
+  background: var(--ink); color: var(--on-ink); font: 600 var(--t-subhead)/1 var(--font-text); letter-spacing: -0.008em;
+  transition: transform 380ms var(--spring-snappy), opacity 200ms var(--ease-out);
+}
+/* 40 px drawn, 48 px to the finger (the capsule's full height). */
+.search .go::after { content: ""; position: absolute; inset: -4px -4px; }
+.search .go:active:not(:disabled) { transform: scale(.96); transition-duration: var(--dur-press), 200ms; }
+.search .go:disabled { opacity: .38; }
+.scan {
+  position: relative; flex: none; width: 48px; height: 48px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--label);
+  background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 .5px var(--sep);
+  transition: transform 380ms var(--spring-snappy);
+}
+.scan:active { transform: scale(.94); transition-duration: var(--dur-press); }
+@media (hover: hover) and (pointer: fine) {
+  .search .go:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 84%, var(--bg)); }
+  .scan:hover { background: color-mix(in srgb, var(--surface) 92%, var(--label)); }
+}
+
+/* Fewer than two characters: said right under the field. */
+.inline-warn { display: flex; align-items: center; gap: 6px; margin: 8px 6px 0; font-size: var(--t-footnote); line-height: 1.3; color: var(--label); }
+.inline-warn .icon { color: var(--fat-ink); }
+
+/* The barcode row, always on the page (not inside the scanner): an outlined capsule and "Look up". */
+.code-row { display: flex; gap: 8px; margin-top: 10px; }
+.code-row .field { min-height: 44px; border-radius: var(--r-chip); background: transparent; box-shadow: inset 0 0 0 1px var(--sep); }
+.code-row .field:focus-within { background: var(--surface); box-shadow: inset 0 0 0 2px var(--focus); }
+.code-row .field input { padding: 10px 2px; font-size: var(--t-subhead); font-variant-numeric: tabular-nums; }
+.code-row .btn { flex: none; min-height: 44px; font-size: var(--t-subhead); }
+
+/* Messages under the rows: offline, a barcode nobody knows, a lookup on its way. */
+.add-status { display: grid; gap: 12px; margin-top: 16px; }
+.add-status:empty { display: none; }
+.looking-up { padding: 6px 4px; }
+
+.card.not-found { display: flex; align-items: flex-start; gap: 14px; }
+.nf-icon {
+  flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--fat) 16%, transparent); color: var(--fat-ink);
+}
+.nf-icon .icon { width: 20px; height: 20px; stroke-width: 2.1; }
+.nf-body { flex: 1; min-width: 0; display: grid; justify-items: start; gap: 4px; }
+.nf-text { font: 500 var(--t-callout)/1.38 var(--font-text); letter-spacing: -0.01em; color: var(--label); text-wrap: pretty; }
+.nf-code { font-size: var(--t-footnote); line-height: 1.36; color: var(--label-2); font-variant-numeric: tabular-nums; }
+.nf-body .btn { margin-top: 10px; }
+
+/* "6 results" and "per 100 g or ml" over the list. */
+.results-block { margin-top: 6px; }
+.results-meta {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 18px;
+  margin: 16px 4px 8px; font-size: var(--t-footnote); line-height: 1.3; color: var(--label-2);
+}
+.card.results { padding: 0; overflow: hidden; }
+.results > li { position: relative; }
+.results > li + li::before { content: ""; position: absolute; z-index: 1; top: 0; right: 0; left: 66px; border-top: .5px solid var(--sep); pointer-events: none; }
+
+/* ResultRow: glyph, name on up to two lines, brand and portion, kcal per 100 and a chevron. */
+.result {
+  position: relative; width: 100%; min-height: 68px; display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px 10px 14px; text-align: left; color: var(--label);
+  transition: background-color 160ms var(--ease-out);
+  /* S1: each new set of results arrives top to bottom, 40 ms apart. */
+  animation: fade-up 560ms var(--ease-out) backwards; animation-delay: calc(var(--d, 0) * 1ms);
+}
+.result:active { background: var(--fill); }
+.result[aria-pressed="true"] { background: var(--fill-2); }
+.result:focus-visible { outline-offset: -3px; border-radius: 12px; }
+@media (hover: hover) and (pointer: fine) {
+  .result:hover { background: var(--fill-2); }
+}
+.glyph {
+  flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--surface-2); color: var(--label-2);
+}
+.glyph .icon { width: 22px; height: 22px; }
+.r-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.r-name {
+  font: 500 var(--t-callout)/1.28 var(--font-text); letter-spacing: -0.01em; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.r-brand { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; font-size: var(--t-footnote); line-height: 1.3; color: var(--label-2); }
+.r-meta { min-width: 0; overflow-wrap: anywhere; }
+.mine {
+  display: inline-flex; align-items: center; padding: 1px 7px; border-radius: var(--r-chip);
+  background: var(--ember-track); color: var(--ember-ink); font: 600 .71875rem/1.4 var(--font-text); white-space: nowrap;
+}
+.r-kcal { flex: none; display: grid; justify-items: end; gap: 2px; }
+.r-kcal b { font: 650 var(--t-headline)/1 var(--font-rounded); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.r-kcal span { font-size: .71875rem; line-height: 1.2; color: var(--label-2); white-space: nowrap; }
+.result .chev { flex: none; width: 18px; height: 18px; stroke-width: 2.2; color: var(--label-3); margin-left: -2px; }
+
+/* Nothing typed yet, or nothing found. */
+.add-empty { padding: 44px 24px 32px; }
+
+/* ====================================================== the amount sheet */
+.amount-panel { display: block; }
+.amount-panel > .notice { margin-bottom: 14px; }
+.sh-head { display: flex; align-items: flex-start; gap: 12px; }
+.sh-head .glyph, .cf-head .glyph { width: 46px; height: 46px; border-radius: 14px; background: var(--fill-2); color: var(--label); }
+.sh-head .glyph .icon, .cf-head .glyph .icon { width: 24px; height: 24px; }
+.sh-head .t, .cf-head .t { flex: 1; min-width: 0; padding-top: 1px; }
+.sh-head h2, .cf-head h2, .scanner-head h2 {
+  font: 650 1.1875rem/1.22 var(--font-display); letter-spacing: -0.02em; color: var(--label);
+  overflow-wrap: anywhere; text-wrap: balance;
+}
+.sh-head p, .cf-head p { margin-top: 2px; font-size: var(--t-footnote); line-height: 1.36; color: var(--label-2); }
+/* The close button (named "Cancel"): 30 px drawn, 44 px to the finger. */
+.close {
+  position: relative; flex: none; width: 30px; height: 30px; border-radius: 50%; margin: 1px 0 0 4px;
+  display: grid; place-items: center; background: var(--fill); color: var(--label-2);
+  transition: transform 380ms var(--spring-snappy), background-color 200ms var(--ease-out);
+}
+.close::after { content: ""; position: absolute; inset: -7px; }
+.close .icon { width: 14px; height: 14px; stroke-width: 2.8; }
+.close:active { transform: scale(.9); transition-duration: var(--dur-press), 200ms; }
+@media (hover: hover) and (pointer: fine) {
+  .close:hover { background: var(--fill-3); color: var(--label); }
+}
+
+/* The preview ring (today faint, this food bright) beside the kcal numeral. */
+.sh-hero { display: flex; align-items: center; gap: 16px; margin: 14px 0 16px; min-width: 0; }
+.sh-ring { width: 88px; height: 88px; flex: none; }
+.sh-ring .pct { font: 700 1.0625rem/1 var(--font-rounded); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--label); }
+.sh-main { min-width: 0; }
+.sh-kcal { display: flex; align-items: baseline; font: 700 var(--t-display)/1 var(--font-rounded); letter-spacing: -0.03em; white-space: nowrap; }
+.sh-kcal .unit { font-size: var(--t-headline); }
+.sh-none { color: var(--label-4); }
+.sh-after { margin-top: 6px; font-size: .875rem; line-height: 1.3; color: var(--label-2); text-wrap: pretty; }
+.sh-after b { font: 650 var(--t-subhead)/1 var(--font-rounded); color: var(--label); font-variant-numeric: tabular-nums; }
+.sh-after.is-over b { color: var(--danger); }
+/* With no day to show (a page rendered on its own), the numeral stands alone. */
+.sh-hero.no-ring { margin-top: 16px; }
+
+.amount-panel .stepper { margin-top: 2px; }
+.amount-panel .sh-chips { margin-top: 12px; justify-content: center; }
+
+/* The composition of this portion by energy, and its grams of each macro. */
+.comp { margin-top: 16px; padding-top: 16px; border-top: .5px solid var(--sep); }
+.comp-bar { display: flex; gap: 3px; height: 8px; }
+.comp-bar.is-empty { border-radius: var(--r-chip); background: var(--fill); }
+.comp-bar i {
+  flex: var(--f, 0) 1 0; min-width: 8px; border-radius: var(--r-chip); background: var(--m); transform-origin: 0 50%;
+  /* S10: the shares follow the amount; S9: the segments grow in when the sheet opens. */
+  transition: flex-grow 520ms var(--spring-snappy);
+  animation: grow-x 700ms var(--spring-snappy) backwards; animation-delay: calc(var(--d, 0) * 1ms);
+}
+/* A macro the food has none of leaves no dot; a trace of one still shows as a dot. */
+.comp-bar.is-empty i, .comp-bar i.is-zero { display: none; }
+.comp-legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.comp-legend .m-l { display: flex; align-items: center; gap: 6px; min-width: 0; font: 600 var(--t-footnote)/1.3 var(--font-text); color: var(--label-2); }
+.comp-legend .m-l::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--m); }
+.comp-legend .m-v { margin-top: 1px; font: 700 1.1875rem/1.15 var(--font-rounded); letter-spacing: -0.02em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.comp-legend .m-v .unit { font-size: .68em; }
+
+.per100 { margin: 12px 0 16px; font-size: .78125rem; line-height: 1.4; color: var(--label-2); text-align: center; text-wrap: balance; }
+.per100 span { font-weight: 600; }
+.source-note { margin: -8px 0 14px; font-size: var(--t-caption); line-height: 1.35; color: var(--label-2); text-align: center; }
+
+/* The docked inspector (>= 1240 px): the right column, sticky, as a card. */
+@media (min-width: 1240px) {
+  .add-grid { grid-template-columns: minmax(0, 1fr) 400px; }
+  .add-main { grid-column: 1; }
+  .add-grid > .sheet.is-docked { grid-column: 2; grid-row: 1; }
+  .sheet.is-docked .sh-head h2 { font-size: 1.125rem; }
+  /* Nothing chosen yet: a quiet panel where the inspector will stand, so the column reads as
+     waiting for a choice instead of an empty band. Same cell, corner and sticky top as the
+     inspector, which fades out over it when it closes. */
+  .add-grid > .inspector-idle {
+    grid-column: 2; grid-row: 1; position: sticky; top: 24px;
+    min-height: 300px; display: grid; place-items: center; padding: 24px;
+    border-radius: calc(var(--r-card) + 4px);
+    background: transparent; box-shadow: inset 0 0 0 1px var(--sep);
+  }
+  .inspector-idle .empty { padding: 0; }
+  .inspector-idle .empty-title { max-width: 24ch; font: 500 var(--t-subhead)/1.4 var(--font-text); letter-spacing: -0.008em; color: var(--label-2); }
+}
+
+/* ================================================== the new-product form */
+.cf-head { display: flex; align-items: flex-start; gap: 12px; }
+.cf-code { font-variant-numeric: tabular-nums; }
+.cf-lead {
+  margin-top: 14px; padding: 12px 14px; border-radius: var(--r-field);
+  background: var(--surface-2); font-size: .875rem; line-height: 1.42; color: var(--label); text-wrap: pretty;
+}
+.cf-section { display: grid; gap: 12px; margin-top: 18px; }
+.cf-field { display: flex; flex-direction: column; min-width: 0; }
+.cf-field .field-label { margin-bottom: 6px; text-wrap: balance; }
+.cf-error { margin: 6px 4px 0; font-size: var(--t-caption); line-height: 1.3; font-weight: 600; color: var(--danger); }
+/* "A drink (amounts in ml)": a switch row, clicked by its label. */
+.cf-switch {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px;
+  padding: 4px 12px 4px 14px; border-radius: var(--r-field); background: var(--fill-2); cursor: pointer;
+  font-size: var(--t-callout); line-height: 1.3; color: var(--label);
+}
+.cf-switch span { min-width: 0; }
+/* The four values per 100 g side by side; labels that wrap push their wells down together. */
+.cf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; margin-top: 18px; }
+.cf-grid .cf-field .field-label { flex: 1; display: flex; align-items: flex-end; }
+.cf-serving { margin-top: 14px; }
+
+.cf-more { margin-top: 14px; border-top: .5px solid var(--sep); }
+.cf-more > summary {
+  display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 4px; list-style: none; cursor: pointer;
+  font: 600 var(--t-subhead)/1.3 var(--font-text); color: var(--tint);
+}
+.cf-more > summary::-webkit-details-marker { display: none; }
+.cf-more > summary:focus-visible { outline-offset: -2px; border-radius: 12px; }
+.cf-more > summary > span { flex: 1; min-width: 0; }
+.cf-flag { color: var(--danger); }
+.cf-chev { color: var(--label-3); transition: transform 320ms var(--spring-snappy); }
+.cf-more[open] .cf-chev { transform: rotate(180deg); }
+.cf-more > .cf-grid { margin: 4px 0 4px; }
+.cf-more[open] > .cf-grid { animation: fade-up var(--dur-revisit) var(--ease-out) backwards; }
+
+/* Cancel and Save stay in reach while the form scrolls inside the sheet. */
+.cf-foot {
+  position: sticky; z-index: 1; bottom: -20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 18px -20px -20px; padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--sheet) 0%, transparent), var(--sheet) 22%);
+}
+.cf-foot .btn-plain { margin: 0; padding: 0 12px; }
+.cf-foot .btn-ink { min-width: 120px; }
+.sheet:not(.is-phone) .cf-foot { bottom: -22px; margin: 18px -22px -22px; padding: 12px 22px 22px; }
+
+/* ============================================================ the scanner */
+/* Full height on a phone: the viewfinder in the middle, Stop at the bottom. */
+.sheet.is-phone.scan-sheet { height: calc(100dvh - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+.scan-sheet .sheet-body { flex: 1 1 auto; display: flex; flex-direction: column; }
+.scanner { flex: 1; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.scanner-head { display: flex; align-items: center; min-height: 30px; }
+/* The viewfinder and its hint sit in the middle of whatever height the sheet has. */
+.scanner-main { margin-block: auto; display: grid; gap: 14px; }
+.viewfinder {
+  position: relative; isolation: isolate; width: 100%; aspect-ratio: 4 / 3; overflow: hidden;
+  border-radius: var(--r-card); background: var(--behind);
+}
+.viewfinder video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* Four corner brackets round the reading area. White on the picture in both themes. */
+.vf-corners { position: absolute; inset: 20% 14%; transition: transform 200ms var(--spring-snappy); }
+.vf-corners i { position: absolute; width: 34px; height: 34px; border: 0 solid var(--highlight); opacity: .92; }
+.vf-corners i:nth-child(1) { top: 0; left: 0; border-top-width: 4px; border-left-width: 4px; border-top-left-radius: 14px; }
+.vf-corners i:nth-child(2) { top: 0; right: 0; border-top-width: 4px; border-right-width: 4px; border-top-right-radius: 14px; }
+.vf-corners i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: 4px; border-left-width: 4px; border-bottom-left-radius: 14px; }
+.vf-corners i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 4px; border-right-width: 4px; border-bottom-right-radius: 14px; }
+/* S12: the brackets breathe twice when the camera starts, then rest. */
+.viewfinder.is-live .vf-corners { animation: vf-breathe 1600ms var(--ease-in-out) 2; }
+@keyframes vf-breathe { 50% { transform: scale(.96); } }
+/* S13: a code is read: the brackets snap in and the frame flashes once. */
+.viewfinder.is-read .vf-corners { animation: none; transform: scale(.9); }
+.vf-flash { position: absolute; inset: 0; background: var(--highlight); opacity: 0; pointer-events: none; }
+.viewfinder.is-read .vf-flash { animation: vf-flash 320ms var(--ease-out) both; }
+@keyframes vf-flash { 0% { opacity: 0; } 40% { opacity: .12; } 100% { opacity: 0; } }
+.scanner-hint { font-size: var(--t-subhead); line-height: 1.35; color: var(--label-2); text-align: center; text-wrap: balance; }
+.scanner-foot { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+/* No camera: the message under the title, Stop at the bottom. */
+.scanner > .notice + .scanner-foot { margin-top: auto; }
+.scanner-foot .btn-lg { flex: 1; width: auto; }
+.scanner-foot .torch { width: 54px; height: 54px; }
+.scanner-foot .torch[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.scanner > .skel-block { border-radius: var(--r-card); aspect-ratio: 4 / 3; height: auto; }
+
+/* ============================================================ preferences */
+@media (prefers-reduced-motion: reduce) {
+  .result, .cf-more[open] > .cf-grid { animation: fade 200ms linear backwards; animation-delay: 0ms; }
+  .comp-bar i { animation: none; transition: none; }
+  .viewfinder.is-live .vf-corners { animation: none; }
+  .viewfinder.is-read .vf-flash { animation: none; }
+  .vf-corners, .cf-chev, .close, .scan, .search .go { transition-duration: 1ms; }
+}
+@media (prefers-contrast: more) {
+  .search, .scan { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+  .code-row .field { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+}
+@media (forced-colors: active) {
+  .search, .scan, .code-row .field, .close { border: 1px solid CanvasText; }
+  .result[aria-pressed="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .inspector-idle { border: 1px solid GrayText; }
+  /* The legend's dots are the only key to the bar's segments, so both keep their colours. */
+  .comp-bar i, .comp-legend .m-l::before, .mine { forced-color-adjust: none; }
+}

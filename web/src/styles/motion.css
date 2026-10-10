@@ -1,0 +1,159 @@
+/* Motion: shared keyframes, entrance classes, page transitions, and the
+   accessibility preferences (reduced motion, reduced transparency, more
+   contrast, forced colours).
+
+   Rules: only transform and opacity move, plus the registered --p / --g (ring
+   paint), stroke-dashoffset (line draw, toast check) and clip-path (goal-line
+   wipe). Entrance keyframes are from-only, so the end state is the element's
+   own style and finishing or cancelling is always safe (the wipe also names
+   its end: see there). Delays come from a per-element --d (ms). Layout puts
+   .first on .app for the first open of a route today, .revisit afterwards. */
+
+/* ------------------------------------------------------------- keyframes */
+@keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.985); } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes title-up { from { transform: translateY(105%); } }
+@keyframes ring-in { from { opacity: 0; transform: scale(.9) rotate(-10deg); } }
+@keyframes sweep { from { --p: var(--from, 0); } }
+@keyframes bloom { from { opacity: 0; transform: scale(.6); } }
+@keyframes digit-in { from { opacity: 0; transform: translateY(.55em); } }
+@keyframes pop { from { opacity: 0; transform: scale(.4); } }
+@keyframes bar-fill { from { transform: translateX(-100%); } }
+@keyframes grow-x { from { transform: scaleX(0); } }
+@keyframes bar-rise { from { transform: translateY(101%); } }
+/* An explicit end: Chromium cannot interpolate a basic shape to the element's own clip-path: none,
+   so a from-only wipe would jump at the halfway point instead of wiping. With the backwards fill
+   the element still goes back to none once it has run. */
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes draw { from { stroke-dashoffset: 1; } }
+@keyframes shine-run { 0% { opacity: 0; transform: rotate(-30deg); } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: rotate(330deg); } }
+@keyframes halo-pulse { 0% { opacity: 0; transform: scale(.94); } 30% { opacity: .9; } 100% { opacity: 0; transform: scale(1.12); } }
+@keyframes sheet-up { from { transform: translateY(calc(100% + 24px)); } }
+@keyframes sheet-down { to { transform: translateY(calc(100% + 24px)); } }
+@keyframes fresh { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ping { 0% { opacity: .7; transform: scale(1); } 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes liquid-up { from { transform: scaleY(0); } }
+@keyframes unfold { from { grid-template-rows: 0fr; opacity: 0; } }
+
+/* ------------------------------------------------------ entrance classes
+   Entrances fill backwards only: hidden through their delay, and once done they leave no
+   animation effect behind (a later transform or transition on the element works as written). */
+.a { animation-fill-mode: backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+/* G1 title out of its mask, G2 fade-up, G3 card rise: the first open only. */
+.first .a-title > span { animation: title-up 760ms var(--spring-smooth) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-fade-up { animation: fade-up 560ms var(--ease-out) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-rise { animation: rise 680ms var(--spring-smooth) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-ring { animation: ring-in 820ms var(--spring-smooth) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-bloom { animation: bloom 1300ms var(--ease-out) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-pop { animation: pop 620ms var(--spring-bouncy) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-bar > i { animation: bar-fill 900ms var(--spring-snappy) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-wipe { animation: wipe 900ms var(--ease-in-out) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-draw { stroke-dasharray: 1; animation: draw 1100ms var(--ease-in-out) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-bar-rise { animation: bar-rise 760ms var(--spring-snappy) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.first .a-liquid { animation: liquid-up 620ms var(--spring-bouncy) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+/* These follow a value, not the visit: a component adds them only when its number should move. */
+.a-sweep { animation: sweep var(--dur-ring) var(--spring-snappy) both; animation-delay: calc(var(--d, 0) * 1ms); }
+.a-digit { animation: digit-in 560ms var(--spring-snappy) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.a-shine { opacity: 0; animation: shine-run 900ms var(--ease-in-out) both; animation-delay: calc(var(--d, 0) * 1ms); }
+.a-ping { animation: ping 1100ms var(--ease-out) both; animation-delay: calc(var(--d, 0) * 1ms); }
+.a-unfold { animation: unfold 420ms var(--spring-snappy) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+/* G4: every later visit is one short fade-up, no stagger. */
+.revisit .a-rise, .revisit .a-fade-up { animation: fade-up var(--dur-revisit) var(--ease-out) backwards; }
+/* G5: a card below the fold rises as it scrolls in, where scroll-driven animations exist, instead of
+   spending its G3 rise off screen. The scroll-linked rise is listed last, so it wins while the card
+   is still below the fold or entering; a card already on screen is past its range at once, which
+   leaves its timed G3 rise to play. The view's bottom edge honours scroll-padding, so on a phone
+   a card rises as it clears the tab bar's edge fade rather than while still hidden under it. */
+@supports (animation-timeline: view()) {
+  .first .a-rise {
+    animation: rise 680ms var(--spring-smooth) backwards, rise linear backwards;
+    animation-delay: calc(var(--d, 0) * 1ms), 0s;
+    animation-timeline: auto, view();
+    /* A fixed distance, not a share of the card: a tall card straddling the fold is fully
+       shown once 64 px of it is in view, instead of looking disabled until scrolled. */
+    animation-range: normal, entry 0px entry 64px;
+  }
+}
+
+/* ------------------------------------------------- page transitions (§5.6)
+   The root crossfades; the chrome (tab bar, + button, sidebar) holds still. The tab pill is
+   not named: it squash-stretches on its own (TabBar). The large title is not named either, so
+   no word ever morphs into another word. */
+::view-transition-group(tabbar), ::view-transition-group(fab), ::view-transition-group(sidebar), ::view-transition-group(toast) { animation: none; }
+::view-transition-old(tabbar), ::view-transition-old(fab), ::view-transition-old(sidebar), ::view-transition-old(toast) { display: none; }
+::view-transition-new(tabbar), ::view-transition-new(fab), ::view-transition-new(sidebar), ::view-transition-new(toast) { animation: none; }
+/* A fade-through, not a crossfade: the old page is gone by 120 ms and the new one starts at
+   105 ms. The new page's ease-out is steep (half visible about 30 ms in), so any real overlap
+   shows two titles and stacked numbers at once; this way the two are never both above 0.1.
+   The old page fades linearly: an ease-in would keep it nearly opaque until the new one is
+   already up. */
+::view-transition-old(root) { animation: 120ms linear both vt-out; }
+::view-transition-new(root) { animation: 300ms var(--ease-out) 105ms both vt-in; }
+/* Drill-ins come from the right, their back links from the left (setNavDirection). */
+:root[data-dir="forward"]::view-transition-new(root) { animation-name: vt-in-forward; }
+:root[data-dir="back"]::view-transition-new(root) { animation-name: vt-in-back; }
+/* A first open (html[data-vt-first], Layout): its cascade is the entrance, so the incoming page
+   gets no fade of its own. It is there at once under the old page's 120 ms fade-out, with the
+   cascade already rising, so the two never fade against each other and the screen is never
+   empty. The root group's own 250 ms move (a no-op: the root never changes size) is dropped too. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-vt-first]::view-transition-new(root) { animation: none; }
+  :root[data-vt-first]::view-transition-group(root) { animation: none; }
+}
+/* The one shared element: the sheet's preview ring landing on the hero ring after "Add" (A1). */
+::view-transition-group(hero-ring) { animation-duration: 520ms; animation-timing-function: var(--spring-sheet); }
+::view-transition-old(hero-ring), ::view-transition-new(hero-ring) { animation-duration: 260ms; }
+@keyframes vt-out { to { opacity: 0; transform: scale(.985); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes vt-in-forward { from { opacity: 0; transform: translateX(24px); } }
+@keyframes vt-in-back { from { opacity: 0; transform: translateX(-24px); } }
+@keyframes vt-fade { from { opacity: 0; } }
+@keyframes vt-fade-out { to { opacity: 0; } }
+
+/* ------------------------------------------------- reduced motion (§5.7)
+   Every entrance becomes a 200 ms fade with no travel and no stagger; rings, digits, bars,
+   lines and glasses show their final values; no light pass, pulse or ping; the page does not
+   recede; sheets and toasts fade; pills and thumbs jump; page transitions are a 160 ms fade. */
+@media (prefers-reduced-motion: reduce) {
+  .first .a-rise, .first .a-fade-up, .first .a-ring, .first .a-pop, .first .a-bloom,
+  .revisit .a-rise, .revisit .a-fade-up, .a-unfold {
+    animation: fade 200ms linear both !important; animation-timeline: auto !important;
+  }
+  .first .a-title > span, .a-sweep, .a-digit, .first .a-bar > i, .first .a-wipe, .first .a-draw,
+  .first .a-bar-rise, .first .a-liquid, .a-shine, .a-ping, .live.ping::before { animation: none !important; }
+  .a-shine, .a-ping { display: none; }
+  .tabbar.intro .tabs, .tabbar.intro .fab { animation: fade 200ms linear both; }
+  .presenting .tabs, .presenting .fab { transform: none; transition: opacity 200ms linear; }
+  .presenting .stage, .stage.restoring { animation: none !important; transform: none; }
+  .toast { animation: fade 200ms linear both; }
+  .toast.out { animation: fade-out 160ms linear both; }
+  .toast > .icon.t-check path { animation: none; }
+  .topbar b { animation: none !important; transform: none !important; transition: none; }
+  .btn, .icon-btn, .fab, .tab, .daynav button, input.switch, input.switch::before, .side-link { transition-duration: 1ms !important; }
+  ::view-transition-group(*) { animation: none !important; }
+  /* Still 160 ms in all, but fading through as above rather than both pages at half strength. */
+  ::view-transition-old(root) { animation: 80ms linear both vt-fade-out; }
+  ::view-transition-new(root) { animation: 90ms linear 70ms both vt-fade; }
+  :root[data-dir]::view-transition-new(root) { animation-name: vt-fade; }
+}
+
+/* ------------------------------------- reduced transparency, contrast, forced colours */
+/* Materials turn opaque (tokens.css) and the glass stops blurring. */
+@media (prefers-reduced-transparency: reduce) {
+  .tabs, .fab, .topbar { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .tabs, .fab, .topbar { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .card, .daynav, .tabs, .fab { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+}
+@media (forced-colors: active) {
+  .card, .tabs, .fab, .sheet, .toast, .daynav, .sidebar, .field { border: 1px solid CanvasText; }
+  .tab[aria-current="page"], .side-link[aria-current="page"] { outline: 2px solid Highlight; outline-offset: -4px; }
+  /* Filled capsules are flattened to Canvas here, so every button draws its own edge. */
+  .btn, .icon-btn { border: 1px solid ButtonText; }
+  .btn:disabled, .icon-btn:disabled { border-color: GrayText; }
+  /* Data stays visible: rings and bars keep their own colours. */
+  .ring, .ring *, .bar > i, .meter i, .comp-bar i, .dm .disc { forced-color-adjust: none; }
+}

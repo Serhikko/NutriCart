@@ -301,3 +301,105 @@ describe('AddFood: which sources answered', () => {
     expect(lookupBarcode.mock.calls[0][1]?.shops).toBeUndefined();
   });
 });
+
+const heinz: FoodProduct = { id: 'off:5000157024671', barcode: '5000157024671', name: 'Baked Beans in Tomato Sauce', brand: 'Heinz', kcalPer100g: 78, proteinPer100g: 4.7, fatPer100g: 0.2, carbsPer100g: 12.5, servingSizeG: 207, liquid: false, fiberPer100g: null, sugarsPer100g: null, saltPer100g: null, saturatedFatPer100g: null, additives: [] };
+
+/** A 1440 px desktop: wide enough for the amount to dock beside the results as an inspector. */
+function stubWideScreen() {
+  const wide = ['(min-width: 1240px)', '(min-width: 900px)'];
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: wide.includes(query),
+    media: query,
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    dispatchEvent: () => false,
+  }));
+}
+
+async function searchAndChoose(product: FoodProduct) {
+  searchProducts.mockResolvedValue([product]);
+  fireEvent.change(screen.getByLabelText('Search food…'), { target: { value: 'beans' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  const row = await screen.findByRole('button', { name: new RegExp(product.name) });
+  row.focus();
+  fireEvent.click(row);
+  return screen.findByRole('dialog', { name: product.name });
+}
+
+describe('AddFood: the docked inspector', () => {
+  it('waits for a choice in its own column, and gives way to the product chosen', async () => {
+    stubWideScreen();
+    const { container } = renderPage();
+    expect(container.querySelector('.inspector-idle')).not.toBeNull();
+    const inspector = await searchAndChoose(heinz);
+    expect(inspector).not.toHaveAttribute('aria-modal');
+    expect(container.querySelector('.inspector-idle')).toBeNull();
+  });
+
+  it('a barcode nobody knows, looked up while a product is open there, still shows the not-found card', async () => {
+    stubWideScreen();
+    renderPage();
+    await searchAndChoose(heinz);
+    lookupBarcode.mockResolvedValue({ kind: 'not_found', barcode: '4820000000000', country: 'UKRAINE', ...nobodyFailed });
+    typeBarcode('4820000000000');
+    expect(await screen.findByText(/This Ukrainian product isn't in Open Food Facts yet/)).toBeInTheDocument();
+    expect(screen.getByText('Barcode 4820000000000 (Ukraine)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add this product' })).toBeInTheDocument();
+  });
+
+  it('on a phone the card waits under the amount sheet, as before', async () => {
+    renderPage();
+    await searchAndChoose(heinz);
+    lookupBarcode.mockResolvedValue({ kind: 'not_found', barcode: '4820000000000', country: 'UKRAINE', ...nobodyFailed });
+    typeBarcode('4820000000000');
+    await waitFor(() => expect(lookupBarcode).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Look up' })).toBeEnabled());
+    expect(screen.queryByRole('button', { name: 'Add this product' })).not.toBeInTheDocument();
+  });
+});
+
+describe('AddFood: focus after a sheet whose opener is gone', () => {
+  async function openProductForm() {
+    lookupBarcode.mockResolvedValue({ kind: 'not_found', barcode: '4820024700016', country: 'UKRAINE', ...nobodyFailed });
+    saveCustomProduct.mockResolvedValue();
+    renderPage();
+    typeBarcode('4820024700016');
+    const add = await screen.findByRole('button', { name: 'Add this product' });
+    add.focus();
+    fireEvent.click(add);
+    return screen.getByRole('dialog', { name: 'New food' });
+  }
+
+  it('Escape on the new-product form lands on the barcode field, not on the page body', async () => {
+    const form = await openProductForm();
+    fireEvent.keyDown(form, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New food' })).not.toBeInTheDocument());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Or type the barcode')));
+  });
+
+  it('the amount opened by Save takes focus, and cancelling it lands on the barcode field', async () => {
+    await openProductForm();
+    fireEvent.change(field('Name'), { target: { value: 'Кефір' } });
+    fireEvent.change(field('Calories (kcal / 100 g)'), { target: { value: '50' } });
+    fireEvent.change(field('Protein (g / 100 g)'), { target: { value: '3' } });
+    fireEvent.change(field('Fat (g / 100 g)'), { target: { value: '1' } });
+    fireEvent.change(field('Carbs (g / 100 g)'), { target: { value: '4' } });
+    const save = screen.getByRole('button', { name: 'Save' });
+    save.focus();
+    fireEvent.click(save);
+    const amount = await screen.findByRole('dialog', { name: 'Кефір' });
+    await waitFor(() => expect(amount.contains(document.activeElement)).toBe(true));
+    fireEvent.click(within(amount).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Or type the barcode')));
+  });
+
+  it('a sheet whose opener is still there gives focus back to it', async () => {
+    renderPage();
+    const amount = await searchAndChoose(heinz);
+    fireEvent.click(within(amount).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: new RegExp(heinz.name) })));
+  });
+});

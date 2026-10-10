@@ -1,0 +1,395 @@
+/* Welcome, Onboarding and Settings (pages/Welcome.tsx, Onboarding.tsx, Settings.tsx), with
+   the pairing code entry and the pairing code card they use (components/PairingCodeInput.tsx,
+   PairingCodeCard.tsx). Colours, radii, shadows and curves come from tokens.css; the
+   keyframes shared with the rest of the site (rise, fade-up, fade, grow-x, digit-in, bloom)
+   live in motion.css. Class prefixes: wl- Welcome, ob- Onboarding, set- Settings, code-
+   the pairing code. */
+
+/* ================================================================= shared */
+/* A sentence-case label above an inset group, and the grey footnote under it (iOS grouped). */
+.ob-sec-label, .set-head {
+  margin: 0 16px; font: 600 var(--t-footnote)/1.3 var(--font-text); letter-spacing: -0.003em; color: var(--label-2);
+  text-wrap: balance;
+}
+.set-foot { margin: 0 16px; font-size: var(--t-footnote); line-height: 1.38; letter-spacing: -0.003em; color: var(--label-2); text-wrap: pretty; }
+.ob-skel, .set-skel, .wl-skel { display: grid; gap: 12px; }
+.set-skel > .skel-line { margin: 10px 16px 0; }
+.ob-skel-title { min-height: 44px; align-content: end; }
+
+/* ================================================================ Welcome */
+.wl { display: grid; gap: 16px; }
+.wl-lead, .wl-side { display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+.wl-head { position: relative; isolation: isolate; display: grid; gap: 6px; margin: 2px 0 8px; }
+.wl-brand { position: relative; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.wl-brand h1 { min-width: 0; }
+/* The title rises out of this mask on a first open (G1); the padding keeps descenders inside. */
+.wl-brand .title-clip { overflow: clip; padding-bottom: .08em; margin-bottom: -.08em; }
+.wl-brand .title-clip > span { display: inline-block; }
+/* A soft Ember light behind the icon: a gradient, never a blur. */
+.wl-brand::before {
+  content: ""; position: absolute; z-index: -1; left: -70px; top: 50%; width: 220px; aspect-ratio: 1; translate: 0 -50%;
+  background: radial-gradient(closest-side, var(--ember-glow), transparent 72%); pointer-events: none;
+}
+.first .wl-brand::before { animation: bloom 1300ms var(--ease-out) 180ms backwards; }
+.wl-tagline { font-size: var(--t-body); line-height: 1.35; color: var(--label-2); text-wrap: balance; }
+
+/* The app icon, live: warm graphite (black in both themes, warmed with Ember) and the open ring. */
+.wl-logo {
+  --logo: 44px;
+  position: relative; flex: none; width: var(--logo); height: var(--logo); border-radius: 22.3%;
+  display: grid; place-items: center; overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 58%, var(--ember-glow), transparent 62%),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--ember-2) 13%, var(--behind)),
+      color-mix(in srgb, var(--label-3) 8%, var(--behind)) 55%,
+      var(--behind));
+  box-shadow: var(--shadow-1), inset 0 0 0 .5px var(--mat-line);
+}
+.wl-logo .ring { width: 69%; height: 69%; }
+
+.wl-card-title { font: 700 var(--t-title-2)/1.2 var(--font-display); letter-spacing: -0.021em; text-wrap: balance; }
+.wl-sec-title { margin: 14px 2px 0; font: 700 var(--t-title-2)/1.2 var(--font-display); letter-spacing: -0.021em; }
+.wl-track, .wl-follow { display: grid; gap: 14px; }
+.wl-intro { font-size: var(--t-callout); line-height: 1.42; letter-spacing: -0.01em; color: var(--label-2); text-wrap: pretty; }
+.wl-follow-intro { margin-top: -6px; text-wrap: pretty; }
+.wl-signin { margin-top: -2px; }
+.wl-signin a { color: var(--tint); font-weight: 600; }
+.wl-signin a:hover { text-decoration: underline; }
+.wl-name { display: grid; min-width: 0; }
+.wl-follow .notice { margin-top: -4px; }
+/* Connect becomes available just after the cells have finished turning Ember (W3). */
+.wl-follow:has(.code-entry.is-complete) .wl-connect:not(:disabled) { transition-delay: 0ms, 0ms, 0ms, 240ms; }
+.wl-following { display: grid; gap: 10px; }
+
+/* Today at a glance, once there is a profile: a small ring and what is left. */
+.wl-glance {
+  display: flex; align-items: center; gap: 14px; min-width: 0; padding: 12px 16px 12px 12px;
+  border-radius: calc(var(--r-field) + 4px); background: var(--surface-2);
+}
+.wl-glance .ring { flex: none; width: 64px; height: 64px; }
+.wl-glance-num { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; }
+.wl-glance-num .digits { font: 700 var(--t-stat)/1.1 var(--font-rounded); letter-spacing: -0.025em; }
+.wl-glance-cap { font: 600 var(--t-subhead)/1.2 var(--font-text); color: var(--label-2); }
+
+/* ========================================== PairingCodeInput (six cells over one input) */
+.code-entry { --code-gap: 8px; min-width: 0; }
+.code-box { position: relative; width: 100%; max-width: 328px; container-type: inline-size; }
+.code-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--code-gap); }
+.code-cell {
+  height: 60px; display: grid; place-items: center; min-width: 0;
+  border-radius: var(--r-field); background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep);
+  font: 700 var(--t-title-1)/1 var(--font-rounded); letter-spacing: 0; color: var(--label);
+  /* The tint of a complete code runs along the cells, 40 ms apart (W3); the focus ring moves at once. */
+  transition:
+    background-color 200ms var(--ease-out) calc(var(--i, 0) * 40ms),
+    color 200ms var(--ease-out) calc(var(--i, 0) * 40ms),
+    box-shadow 160ms var(--ease-out);
+}
+.code-entry.is-complete .code-cell {
+  background: var(--ember-track); color: var(--ember-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ember-2) 30%, transparent);
+}
+/* A code that failed: a danger ring, and no Ember (it is not "accepted" any more). */
+.code-entry.is-invalid .code-cell {
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface)); color: var(--label);
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+}
+/* The input draws no ring of its own: the cell the next character goes into is its focus indicator. */
+.code-box:focus-within .code-cell.caret { background: var(--surface); box-shadow: inset 0 0 0 2px var(--focus); }
+.code-entry.is-complete .code-box:focus-within .code-cell.caret { background: var(--ember-track); }
+
+/* The real input lies over the cells with transparent text. Its characters are spaced at the
+   cells' pitch (container units), so a tap lands the caret near the cell that was tapped. */
+.code-input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; border-radius: var(--r-field);
+  background: transparent; outline: none; cursor: text;
+  color: transparent; -webkit-text-fill-color: transparent; caret-color: transparent;
+  font: 700 var(--t-title-1)/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-transform: uppercase;
+  padding: 0 0 0 calc((100cqw - 5 * var(--code-gap)) / 12 - .5ch);
+  letter-spacing: calc((100cqw + var(--code-gap)) / 6 - 1ch);
+}
+.code-input::selection { background: transparent; color: transparent; }
+@media (max-width: 380px) {
+  .code-entry { --code-gap: 6px; }
+  .code-cell { height: 54px; }
+}
+
+/* ============================================ PairingCodeCard (Settings → Share your day) */
+.code-card { display: grid; gap: 14px; justify-items: start; min-width: 0; container-type: inline-size; }
+.code-pill {
+  position: relative; justify-self: stretch; min-width: 0; min-height: 76px; padding: 12px 16px;
+  display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center; column-gap: 8px;
+  border-radius: var(--r-chip); background: var(--surface-2);
+}
+/* The copy button takes its own column, so the code never runs under it; where the card is wide
+   enough, padding on the left balances it and the code sits in the middle of the capsule. */
+.code-pill.has-copy { grid-template-columns: minmax(0, 1fr) auto; }
+@container (min-width: 330px) {
+  .code-pill.has-copy { padding-left: 68px; }
+}
+.code-text {
+  /* Not flex: flex items are blocks, and the code would read (and copy) one character per line. */
+  display: inline-block; font: 700 2.125rem/1 var(--font-rounded); letter-spacing: .1em; margin-right: -.1em;
+  text-transform: uppercase; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.code-chars { user-select: none; -webkit-user-select: none; }
+.code-chars > span { display: inline-block; }
+/* A code made just now arrives character by character. */
+.code-text.is-fresh .code-chars > span { animation: digit-in 560ms var(--spring-snappy) backwards; animation-delay: calc(40ms + var(--i, 0) * 60ms); }
+.code-pill.is-empty .code-text { display: inline-flex; gap: 14px; letter-spacing: 0; margin-right: 0; }
+.code-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--label-4); }
+.code-copy { background: var(--surface); box-shadow: var(--shadow-1); }
+.code-copy .icon { width: 20px; height: 20px; stroke-width: 2.1; }
+.code-timer { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.code-timer .footnote { min-width: 0; }
+.code-clock { position: relative; flex: none; width: 44px; height: 44px; display: grid; place-items: center; }
+.code-clock > * { grid-area: 1 / 1; }
+.code-clock b { font: 700 var(--t-footnote)/1 var(--font-rounded); letter-spacing: -0.01em; color: var(--label); }
+.code-expired { margin-top: -2px; }
+.code-card > .notice { justify-self: stretch; }
+
+/* ============================================================= Onboarding */
+.ob-grid { display: grid; gap: 22px; }
+.ob-sec { display: grid; gap: 7px; min-width: 0; }
+.ob-group { display: grid; gap: 18px; min-width: 0; }
+.ob-field { display: grid; min-width: 0; }
+.ob-hint { margin: 6px 4px 0; }
+.ob-field > .notice { margin-top: 10px; }
+.ob-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ob-field input[type="date"] { min-height: 46px; }
+
+/* Choice rows (activity level, goal): a native radio stretched over the row. */
+.ob-list .ob-group { gap: 0; padding: 6px 0; overflow: clip; }
+.ob-opt { position: relative; display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 10px 18px 10px 16px; transition: background-color var(--dur-press) var(--ease-out); }
+.ob-opt + .ob-opt::before { content: ""; position: absolute; top: 0; right: 0; left: 54px; border-top: .5px solid var(--sep); }
+.ob-opt-input {
+  position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; margin: 0;
+  -webkit-appearance: none; appearance: none; background: none; border: 0; border-radius: 0; cursor: pointer;
+}
+.ob-opt-input:focus-visible { outline: 3px solid var(--focus); outline-offset: -4px; border-radius: 14px; }
+.ob-opt:active { background: var(--fill-2); }
+.ob-opt-mark {
+  flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  box-shadow: inset 0 0 0 1.5px var(--sep-strong); color: var(--on-ink);
+  transition: background-color var(--dur-state) var(--ease-out), box-shadow var(--dur-state) var(--ease-out);
+}
+.ob-opt-mark .icon { width: 14px; height: 14px; stroke-width: 3.2; opacity: 0; transform: scale(.4); transition: opacity 180ms var(--ease-out), transform 420ms var(--spring-bouncy); }
+.ob-opt.is-on .ob-opt-mark { background: var(--ink); box-shadow: none; }
+.ob-opt.is-on .ob-opt-mark .icon { opacity: 1; transform: none; }
+.ob-opt-text { min-width: 0; display: grid; gap: 1px; }
+.ob-opt-title { font: 600 var(--t-headline)/1.3 var(--font-text); letter-spacing: -0.016em; }
+.ob-opt-detail { font-size: var(--t-footnote); line-height: 1.36; letter-spacing: -0.003em; color: var(--label-2); text-wrap: pretty; }
+@media (hover: hover) and (pointer: fine) {
+  .ob-opt:hover { background: var(--fill-2); }
+}
+.ob-rate { display: grid; margin: 6px 16px 10px; padding-top: 14px; border-top: .5px solid var(--sep); animation: fade-up var(--dur-revisit) var(--ease-out) backwards; }
+
+/* Your daily plan: the ring, the target in Ember digits, the macro composition, the footnotes. */
+.ob-plan { position: relative; isolation: isolate; overflow: clip; }
+.ob-plan .card-head { margin-bottom: 14px; }
+.ob-plan-body { display: grid; gap: 16px; }
+.ob-plan-body.is-reveal { animation: rise var(--dur-rise) var(--spring-smooth) backwards; }
+/* Where the card is too narrow for the ring and the target side by side (a desktop of 900-1240 px,
+   where the plan column is narrow, or a long label in Ukrainian), the target drops under the ring
+   rather than being cut off by the card. */
+.ob-plan-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; min-width: 0; }
+.ob-plan-ring { position: relative; flex: none; width: 120px; height: 120px; display: grid; place-items: center; }
+.ob-plan-ring > * { grid-area: 1 / 1; }
+.ob-plan-ring .ring { width: 100%; height: 100%; }
+.ob-plan-ring > .icon { width: 32px; height: 32px; stroke-width: 2; }
+.ob-plan-ring > .icon:not(.ember) { color: var(--label-4); }
+/* The halo behind a real plan; it blooms with the reveal. */
+.ob-plan-body:not(.is-empty) .ob-plan-ring::before {
+  content: ""; position: absolute; z-index: -1; inset: -28%;
+  background: radial-gradient(closest-side, transparent 50%, var(--ember-glow) 66%, transparent 96%); pointer-events: none;
+}
+.ob-plan-body.is-build .ob-plan-ring::before { animation: bloom 1300ms var(--ease-out) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.ob-plan-num { min-width: 0; display: grid; gap: 3px; }
+.ob-plan-l { font: 600 var(--t-footnote)/1.3 var(--font-text); color: var(--label-2); }
+.ob-plan-v { font: 700 clamp(2.75rem, 12.4vw, 3.5rem)/1 var(--font-rounded); letter-spacing: -0.03em; white-space: nowrap; }
+.ob-plan-u { font: 600 var(--t-subhead)/1.2 var(--font-text); color: var(--label-2); }
+.ob-plan-dash { color: var(--label-4); }
+
+.ob-comp { display: flex; gap: 3px; height: 8px; }
+.ob-comp > i {
+  flex: var(--w, 1) 1 0; min-width: 6px; border-radius: var(--r-chip); background: var(--m); transform-origin: 0 50%;
+  transition: flex-grow 520ms var(--spring-snappy);
+}
+.ob-plan-body.is-build .ob-comp > i { animation: grow-x 700ms var(--spring-snappy) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+.ob-macros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: -4px; }
+.ob-macro { min-width: 0; display: grid; gap: 2px; }
+.ob-macro-l { display: flex; align-items: center; gap: 6px; min-width: 0; font: 600 var(--t-footnote)/1.3 var(--font-text); color: var(--label-2); }
+.ob-macro-l::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--m); }
+.ob-macro-v { font: 700 var(--t-stat-sm)/1.15 var(--font-rounded); letter-spacing: -0.02em; white-space: nowrap; }
+.ob-bmr { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; padding-top: 14px; border-top: .5px solid var(--sep); }
+.ob-bmr dt { min-width: 0; font-size: var(--t-footnote); line-height: 1.36; color: var(--label-2); }
+.ob-bmr dd { margin: 0; font: 650 var(--t-callout)/1.2 var(--font-rounded); white-space: nowrap; }
+.ob-floor { color: var(--label); }
+.ob-plan-body > .footnote + .footnote { margin-top: -10px; }
+
+/* Daily targets: the switch, then the four fields two by two. */
+.ob-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; font-size: var(--t-callout); line-height: 1.3; cursor: pointer; }
+.ob-target-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; animation: fade-up var(--dur-revisit) var(--ease-out) backwards; }
+.ob-invalid { margin: 6px 4px 0; font-size: var(--t-footnote); line-height: 1.3; color: var(--danger); }
+.ob-save { display: grid; gap: 12px; }
+
+/* =============================================================== Settings */
+.set-grid { display: grid; }
+.set-main { display: grid; gap: 26px; min-width: 0; }
+.set-index { display: none; }
+.set-sec { display: grid; gap: 7px; min-width: 0; scroll-margin-top: 24px; }
+.set-sec:focus { outline: none; }
+.set-sec:focus-visible .set-head { color: var(--focus); }
+/* An empty live footnote ("Saved." not yet) stays in the tree, so it is announced when it fills,
+   but out of the grid, so it adds no gap. */
+.set-foot.is-idle { position: absolute; }
+.set-group { display: grid; gap: 14px; min-width: 0; }
+.set-sec > .notice { margin-top: 4px; }
+
+/* Rows of an inset list (people, the profile, an empty line). */
+.set-list { gap: 0; padding: 0; overflow: clip; }
+.set-row { position: relative; display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 54px; padding: 8px 16px; }
+.set-list > .set-row + .set-row::before { content: ""; position: absolute; top: 0; right: 0; left: 16px; border-top: .5px solid var(--sep); }
+.set-list > li.set-row + li.set-row::before { left: 58px; }
+.set-row .avatar { width: 30px; height: 30px; }
+.set-skel-avatar { flex: none; }
+.set-row-main { flex: 1; min-width: 0; font-size: var(--t-callout); line-height: 1.3; overflow-wrap: anywhere; }
+.set-row .btn-plain { flex: none; margin: -6px -8px -6px 0; font-size: var(--t-callout); }
+/* The name is a link to that person's day: it takes the row's whole height (through the row's
+   padding), so the target is the 54 px row and not the 21 px line of text. It also reaches 6 px
+   into the gaps beside it, room for the focus ring. */
+.set-person {
+  align-self: stretch; display: flex; align-items: center; min-height: 44px; margin: -8px -6px; padding-inline: 6px;
+  color: var(--label); font-weight: 500;
+}
+.set-person:hover { text-decoration: underline; }
+/* Filling the row puts the link's top and bottom on the card's clipped edge, so the ring is drawn
+   inside it; otherwise only its two sides would show. */
+.set-person:focus-visible { outline-offset: -3px; border-radius: 8px; }
+.set-empty { color: var(--label-2); font-size: var(--t-callout); }
+.set-summary { font-size: var(--t-callout); line-height: 1.35; padding-block: 14px; }
+.set-link { color: var(--label); transition: background-color var(--dur-press) var(--ease-out); }
+.set-link .set-row-icon { color: var(--tint); }
+.set-link .chev { margin-left: auto; color: var(--label-3); }
+.set-link:active { background: var(--fill-2); }
+.set-link:focus-visible { outline-offset: -3px; border-radius: inherit; }
+@media (hover: hover) and (pointer: fine) {
+  .set-link:hover { background: var(--fill-2); }
+}
+
+/* Your name: the field and a small Save on one line. */
+.set-inline { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.set-inline .field { flex: 1; }
+
+/* Account: every input in a .field well, the eye inside the password field, Generate under it,
+   then the actions, which wrap rather than run off the card. */
+.set-account { gap: 16px; }
+.set-field { display: grid; min-width: 0; }
+.set-password { padding-right: 4px; }
+.set-password input.is-shown { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--t-callout); letter-spacing: 0; }
+.field-eye {
+  position: relative; flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  border-radius: 50%; color: var(--label-2); transition: color var(--dur-state) var(--ease-out), transform 380ms var(--spring-snappy);
+}
+.field-eye:active { transform: scale(.9); transition-duration: var(--dur-state), var(--dur-press); }
+.field-eye[aria-pressed="true"] { color: var(--label); }
+.set-generate { justify-self: start; margin-top: 10px; }
+.set-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.set-actions .btn { max-width: 100%; }
+.set-actions .set-link-btn { margin-inline: 0; padding-inline: 4px; text-align: left; font-size: var(--t-callout); }
+.set-signed { display: flex; align-items: flex-start; gap: 10px; font-size: var(--t-callout); line-height: 1.38; overflow-wrap: anywhere; }
+.set-signed .icon { flex: none; margin-top: 1px; color: var(--tint); }
+
+
+/* Language: the segmented control in a cell of its own, like every other group. */
+.set-lang { padding: 8px; }
+/* Concentric with the card's corner (24 - 8). */
+.set-lang .seg { border-radius: 16px; }
+.set-lang .seg-thumb, .set-lang .seg-btn { border-radius: 14px; }
+
+/* The way out: one destructive row and its hint. */
+.set-device { gap: 10px; }
+.set-signout {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 54px; padding: 0 18px;
+  color: var(--danger); font: 500 var(--t-callout)/1.2 var(--font-text); letter-spacing: -0.01em; text-align: left;
+  transition: transform 380ms var(--spring-snappy), background-color var(--dur-press) var(--ease-out);
+}
+.set-signout:active { transform: scale(.98); transition-duration: var(--dur-press); }
+@media (hover: hover) and (pointer: fine) {
+  .set-signout:hover { background: color-mix(in srgb, var(--danger) 6%, var(--surface)); }
+}
+
+/* ================================================================ desktop */
+@media (min-width: 900px) {
+  /* Welcome: the brand and your own day lead on the left (5), following on the right (7). */
+  .wl { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px 40px; align-items: start; }
+  .wl-lead { position: sticky; top: 40px; }
+  .wl-head { gap: 12px; margin: 0 0 10px; }
+  .wl-brand { flex-direction: column; align-items: flex-start; gap: 22px; }
+  .wl-brand::before { left: -60px; top: 46px; width: 260px; }
+  .wl-logo { --logo: 92px; box-shadow: var(--shadow-float), inset 0 0 0 .5px var(--mat-line); }
+  /* The brand title is 64 px where the lead column has room for it and follows the column's width
+     below that (about 1100 px and narrower), so it never runs into the follow card beside it.
+     The vw size is for a browser without container units. */
+  .wl-head { container-type: inline-size; }
+  .wl-brand .large-title { font-size: clamp(2.75rem, 4.5vw, 4rem); font-size: clamp(2.75rem, 21cqi, 4rem); letter-spacing: -0.034em; }
+  .wl-tagline { font-size: 1.25rem; line-height: 1.3; letter-spacing: -0.016em; }
+  .wl-track, .wl-follow { padding: 24px; }
+  /* The follow form keeps the width of its code cells rather than running across the card. */
+  .wl-follow .code-entry { --code-gap: 10px; }
+  .wl-follow .code-box { max-width: 386px; }
+  .wl-follow .code-cell { height: 68px; }
+  .wl-follow .wl-name { max-width: 386px; }
+  .wl-follow .wl-connect { justify-self: start; width: auto; min-width: 220px; padding-inline: 32px; }
+  .wl-side { gap: 20px; }
+
+  /* Onboarding: the form (7) and the plan (5), sticky, updating as you edit. */
+  .ob-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 22px 24px; align-items: start; }
+  .ob-grid > * { grid-column: 1; }
+  .ob-grid > .ob-plan-slot { grid-column: 2; grid-row: 1 / span 5; position: sticky; top: 40px; }
+  .ob-plan-ring { width: 140px; height: 140px; }
+  .ob-plan-v { font-size: 3.5rem; }
+  .ob-plan { padding: 22px; }
+
+  /* Settings: a sticky index of the sections beside them. */
+  .set-grid { grid-template-columns: 196px minmax(0, 680px); gap: 48px; align-items: start; }
+  .set-index { position: sticky; top: 40px; display: grid; gap: 2px; }
+  .set-index a {
+    position: relative; z-index: 1; display: flex; align-items: center; min-height: 44px; padding: 10px 14px;
+    border-radius: 12px; color: var(--label-2); font: 500 var(--t-subhead)/1.25 var(--font-text); letter-spacing: -0.008em;
+    transition: color var(--dur-state) var(--ease-out);
+  }
+  .set-index a[aria-current] { color: var(--label); font-weight: 600; }
+  .set-index a:hover:not([aria-current]) { color: var(--label); background: var(--fill-2); }
+  .set-index-pill {
+    position: absolute; z-index: 0; left: 0; right: 0; top: 0; height: var(--size, 0px);
+    transform: translateY(var(--pos, 0px)); border-radius: 12px;
+    background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 .5px var(--sep);
+    transition: transform 520ms var(--spring-snappy); pointer-events: none;
+  }
+  .set-index:not([data-measured]) .set-index-pill { display: none; }
+  .set-index:not([data-measured]) a[aria-current] { background: var(--surface); }
+  .set-main { gap: 30px; }
+  .set-sec { scroll-margin-top: 40px; }
+}
+
+/* ===================================================================== preferences */
+@media (prefers-reduced-motion: reduce) {
+  .first .wl-brand::before, .code-text.is-fresh .code-chars > span, .ob-plan-body.is-build .ob-plan-ring::before,
+  .ob-plan-body.is-build .ob-comp > i { animation: none !important; }
+  .ob-plan-body.is-reveal, .ob-rate, .ob-target-grid { animation: fade 200ms linear backwards; }
+  .code-cell, .ob-opt-mark, .ob-opt-mark .icon, .ob-comp > i, .set-index-pill, .set-signout, .field-eye { transition-duration: 1ms !important; transition-delay: 0ms !important; }
+}
+@media (prefers-contrast: more) {
+  .code-cell, .ob-opt-mark { box-shadow: inset 0 0 0 1.5px var(--sep-strong); }
+  .code-pill, .wl-glance { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+}
+@media (forced-colors: active) {
+  .code-cell, .code-pill, .ob-opt-mark, .set-signout { border: 1px solid CanvasText; }
+  .code-box:focus-within .code-cell.caret { outline: 2px solid Highlight; outline-offset: -3px; }
+  .ob-opt.is-on .ob-opt-mark { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .wl-logo, .ob-comp > i { forced-color-adjust: none; }
+}

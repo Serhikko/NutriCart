@@ -1,0 +1,173 @@
+/* Numbers and rings: Ring, Digits, Bar, DayMarker, Skeleton (DESIGN.md §4.3, §4.4).
+   Ported from the mock's ring(), digits() and setDigits(). The entrance classes they
+   use (.a-sweep, .a-digit, .a-shine, .a-bar, .a-pop) live in motion.css; what follows
+   is the shape of each thing, plus the motion only these components need. */
+
+/* ------------------------------------------------------------------ ring */
+.ring-wrap { position: relative; display: grid; place-items: center; }
+.ring-wrap > * { grid-area: 1 / 1; }
+.ring { display: block; overflow: visible; }
+.ring .track { fill: none; stroke: var(--ember-track); }
+.ring .st-1 { stop-color: var(--ember-1); }
+.ring .st-2 { stop-color: var(--ember-2); }
+.ring .st-3 { stop-color: var(--ember-3); }
+/* The closing shadow is a darkening in both themes: --behind is black in both. */
+.ring .st-shade { stop-color: var(--behind); stop-opacity: .55; }
+.ring .st-shade.st-clear { stop-opacity: 0; }
+
+/* Two butt-ended halves of one path (pathLength 100): the right half runs 0.4% under the
+   left one, so anti-aliasing never leaves a hairline where they meet at 6 o'clock. */
+.ring .arc { fill: none; stroke-linecap: butt; }
+.ring .arc.a { stroke-dasharray: calc(min(var(--p), .504) * 100) 200; }
+.ring .arc.b { stroke-dasharray: calc(clamp(0, var(--p) - .5, .5) * 100) 200; stroke-dashoffset: -50; }
+/* Past the goal: the second lap in ink, never another warm hue. */
+.ring .arc.c { fill: none; stroke: var(--over-lap); stroke-linecap: round; stroke-dasharray: calc(clamp(0, var(--p) - 1, 1) * 100) 200; }
+.ring .today.ring-muted { opacity: .32; }
+
+/* Round ends are circles in the same gradients. The end cap exists twice (gradient a up to
+   half way, b after); they swap at 6 o'clock, where both are vermilion. */
+/* At exactly 0 there are no caps at all: an empty day is a clean track, not a dot. */
+.ring .cap.start { opacity: clamp(0, var(--p) * 2000, 1); }
+.ring .cap.ea { opacity: min(clamp(0, (.5 - var(--p)) * 2000 + 1, 1), clamp(0, var(--p) * 2000, 1)); }
+.ring .cap.eb { opacity: clamp(0, (var(--p) - .5) * 2000, 1); }
+/* The shadow just ahead of the end cap shows only as the ring nears closure, so the cap
+   reads as lying over the start. */
+.ring .cap-shadow { opacity: clamp(0, (var(--p) - .9) * 8, 1); }
+/* CSS trig moves the caps with --p (never a rotation: it would turn the gradient). Where trig
+   or geometry properties are missing the cx/cy attributes keep the caps at the final value. */
+@supports (cx: calc(1px * sin(1turn))) {
+  .ring .end {
+    cx: calc(var(--C) + var(--R) * sin(min(var(--p), 1) * 1turn));
+    cy: calc(var(--C) - var(--R) * cos(min(var(--p), 1) * 1turn));
+  }
+  .ring .cap-shadow {
+    cx: calc(var(--C) + var(--R) * sin((min(var(--p), 1) + .012) * 1turn));
+    cy: calc(var(--C) - var(--R) * cos((min(var(--p), 1) + .012) * 1turn));
+  }
+}
+
+/* "This food" (sheet preview): from today's end round to where the portion lands. */
+.ring .add-arc {
+  fill: none; stroke: var(--ember-3); stroke-linecap: round;
+  stroke-dasharray: calc(var(--g) * 100) 200; stroke-dashoffset: calc(var(--p) * -100);
+  transition: --g 520ms var(--spring-snappy);
+}
+
+/* One pass of light round the ring (T5, Z2): a short dash on the ring's own path. White in
+   both themes: it is a highlight, not a colour of the palette. */
+.ring .rotor { transform-box: view-box; transform-origin: 50% 50%; }
+.ring .rotor path { fill: none; stroke: var(--highlight); stroke-linecap: round; stroke-dasharray: 5 95; opacity: .5; }
+
+/* A change of value on a mounted ring sweeps from where it was drawn (Ring alternates the
+   two names so that each change restarts the animation). */
+@keyframes ring-sweep-a { from { --p: var(--from, 0); } }
+@keyframes ring-sweep-b { from { --p: var(--from, 0); } }
+.ring.ring-resweep-a { animation: ring-sweep-a var(--dur-ring) var(--spring-snappy) both; }
+.ring.ring-resweep-b { animation: ring-sweep-b var(--dur-ring) var(--spring-snappy) both; }
+/* The pairing-code countdown ticks: 600 ms ease-out per change (N1). */
+.ring.tick.ring-resweep-a, .ring.tick.ring-resweep-b { animation-duration: 600ms; animation-timing-function: var(--ease-out); }
+/* The one shared element of a page transition: the sheet's preview ring landing on the hero ring (A1). */
+.ring.shared { view-transition-name: hero-ring; }
+
+/* The soft glow behind a ring or a big numeral (T4); its owner places and sizes it. A
+   gradient, never a blur, clipped by its own container. */
+.stage-light {
+  position: absolute; z-index: -1; left: 50%; top: 50%; width: 150%; aspect-ratio: 1; translate: -50% -50%;
+  background: radial-gradient(closest-side, var(--ember-glow), transparent 72%); pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- digits */
+/* Tabular figures always: a digit that changes never changes the number's width (a `font`
+   shorthand on the owner would otherwise reset them). */
+.digits { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.digits .d-cells { display: inline-flex; align-items: baseline; }
+/* A window about cap height with soft top and bottom edges; the side padding (cancelled by
+   the margin) keeps a glyph's overhang inside it. No letter-spacing inside a cell: the
+   owner's tracking (--dtrack, read by Digits) pulls the cells together instead, so a glyph
+   box is never narrower than its ink. */
+.dc {
+  position: relative; display: inline-block; height: 1em; line-height: 1;
+  padding: 0 .08em; margin: 0 calc(var(--dtrack, 0em) - .08em) 0 -.08em; letter-spacing: 0;
+  /* A mask: only its alpha matters. */
+  -webkit-mask-image: linear-gradient(transparent, black 12%, black 88%, transparent);
+  mask-image: linear-gradient(transparent, black 12%, black 88%, transparent);
+}
+/* The glyphs come from data-d, so the number's text exists once (the .sr copy). */
+.dc > i::before, .dsep::before { content: attr(data-d); }
+.dc > i { display: block; font-style: normal; }
+.dc > i.out { position: absolute; left: .08em; top: 0; }
+.dsep { display: inline-block; letter-spacing: 0; margin-right: var(--dtrack, 0em); }
+/* A separator has no masked window, so on an arrival it fades in place with the digit
+   before it: travelling up like the digits, its comma would cross the text below. */
+.dsep.a-digit { animation-name: fade; }
+/* One Ember gradient across the whole number though each cell is clipped on its own:
+   --W is the number's width and --x each glyph's offset, measured by Digits. Horizontal
+   only (a slanted gradient would run vertically inside a tall cell). */
+.grad-text .dc > i, .grad-text .dsep {
+  background-image: linear-gradient(90deg, var(--ember-t1), var(--ember-t2));
+  background-size: var(--W, 3em) 100%; background-position: calc(var(--x, 0px) * -1) 0; background-repeat: no-repeat;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* -------------------------------------------------------------------- bar */
+.bar { position: relative; display: block; height: 6px; border-radius: var(--r-chip); background: var(--fill); overflow: hidden; }
+/* A full-width capsule moved left: round ends at any value, compositor-only motion. */
+.bar > i {
+  position: absolute; inset: 0; border-radius: inherit; background: var(--m);
+  transform: translateX(calc((var(--w, 0) - 1) * 100%));
+  transition: transform 600ms var(--spring-snappy);
+}
+
+/* -------------------------------------------------------------- day marker */
+.dm { display: grid; justify-items: center; gap: 7px; min-width: 0; }
+.dm .disc {
+  position: relative; width: var(--dm-size, 36px); height: var(--dm-size, 36px);
+  display: grid; place-items: center; border-radius: 50%;
+}
+.dm .disc > .ring, .dm .disc > .dm-empty { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dm .disc .icon { position: relative; width: 16px; height: 16px; stroke-width: 3; }
+.dm.dm-small .disc .icon { width: 14px; height: 14px; }
+/* On plan: an Ember disc with a white check, in both themes (the disc is as bright at night). */
+.dm.good .disc { background: linear-gradient(135deg, var(--ember-1), var(--ember-2) 55%, var(--ember-3)); color: var(--on-ember); }
+/* Over: an ink ring with "!". */
+.dm.over .disc { border: 2.5px solid var(--over-lap); color: var(--over-lap); }
+/* Nothing logged: a dashed grey ring. */
+.dm-empty { overflow: visible; }
+.dm-empty circle { fill: none; stroke: var(--label-4); stroke-width: 2; stroke-dasharray: 3.6 2.65; stroke-linecap: round; }
+.dm .lbl { font: 600 var(--t-caption)/1 var(--font-text); color: var(--label-2); white-space: nowrap; }
+.dm.today .lbl { color: var(--tint); }
+
+/* -------------------------------------------------------------- skeleton */
+.skel { display: block; animation: skel-pulse 1600ms var(--ease-in-out) infinite alternate; }
+@keyframes skel-pulse { to { opacity: .55; } }
+.skel-line, .skel-block, .skel-row .sk-glyph, .skel-row .sk-lines > span, .skel-row .sk-end { background: var(--fill); }
+.skel-line { width: var(--sk-w, 100%); height: var(--sk-h, .85em); border-radius: var(--r-chip); }
+.skel-block { width: var(--sk-w, 100%); height: var(--sk-h, 120px); border-radius: var(--r-card); }
+/* The hero ring's track: the same 26/252 proportion at any size. */
+.skel-ring {
+  width: var(--sk-w, min(252px, 66vw)); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(closest-side, transparent 78.9%, var(--fill) 79.4%, var(--fill) 99.4%, transparent);
+}
+.skel-row { display: flex; align-items: center; gap: var(--s-3); width: var(--sk-w, 100%); min-height: var(--sk-h, 68px); padding: 10px 12px 10px 14px; }
+.skel-row .sk-glyph { flex: none; width: 40px; height: 40px; border-radius: var(--r-field); }
+.skel-row .sk-lines { flex: 1; min-width: 0; display: grid; gap: var(--s-2); }
+.skel-row .sk-lines > span { height: 12px; width: 72%; border-radius: var(--r-chip); }
+.skel-row .sk-lines > span + span { height: 10px; width: 44%; }
+.skel-row .sk-end { flex: none; width: 36px; height: 14px; border-radius: var(--r-chip); }
+
+/* Forced colours would erase the shapes' fills: keep them, like the rings and bars (motion.css). */
+@media (forced-colors: active) {
+  .skel, .skel *, .bar { forced-color-adjust: none; }
+}
+
+/* --------------------------------------------------------- reduced motion
+   Rings, digits and bars show their final values at once; skeletons stand still. */
+@media (prefers-reduced-motion: reduce) {
+  .ring.ring-resweep-a, .ring.ring-resweep-b { animation: none !important; }
+  /* No shared-element travel (§5.6): with its group animation off, a named ring would sit
+     at the hero's place over the outgoing page from the first frame. Unnamed, it leaves
+     and arrives with the root fade like everything else. */
+  .ring.shared { view-transition-name: none; }
+  .ring .add-arc, .bar > i { transition: none; }
+  .skel { animation: none; opacity: .7; }
+}

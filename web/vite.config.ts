@@ -11,16 +11,21 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'icon-maskable.svg', 'icon-180.png', 'icon-512.png', 'icon-maskable-512.png'],
       manifest: {
         name: 'NutriCart',
         short_name: 'NutriCart',
         description: 'See your day, or your partner’s, and send a nudge.',
-        theme_color: '#2e7d4f',
-        background_color: '#f6f7f4',
+        // The Ember stage colour, so the splash screen and title bar match the first frame.
+        theme_color: '#F5F5F7',
+        background_color: '#F5F5F7',
         display: 'standalone',
         start_url: '/',
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        icons: [
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
     }),
   ],
