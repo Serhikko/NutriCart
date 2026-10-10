@@ -1,0 +1,291 @@
+/* Controls: Sheet, SegmentedControl, ChipGroup, AmountStepper, Notice, EmptyState,
+   OfflineBanner (components/ui/*). Each section names its component. Colours, radii
+   and shadows come from tokens.css; the keyframes they share (fade, fade-out,
+   fade-up, rise, sheet-up, sheet-down) live in motion.css. */
+
+/* ============================================================ Sheet (ui/Sheet.tsx)
+   One native <dialog class="sheet is-phone|is-center|is-docked">:
+     .sheet-handle > .grabber   phone only, the drag zone
+     .sheet-body                the content; it scrolls inside the sheet
+   The scrim is our own element on <body> (it fades with the drag); the dialog's
+   ::backdrop stays transparent. html.presenting (layout.css) recedes the page. */
+
+.scrim {
+  position: fixed; inset: 0; z-index: var(--z-scrim);
+  background: var(--scrim);
+  /* Pulling the sheet down lifts the dim with it (--drag-p: 0 at rest, 1 fully down). */
+  opacity: calc(1 - var(--drag-p, 0) * .85);
+  -webkit-tap-highlight-color: transparent;
+  animation: fade 380ms var(--ease-out) backwards;
+}
+.scrim.is-leaving { pointer-events: none; animation: fade-out 240ms var(--ease-in) forwards; }
+
+/* The UA's dialog box (border, padding, centring, Canvas colours) is replaced entirely. */
+dialog.sheet {
+  box-sizing: border-box; margin: 0; padding: 0; border: 0;
+  max-width: none; max-height: none; overflow: hidden;
+  color: var(--label); background: var(--sheet);
+  border-radius: var(--r-sheet); box-shadow: var(--shadow-sheet);
+  z-index: var(--z-sheet);
+  /* The drag offset: 0 at rest, the finger's distance while pulled down. */
+  transform: translateY(var(--drag, 0px));
+}
+/* Only while open: a display value here would otherwise show a closed dialog. */
+dialog.sheet[open] { display: flex; flex-direction: column; }
+dialog.sheet::backdrop { background: transparent; }
+/* The sheet itself takes focus on open only so the next Tab lands inside it; it is not a control,
+   so it draws no ring (every control inside keeps the shared focus ring). */
+dialog.sheet:focus { outline: none; }
+/* Composited only for the length of a move (§8.3). */
+.sheet.is-entering, .sheet.is-leaving, .sheet.is-dragging { will-change: transform; }
+
+.sheet-body {
+  flex: 0 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain;
+  /* 6 px of top padding (taken from the handle) so the first row's focus ring and its 44 px
+     reach are not cut by this scrolling box. */
+  padding: 6px 20px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+.sheet-handle {
+  flex: none; display: flex; justify-content: center; padding: 8px 0 6px;
+  touch-action: none; cursor: grab;
+}
+.sheet.is-dragging .sheet-handle { cursor: grabbing; }
+.grabber { width: 38px; height: 5px; border-radius: var(--r-chip); background: var(--label-4); }
+
+/* Phone and tablet (< 900): a floating inset sheet, 8 px off every edge, springing up (S5). */
+.sheet.is-phone {
+  position: fixed; inset: auto 0 calc(env(safe-area-inset-bottom, 0px) + 8px) 0;
+  width: calc(100% - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  max-width: 600px; margin: 0 auto;
+  max-height: calc(100dvh - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  /* Let go short of the threshold: it springs back to rest. */
+  transition: transform 480ms var(--spring-snappy);
+  animation: sheet-up 600ms var(--spring-sheet) backwards;
+}
+.sheet.is-phone.is-dragging { transition: none; }
+/* When the content fits, a touch anywhere that is not a control can pull the sheet down. */
+.sheet.is-phone[data-fits] .sheet-body { touch-action: none; }
+/* S6: from wherever it is (mid-drag too) down past the bottom edge. */
+.sheet.is-phone.is-leaving { animation: sheet-down 360ms var(--ease-in) forwards; }
+
+/* 900 px and up without a dock (or 900-1239 with one): a centred dialog over the content area. */
+.sheet.is-center {
+  position: fixed; inset: 50% auto auto calc(50% + var(--sidebar-w) / 2);
+  translate: -50% -50%;
+  width: min(520px, calc(100vw - var(--sidebar-w) - 48px));
+  max-height: calc(100dvh - 64px);
+  border-radius: calc(var(--r-card) + 4px);
+  animation: sheet-pop 520ms var(--spring-sheet) backwards;
+}
+.sheet.is-center .sheet-body { padding: 20px 22px 22px; }
+.sheet.is-center.is-leaving { animation: sheet-pop-out 220ms var(--ease-in) forwards; }
+@keyframes sheet-pop { from { opacity: 0; transform: translateY(24px) scale(.96); } }
+@keyframes sheet-pop-out { to { opacity: 0; transform: translateY(8px) scale(.97); } }
+/* Above the dock breakpoint the stage does not scale in layout.css: keep the same depth cue. */
+@media (min-width: 1240px) {
+  .stage { transition: transform 420ms var(--spring-smooth); }
+  .presenting .stage { transform: scale(.97); transform-origin: 50% calc(var(--sy, 0px) + 50vh); transition-duration: 560ms; }
+}
+
+/* >= 1240 px with `dock`: in the page, beside the results, sticky; no scrim, no recede. */
+.sheet.is-docked {
+  position: sticky; inset: 24px auto auto auto;
+  width: auto; height: auto; max-height: calc(100dvh - 48px);
+  border-radius: calc(var(--r-card) + 4px); box-shadow: var(--shadow-1);
+  z-index: auto;
+  animation: rise var(--dur-rise) var(--spring-smooth) backwards;
+}
+.sheet.is-docked .sheet-body { padding: 20px 22px 22px; }
+.sheet.is-docked.is-leaving { animation: fade-out 200ms var(--ease-in) forwards; }
+
+/* "Add" goes back to the day inside a view transition (A1): the sheet drops away on its own
+   instead of fading with the old page, while the root crossfades under it. One sheet carries
+   the name at a time (a leaving one gives it up), since a duplicate name cancels a transition. */
+.sheet.is-phone:not(.is-leaving), .sheet.is-center:not(.is-leaving) { view-transition-name: sheet; }
+::view-transition-old(sheet) { animation: 360ms var(--ease-in) both sheet-down; }
+@media (min-width: 900px) {
+  ::view-transition-old(sheet) { animation: 220ms var(--ease-in) both sheet-pop-out; }
+}
+
+/* ========================================== SegmentedControl (ui/SegmentedControl.tsx)
+   A grey track; the thumb is one segment wide (--n segments) and slides to --i. */
+.seg {
+  position: relative; isolation: isolate;
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  min-height: 40px; padding: 2px;
+  border-radius: calc(var(--r-tile-icon) + 2px); background: var(--fill);
+}
+.seg-thumb {
+  position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 2px;
+  width: calc((100% - 4px) / var(--n, 2));
+  border-radius: var(--r-tile-icon); background: var(--thumb);
+  box-shadow: var(--shadow-1), 0 0 0 .5px var(--sep);
+  transform: translateX(calc(var(--i, 0) * 100%));
+  transition: transform 480ms var(--spring-snappy), scale 380ms var(--spring-snappy);
+  pointer-events: none;
+}
+/* Pressing the chosen segment squeezes the thumb a little, as on iOS. */
+.seg:has(> .seg-btn[aria-checked="true"]:active) .seg-thumb { scale: .95; transition-duration: 480ms, var(--dur-press); }
+.seg-btn {
+  position: relative; z-index: 1; min-width: 0; min-height: 36px; padding: 4px 10px;
+  display: grid; place-items: center; text-align: center;
+  border-radius: var(--r-tile-icon); color: var(--label);
+  font: 500 var(--t-subhead)/1.15 var(--font-text); letter-spacing: -0.008em;
+  transition: color var(--dur-state) var(--ease-out);
+}
+.seg-btn .seg-text { min-width: 0; overflow-wrap: anywhere; text-wrap: balance; }
+.seg-btn[aria-checked="true"] { font-weight: 600; }
+/* 36 px drawn, 44 px to the finger. */
+.seg-btn::after { content: ""; position: absolute; inset: -4px 0; }
+/* Hairlines between the segments the thumb is not next to. */
+.seg-btn + .seg-btn::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 1px;
+  background: var(--sep-strong); transition: opacity var(--dur-state) var(--ease-out);
+}
+.seg-btn[aria-checked="true"]::before, .seg-btn[aria-checked="true"] + .seg-btn::before { opacity: 0; }
+.seg-btn:disabled { color: var(--label-4); }
+.seg-btn:focus-visible { outline-offset: -1px; border-radius: var(--r-tile-icon); }
+@media (hover: hover) and (pointer: fine) {
+  .seg-btn:not([aria-checked="true"]):not(:disabled):hover { color: var(--label-2); }
+}
+/* Long labels (Ukrainian at 360 px) drop to 14 px before they wrap. */
+@media (max-width: 380px) {
+  .seg-btn { padding-inline: 6px; font-size: .875rem; }
+}
+
+/* ======================================================== ChipGroup (ui/ChipGroup.tsx) */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.sheet .chips { justify-content: center; }
+.chip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  max-width: 100%; min-height: 36px; padding: 7px 12px; border-radius: var(--r-chip);
+  background: var(--fill); color: var(--label);
+  font: 600 .84375rem/1.2 var(--font-text); letter-spacing: -0.012em; text-align: center; text-wrap: balance;
+  transition: background-color var(--dur-state) var(--ease-out), color var(--dur-state) var(--ease-out), transform 380ms var(--spring-snappy);
+}
+.chip::after { content: ""; position: absolute; inset: -4px 0; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.chip:active:not(:disabled) { transform: scale(.95); transition-duration: var(--dur-state), var(--dur-state), var(--dur-press); }
+.chip:disabled { opacity: .38; }
+@media (hover: hover) and (pointer: fine) {
+  .chip:not([aria-pressed="true"]):not(:disabled):hover { background: var(--fill-3); }
+}
+
+/* ================================================= AmountStepper (ui/AmountStepper.tsx)
+   [−] [ 207  g ⇕ ] [+] */
+.stepper { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.stepper .step-btn { width: 48px; height: 48px; }
+.stepper .step-btn .icon { width: 22px; height: 22px; stroke-width: 2.2; }
+.amount {
+  position: relative; flex: 1; min-width: 0; height: 52px; padding: 0 10px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  border-radius: calc(var(--r-field) + 2px); background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep);
+  cursor: text;
+  transition: box-shadow var(--dur-state) var(--ease-out), background-color var(--dur-state) var(--ease-out);
+}
+.amount:focus-within { background: var(--surface); box-shadow: inset 0 0 0 2px var(--focus); }
+.amount input {
+  width: 4.2ch; min-width: 0; padding: 0; border: 0; outline: none; background: none;
+  color: var(--label); caret-color: var(--tint); text-align: right;
+  font: 700 1.625rem/1 var(--font-rounded); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+/* Where the browser can, the field is exactly as wide as its number, so "207 g" stays centred. */
+@supports (field-sizing: content) {
+  .amount input { field-sizing: content; width: auto; min-width: 1.2ch; max-width: 7ch; }
+}
+.unit-switch {
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 2px;
+  min-height: 44px; padding: 0 6px; border-radius: var(--r-chip);
+  color: var(--label-2); font: 600 var(--t-body)/1 var(--font-text); letter-spacing: -0.01em; white-space: nowrap;
+}
+.unit-switch.is-static { cursor: text; }
+.unit-switch .icon { width: 14px; height: 14px; stroke-width: 2.6; }
+/* At least 44 px wide to the finger, even when the unit is one letter ("g"). */
+button.unit-switch { min-width: 44px; justify-content: center; transition: opacity var(--dur-press) var(--ease-out); }
+button.unit-switch:active { opacity: .55; }
+/* The new unit drops in when it changes (keyed on the unit). */
+.unit-switch .unit-text { display: inline-block; animation: fade-up var(--dur-state) var(--ease-out) backwards; }
+@media (hover: hover) and (pointer: fine) {
+  button.unit-switch:hover { color: var(--label); }
+}
+
+/* ============================================================== Notice (ui/Notice.tsx) */
+.notice {
+  display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 14px 16px;
+  border-radius: calc(var(--r-field) + 2px); background: var(--surface); box-shadow: var(--shadow-1);
+  animation: fade-up var(--dur-revisit) var(--ease-out) backwards;
+}
+/* Inside a card or a sheet it is a nested block, not a card on a card. */
+.card .notice, .sheet .notice, .notice.nested { background: var(--surface-2); box-shadow: none; }
+.notice > .icon { margin-top: -1px; color: var(--label-2); }
+.notice-text { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.notice-title { font: 600 var(--t-subhead)/1.3 var(--font-text); letter-spacing: -0.008em; color: var(--label); overflow-wrap: anywhere; }
+.notice-detail { font-size: var(--t-footnote); line-height: 1.36; letter-spacing: -0.003em; color: var(--label-2); overflow-wrap: anywhere; }
+.notice-action { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.notice.tone-warning > .icon { color: var(--fat-ink); }
+.notice.tone-error > .icon, .notice.tone-error .notice-title { color: var(--danger); }
+
+/* ====================================================== EmptyState (ui/EmptyState.tsx) */
+.empty { display: grid; justify-items: center; gap: 6px; padding: 36px 24px 32px; text-align: center; }
+.empty-icon { display: grid; place-items: center; margin-bottom: 8px; color: var(--label-3); }
+.empty-icon .icon { width: 44px; height: 44px; stroke-width: 1.6; }
+.empty-art { margin-bottom: 10px; max-width: 100%; }
+.empty-title { max-width: 30ch; font: 600 var(--t-headline)/1.3 var(--font-text); letter-spacing: -0.016em; color: var(--label); text-wrap: balance; }
+.empty-body { max-width: 36ch; font-size: var(--t-footnote); line-height: 1.4; letter-spacing: -0.003em; color: var(--label-2); text-wrap: pretty; }
+.empty-action { margin-top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+/* The parts arrive one after another on a first open, all at once on later visits. */
+.empty > * { animation: fade-up var(--dur-revisit) var(--ease-out) backwards; }
+.first .empty > * { animation-duration: 560ms; }
+.first .empty > :nth-child(2) { animation-delay: 60ms; }
+.first .empty > :nth-child(3) { animation-delay: 120ms; }
+.first .empty > :nth-child(4) { animation-delay: 180ms; }
+
+/* ================================================= OfflineBanner (ui/OfflineBanner.tsx) */
+.offline {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; margin: -4px 0 16px; padding: 10px 14px;
+  border-radius: var(--r-field); background: var(--fill); color: var(--label);
+  font: 500 var(--t-footnote)/1.35 var(--font-text); letter-spacing: -0.003em;
+  animation: fade-up var(--dur-revisit) var(--ease-out) backwards;
+}
+.offline .icon { color: var(--label-2); }
+
+/* ================================================================== preferences */
+/* Reduced motion (§5.7): sheets fade in and out, the page does not recede, thumbs and chips jump. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet.is-phone, .sheet.is-center, .sheet.is-docked { animation: fade 200ms linear backwards; transition: none; }
+  .sheet.is-phone.is-leaving, .sheet.is-center.is-leaving, .sheet.is-docked.is-leaving { animation: fade-out 160ms linear forwards; }
+  .scrim { animation: fade 200ms linear backwards; }
+  .scrim.is-leaving { animation: fade-out 160ms linear forwards; }
+  .seg-thumb, .seg-btn, .seg-btn::before, .chip, .amount, button.unit-switch { transition-duration: 1ms !important; }
+  .seg:has(> .seg-btn[aria-checked="true"]:active) .seg-thumb { scale: none; }
+  .unit-switch .unit-text { animation: none; }
+  .notice, .offline, .empty > *, .first .empty > * { animation: fade 200ms linear backwards; animation-delay: 0ms; }
+  @media (min-width: 1240px) { .presenting .stage { transform: none; } }
+  /* No separate sheet snapshot: it leaves with the old page in the 80 ms fade-through (motion.css)
+     rather than lingering over the arriving day with a second set of numbers. Same selectors as
+     the naming rule above, so this one wins on source order. */
+  .sheet.is-phone:not(.is-leaving), .sheet.is-center:not(.is-leaving) { view-transition-name: none; }
+}
+/* Reduced transparency: the dim behind a sheet turns deeper, so the page under it stops competing. */
+@media (prefers-reduced-transparency: reduce) {
+  .scrim { background: color-mix(in srgb, var(--behind) 45%, transparent); }
+}
+@media (prefers-contrast: more) {
+  .seg, .chip:not([aria-pressed="true"]) { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+  .seg-thumb { box-shadow: 0 0 0 1px var(--label); }
+  .sheet:not(.is-docked) { box-shadow: var(--shadow-sheet), 0 0 0 1px var(--sep-strong); }
+  .notice, .offline { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+}
+@media (forced-colors: active) {
+  .scrim { forced-color-adjust: none; }
+  /* dialog.sheet's own border: 0 outranks motion.css's .sheet rule, so the edge is set here
+     (the docked inspector has no scrim, and would otherwise have no boundary at all). */
+  dialog.sheet { border: 1px solid CanvasText; }
+  /* The grabber is the only sign the phone sheet can be pulled down: keep it drawn. */
+  .grabber { forced-color-adjust: none; background: CanvasText; }
+  .seg, .chip, .amount, .notice, .offline { border: 1px solid CanvasText; }
+  .seg-thumb { forced-color-adjust: none; background: Highlight; }
+  .seg-btn[aria-checked="true"] { forced-color-adjust: none; color: HighlightText; }
+  .chip[aria-pressed="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+}

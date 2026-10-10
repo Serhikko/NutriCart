@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Onboarding and Settings (G5). Units stand beside a number that is drawn on its own (a field's
+         suffix, a stepper's well, a macro column), so they carry no %d. -->
+    <string name="form_unit_cm">cm</string>
+    <string name="form_unit_kg">kg</string>
+    <string name="form_unit_g">g</string>
+    <string name="form_unit_min">min</string>
+    <plurals name="form_unit_reps">
+        <item quantity="one">rep</item>
+        <item quantity="other">reps</item>
+    </plurals>
+</resources>

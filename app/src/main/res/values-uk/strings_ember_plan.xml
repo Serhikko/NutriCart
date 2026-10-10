@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plan_unit_g">г</string>
+    <string name="plan_portion_factor">×%1$s</string>
+    <string name="plan_kcal_vs_target">%1$s / %2$s ккал</string>
+    <string name="recipe_missing_title">Рецепт не знайдено</string>
+    <string name="recipe_missing_lead">Тут нема чого готувати</string>
+    <string name="recipe_missing_body">Цієї страви вже немає в книзі рецептів, можливо, після оновлення застосунку. Повернись і вибери іншу.</string>
+</resources>

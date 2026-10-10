@@ -81,7 +81,7 @@
     <string name="weight_edit_hint">Зміна ваги додає новий запис за сьогодні до історії ваги.</string>
     <string name="reset_button">Скинути все й почати спочатку</string>
     <string name="reset_confirm_title">Видалити всі дані?</string>
-    <string name="reset_confirm_text">Профіль та історію ваги буде видалено з цього пристрою. Це незворотно.</string>
+    <string name="reset_confirm_text">Усе, що NutriCart зберігає на цьому телефоні, буде видалено: профіль, щоденник, план харчування, список покупок, холодильник, активність, історію ваги, налаштування й ключі. Якщо ти синхронізуєш, копію в хмарі не буде видалено. Це незворотно.</string>
     <string name="cancel">Скасувати</string>
     <string name="delete">Видалити</string>
 
@@ -103,7 +103,7 @@
     <string name="copy_action">Скопіювати</string>
     <string name="copied_toast">Скопійовано.</string>
     <string name="aisle_produce">Овочі та фрукти</string>
-    <string name="aisle_meat_fish">М\'ясо і риба</string>
+    <string name="aisle_meat_fish">Мʼясо і риба</string>
     <string name="aisle_dairy_eggs">Молочне і яйця</string>
     <string name="aisle_bakery">Випічка і хліб</string>
     <string name="aisle_grains">Крупи і макарони</string>
@@ -159,8 +159,34 @@
     <string name="barcode_not_found">Продукт із цим штрихкодом не знайдено.</string>
     <string name="barcode_offline">Немає інтернету, а цього продукту ще немає в кеші — спробуй з мережею.</string>
     <string name="barcode_scan_failed">Сканер недоступний — спробуй ще раз за мить.</string>
+    <!-- Scanned code unknown everywhere; the snackbar's action is add_action. -->
+    <string name="barcode_not_found_ukraine">Цього українського продукту ще немає в Open Food Facts. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <string name="barcode_not_found_belarus">Цього білоруського продукту ще немає в Open Food Facts. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <string name="barcode_not_found_other">Цього продукту ще немає в Open Food Facts. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <string name="barcode_incomplete">Open Food Facts знає цей продукт, але не всю його поживну цінність. Допиши відсутні значення з етикетки.</string>
+    <!-- The same form, prefilled from a Ukrainian shop's catalogue (zakaz.ua) instead of Open Food Facts. -->
+    <string name="barcode_incomplete_shop">Цей продукт є в каталозі українського магазину, але без повної поживної цінності. Допиши відсутні значення з етикетки.</string>
+    <!-- The same forms with all four values filled in, but not to be trusted as they are: a shop's values that don't add up, or Open Food Facts' estimates from the ingredients. -->
+    <string name="barcode_incomplete_shop_check">Цей продукт є в каталозі українського магазину, але його значення поживної цінності не сходяться. Звір їх з етикеткою перед збереженням.</string>
+    <string name="barcode_incomplete_estimated">Open Food Facts лише оцінює поживну цінність цього продукту за складом. Звір значення з етикеткою перед збереженням.</string>
+    <!-- Scan found nothing, but a source didn't answer: never claim it lacks the product. The snackbar's action is add_action. -->
+    <string name="barcode_off_down">Open Food Facts не відповів (можливо, перевантажений). Спробуй ще раз за хвилину або додай продукт з етикетки.</string>
+    <string name="barcode_off_down_shops_miss">В українських магазинах цього штрихкоду немає, а Open Food Facts не відповів. Спробуй ще раз за хвилину або додай продукт з етикетки.</string>
+    <string name="barcode_not_found_shops_down">Цього продукту немає в Open Food Facts, а українські магазини не відповіли. Спробуй пізніше або додай його один раз, і наступного разу сканер його знайде.</string>
+    <!-- Scan unknown to Open Food Facts AND to the Ukrainian shops' catalogues. -->
+    <string name="barcode_not_found_ukraine_shops">Цього українського продукту ще немає ні в Open Food Facts, ні в каталогах українських магазинів. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <string name="barcode_not_found_other_shops">Цього продукту ще немає ні в Open Food Facts, ні в каталогах українських магазинів. Додай його один раз, і наступного разу сканер його знайде.</string>
+    <!-- Under a product's nutrition when its data came from a Ukrainian shop, not Open Food Facts. -->
+    <string name="product_source_zakaz">Джерело: каталог українського магазину (zakaz.ua)</string>
+    <string name="barcode_line">Штрихкод %1$s</string>
+    <string name="barcode_line_ukraine">Штрихкод %1$s (Україна)</string>
+    <string name="barcode_line_belarus">Штрихкод %1$s (Білорусь)</string>
     <string name="offline_results_note">Офлайн — показані лише раніше завантажені продукти.</string>
     <string name="kcal_per_100g">%1$d ккал / 100 г</string>
+    <string name="kcal_per_100ml">%1$d ккал / 100 мл</string>
+    <string name="ml_mode">Мілілітри</string>
+    <string name="portion_size_note_ml">1 порція = %1$d мл</string>
+    <string name="per100ml_header">На 100 мл</string>
     <string name="grams_mode">Грами</string>
     <string name="portions_mode">Порції</string>
     <string name="portion_size_note">1 порція = %1$d г</string>
@@ -169,7 +195,7 @@
     <!-- Dashboard -->
     <string name="today_menu_title">Меню на сьогодні</string>
     <string name="streak_value">🔥 Серія: %1$d дн.</string>
-    <string name="eaten_label">З\'їдено</string>
+    <string name="eaten_label">Зʼїдено</string>
     <string name="remaining_label">Залишилось</string>
     <string name="macro_pair">%1$d / %2$d г</string>
     <string name="dashboard_title">Сьогодні</string>
@@ -182,7 +208,7 @@
     <string name="water_undo">Скасувати</string>
     <string name="weight_card_title">Вага</string>
     <string name="weight_trend_value">%1$+.1f кг/тижд.</string>
-    <string name="weight_chart_hint">Додай ще кілька вимірів — графік з\'являється з двох різних днів.</string>
+    <string name="weight_chart_hint">Додай ще кілька вимірів — графік зʼявляється з двох різних днів.</string>
     <string name="weight_kg_value">%1$.1f кг</string>
     <string name="steps_label">Кроки</string>
     <string name="calories_out_label">Витрачено калорій</string>
@@ -201,14 +227,15 @@
     <string name="custom_food_new_title">Новий продукт</string>
     <string name="custom_food_edit_title">Редагувати продукт</string>
     <string name="custom_food_name">Назва</string>
-    <string name="custom_food_brand">Бренд (необов\'язково)</string>
+    <string name="custom_food_brand">Бренд (необовʼязково)</string>
     <string name="custom_food_kcal">Калорії (ккал / 100 г)</string>
     <string name="custom_food_protein">Білки (г / 100 г)</string>
     <string name="custom_food_fat">Жири (г / 100 г)</string>
     <string name="custom_food_carbs">Вуглеводи (г / 100 г)</string>
-    <string name="custom_food_serving">Розмір порції (г, необов\'язково)</string>
+    <string name="custom_food_serving">Розмір порції (г, необовʼязково)</string>
+    <string name="custom_food_liquid">Напій: значення на 100 мл, кількість у мл</string>
     <string name="custom_food_delete">Видалити цей продукт</string>
-    <string name="custom_food_optional_header">Більше деталей (необов\'язково)</string>
+    <string name="custom_food_optional_header">Більше деталей (необовʼязково)</string>
     <string name="custom_food_fiber">Клітковина (г / 100 г)</string>
     <string name="custom_food_sugars">Цукри (г / 100 г)</string>
     <string name="custom_food_salt">Сіль (г / 100 г)</string>
@@ -260,7 +287,7 @@
     <string name="day_note_add">+ Нотатка дня</string>
     <string name="day_note_label">Нотатка</string>
     <string name="day_note_title">Нотатка дня</string>
-    <string name="day_note_hint">Що варто запам\'ятати про цей день</string>
+    <string name="day_note_hint">Що варто запамʼятати про цей день</string>
 
     <!-- Statistics -->
     <string name="stats_range_week">Тиждень</string>
@@ -355,8 +382,8 @@
     <string name="hc_no_data_hint">Health Connect підключено, але кроків чи калорій там ще немає. Якщо користуєшся годинником: відкрий його застосунок (напр. Samsung Health → Налаштування → Health Connect) і увімкни передачу даних у Health Connect, потім потягни тут вниз для оновлення.</string>
 
     <!-- Shown by Health Connect when the user asks why we need permissions -->
-    <string name="privacy_rationale_title">Твої дані про здоров\'я</string>
-    <string name="privacy_rationale_text">NutriCart читає кроки, активні калорії, пульс, тренування, сон і вагу з Health Connect, щоб коригувати твою добову ціль калорій і показувати денну активність на дашборді. Усі дані залишаються на цьому пристрої — нікуди не завантажуються.</string>
+    <string name="privacy_rationale_title">Твої дані про здоровʼя</string>
+    <string name="privacy_rationale_text">NutriCart читає кроки, активні калорії, пульс, тренування, сон і вагу з Health Connect, щоб коригувати твою добову ціль калорій і показувати денну активність. Усе це залишається на цьому пристрої, доки ти не ввімкнеш синхронізацію в хмару в налаштуваннях: тоді вага й денні підсумки активності (кроки та активні калорії) завантажуються, щоб їх міг показати сайт NutriCart. Пульс, сон і окремі вимірювання ніколи не залишають телефон.</string>
     <string name="fridge_title">Холодильник</string>
     <string name="fridge_tab_stock">Є вдома</string>
     <string name="fridge_tab_to_buy">Купити</string>
@@ -376,7 +403,7 @@
     <string name="fridge_cooked_title">Скільки порцій приготовано?</string>
     <string name="fridge_cooked_hint">Один казан на кілька днів? Вкажи кількість порцій, щоб із холодильника списалось стільки, скільки пішло.</string>
     <string name="fridge_cooked_toast">Списано з холодильника</string>
-    <string name="ai_section">AI-асистент (необов\'язково)</string>
+    <string name="ai_section">AI-асистент (необовʼязково)</string>
     <string name="ai_key_label">Твій ключ API</string>
     <string name="ai_key_hint">Зберігається лише на цьому телефоні, у відкритому вигляді, і не потрапляє в хмарний бекап. Видалити можна будь-коли.</string>
     <string name="ai_key_show">Показати</string>
@@ -396,4 +423,168 @@
     <string name="ai_error_refused">Асистент відмовився відповідати на це.</string>
     <string name="ai_error_empty">Відповідь порожня — спробуй ще раз.</string>
     <string name="ai_error_failed">Щось пішло не так.</string>
+
+    <!-- Share with a partner (Telegram) -->
+    <string name="partner_section">Поділитися з партнером (необовʼязково)</string>
+    <string name="partner_intro">Дозволь близькій людині бачити, що ти їси, і нагадувати тобі про їжу — через Telegram. Створи бота в @BotFather, встав його токен нижче, а партнер хай відкриє бота й надішле /start.</string>
+    <string name="partner_token_label">Токен бота</string>
+    <string name="partner_token_invalid">Це не схоже на токен бота.</string>
+    <string name="partner_bot_saved">Бот @%1$s готовий</string>
+    <string name="partner_connect_hint">Партнер відкриває t.me/%1$s у Telegram і надсилає /start — потім натисни «Підключити».</string>
+    <string name="partner_connect_action">Підключити партнера</string>
+    <string name="partner_linked_label">Партнер: %1$s</string>
+    <string name="partner_unlink_action">Відключити</string>
+    <string name="partner_share_meals">Надсилати мої прийоми їжі, щойно я їх записую</string>
+    <string name="partner_notify_missed">Повідомляти партнеру, коли я пропускаю прийом</string>
+    <string name="partner_inbox">Показувати повідомлення партнера як сповіщення</string>
+    <string name="partner_test_action">Надіслати тестове повідомлення</string>
+    <string name="partner_test_text">👋 Тест із NutriCart — звʼязок працює.</string>
+    <string name="partner_greeting">✅ NutriCart підключено. Прийоми їжі зʼявлятимуться тут, щойно їх запишуть. Надішли /today, щоб побачити день, або напиши будь-що, щоб нагадати про їжу.</string>
+    <string name="partner_notice_linked">Підключено: %1$s</string>
+    <string name="partner_notice_test_sent">Тестове повідомлення надіслано.</string>
+    <string name="partner_notice_no_message">Від партнера ще немає повідомлень. Попроси відкрити бота й надіслати /start, потім спробуй ще раз.</string>
+    <string name="partner_notice_bad_token">Telegram відхилив цей токен.</string>
+    <string name="partner_notice_offline">Немає інтернету.</string>
+    <string name="partner_notice_busy">Telegram зайнятий — спробуй за хвилину.</string>
+    <string name="partner_notice_blocked">Партнер заблокував бота в Telegram.</string>
+    <string name="partner_notice_failed">Щось пішло не так.</string>
+    <string name="partner_privacy_hint">Повідомлення йдуть через сервери Telegram. Надсилаються лише назви страв і калорії — ніколи вага, кроки чи пульс. Відповіді перевіряються приблизно кожні 15 хвилин і щоразу, коли ти відкриваєш застосунок.</string>
+    <string name="partner_channel_name">Повідомлення партнера</string>
+    <string name="partner_nudge_default">Час поїсти 🍽</string>
+    <string name="partner_missed_meal">⏰ %1$s ще не записано. Надішли /nudge або напиши будь-що — це зʼявиться на телефоні.</string>
+    <string name="partner_day_title">NutriCart — %1$s</string>
+    <string name="partner_day_total_left">За день: %1$d / %2$d ккал, залишилось %3$d</string>
+    <string name="partner_day_total_over">За день: %1$d / %2$d ккал, перевищено на %3$d</string>
+    <string name="partner_day_total">За день: %1$d ккал</string>
+    <string name="partner_more_items">…і ще %1$d</string>
+    <string name="partner_nothing_yet">Сьогодні ще нічого не записано.</string>
+    <string name="share_day_action">Поділитися днем</string>
+
+    <!-- Cloud sync and the website (Supabase) -->
+    <string name="cloud_section">Хмарна синхронізація та сайт (необовʼязково)</string>
+    <string name="cloud_intro">Зберігай копію щоденника в хмарі, щоб сайт NutriCart міг її показати: тобі на будь-якому пристрої й партнеру, який введе твій код. Записане на сайті повертається на телефон. Телефон залишається основною копією і повністю працює без інтернету.</string>
+    <string name="cloud_not_configured">У цій збірці немає ключів хмари, тож синхронізація недоступна. Див. supabase/README.md у проєкті.</string>
+    <string name="cloud_switch">Синхронізувати в хмару</string>
+    <string name="cloud_switch_on">Увімкнути</string>
+    <string name="cloud_name_label">Твоє імʼя на сайті</string>
+    <string name="cloud_name_dialog_title">Як сайту тебе називати?</string>
+    <string name="cloud_name_hint">Партнер побачить на сайті «день» з твоїм імʼям. Достатньо імені.</string>
+    <string name="cloud_code_title">Код підключення</string>
+    <string name="cloud_code_hint">Партнер вводить його на сайті. Код спрацює один раз і діє ще %1$d хв.</string>
+    <string name="cloud_code_expired">Останній код уже недійсний.</string>
+    <string name="cloud_code_new">Новий код</string>
+    <string name="cloud_partners_title">Хто бачить твій день</string>
+    <string name="cloud_partners_none">Поки нікого. Створи код і попроси партнера ввести його на сайті.</string>
+    <string name="cloud_partners_failed">Не вдалося завантажити, хто бачить твій день. Перевір зʼєднання.</string>
+    <string name="cloud_unlink">Прибрати</string>
+    <string name="cloud_last_sync">Останнє завантаження: %1$s</string>
+    <string name="cloud_pending">%1$d змін чекають на завантаження</string>
+    <string name="cloud_error_offline">Чекаю на зʼєднання.</string>
+    <string name="cloud_error_auth">Хмара розлогінила телефон. Вимкни й знову увімкни синхронізацію.</string>
+    <string name="cloud_error_server">У хмари негаразди; спробую ще.</string>
+    <string name="cloud_error_rejected">Частину змін хмара відхилила, їх пропущено.</string>
+    <string name="cloud_error_failed">Останнє завантаження не вдалося; спробую ще.</string>
+    <string name="cloud_notice_enabled">Синхронізацію увімкнено. Останні 90 днів завантажуються.</string>
+    <string name="cloud_notice_name_saved">Імʼя збережено.</string>
+    <string name="cloud_notice_code_ready">Код готовий.</string>
+    <string name="cloud_notice_unlinked">Доступ прибрано.</string>
+    <string name="cloud_notice_offline">Немає інтернету.</string>
+    <string name="cloud_notice_auth">Хмара відхилила сесію цього телефона. Вимкни й знову увімкни синхронізацію.</string>
+    <string name="cloud_notice_failed">Щось пішло не так.</string>
+    <string name="cloud_partner_default_name">Партнер</string>
+    <string name="cloud_email_title">Email акаунта</string>
+    <string name="cloud_email_hint">Додай email і пароль, щоб відкривати цей акаунт на сайті з будь-якого браузера і не втратити його разом із телефоном. Ми надішлемо один лист із підтвердженням, більше нічого.</string>
+    <string name="cloud_password_label">Пароль (8+ символів)</string>
+    <string name="cloud_password_generate">Згенерувати</string>
+    <string name="cloud_email_label">Email</string>
+    <string name="cloud_email_link">Надіслати підтвердження</string>
+    <string name="cloud_email_pending">Підтвердження надіслано на %1$s. Відкрий посилання з листа й повернися сюди.</string>
+    <string name="cloud_email_linked">Ти увійшов як %1$s. На сайті відкрий Налаштування і увійди з цим email та своїм паролем.</string>
+    <string name="cloud_notice_email_sent">Перевір пошту: там посилання для підтвердження. Запиши пароль: на телефоні він не зберігається.</string>
+    <string name="cloud_privacy_hint">Що залишає телефон: твої страви з калоріями й поживними речовинами, вода, вага, підсумки кожного дня (ціль калорій, зʼїдено, активні калорії, кроки) і профіль (стать, дата народження, зріст, ціль), щоб сайт показував ті самі цілі. Ніколи не пульс, сон, ключ AI чи токен Telegram. Зберігається в ЄС. Якщо вимкнути синхронізацію, вона зупиняється; те, що вже в хмарі, там і залишається. Ті, хто бачить твій день, і далі бачитимуть уже завантажене, доки ти їх не прибереш.</string>
+
+    <!-- Ember redesign: strings of the new screens and components. -->
+    <string name="day_kcal_left">ккал лишилось</string>
+    <string name="day_kcal_over">ккал понад ціль</string>
+    <string name="day_zone">У межах цілі</string>
+    <string name="ring_day_line">Зʼїдено %1$s з %2$s ккал, лишилось %3$s</string>
+    <string name="ring_day_line_over">Зʼїдено %1$s з %2$s ккал, понад ціль на %3$s</string>
+    <string name="compact_left">%1$s · лишилось %2$s</string>
+    <string name="compact_over">%1$s · понад ціль на %2$s</string>
+    <string name="today_menu_meta">з твого плану</string>
+    <string name="macros_title">Макроелементи</string>
+    <string name="macros_meta">зʼїдено / ціль</string>
+    <string name="of_target_g">з %1$d г</string>
+    <string name="limit_near">близько до межі</string>
+    <string name="limit_over">понад межу</string>
+    <string name="tile_source">Health Connect · %1$s</string>
+    <string name="toast_added_to">Додано: %1$s</string>
+    <string name="date_range">%1$s – %2$s</string>
+    <string name="week_average">Середнє за день</string>
+    <string name="stats_caption_rest">за планом · ціль %1$s ккал</string>
+    <string name="chart_today_so_far">Сьогодні поки що</string>
+    <string name="chart_under">на %1$s менше за ціль %2$s</string>
+    <string name="chart_over">на %1$s більше за ціль %2$s</string>
+    <string name="chart_within">на %1$s більше · у межах 5%%, за планом</string>
+    <string name="legend_on_plan">За планом</string>
+    <string name="legend_over">Понад ціль</string>
+    <string name="legend_today">Сьогодні поки що</string>
+    <string name="legend_not_logged">Не заповнено</string>
+    <string name="chart_last_7">Останні 7 днів</string>
+    <string name="chart_last_30">Останні 30 днів</string>
+    <string name="chart_last_90">Останні 90 днів</string>
+    <string name="marker_good">%1$s: %2$s ккал, за планом</string>
+    <string name="marker_over">%1$s: %2$s ккал, понад ціль</string>
+    <string name="marker_today">%1$s: поки що %2$s ккал</string>
+    <string name="marker_empty">%1$s: нічого не додано</string>
+    <string name="meals_section">Прийоми їжі</string>
+    <string name="meal_empty">Ще нічого</string>
+    <string name="diary_total_left">Разом · лишилось %1$s з %2$s</string>
+    <string name="diary_total_over">Разом · на %1$s понад %2$s</string>
+    <string name="add_empty_hint">Шукай за назвою або скануй штрихкод на упаковці.</string>
+    <string name="add_left_after">Після цього лишиться %1$s ккал</string>
+    <string name="add_over_after">Після цього %1$s ккал понад ціль</string>
+    <string name="favorite_on">В обраному</string>
+    <string name="favorite_off">Не в обраному</string>
+    <string name="plan_footnote" formatted="false">7 днів у межах ±5% від цілі, спершу білок.</string>
+    <string name="plan_on_target">У межах цілі</string>
+    <string name="plan_locked">Закріплено</string>
+    <string name="day_tomorrow">Завтра</string>
+    <string name="amount_less">Менше</string>
+    <string name="amount_more">Більше</string>
+    <string name="recipe_portion_chip">×%1$s порції</string>
+    <string name="fridge_ideas_meta">з того, що є</string>
+    <string name="ai_card_title">Асистент</string>
+    <string name="shopping_progress">%1$d з %2$d у кошику</string>
+    <string name="shopping_ticked_state">Куплено</string>
+    <string name="shopping_have_state">Уже є вдома</string>
+    <string name="settings_save_changes">Зберегти зміни</string>
+    <string name="settings_saves_now">Усе нижче зберігається одразу.</string>
+    <string name="reminder_time_cd">Час нагадування: %1$s, %2$s</string>
+    <string name="onboarding_step">%1$d з %2$d</string>
+    <string name="per_day">ккал на день</string>
+    <plurals name="streak_days">
+        <item quantity="one">%d день поспіль</item>
+        <item quantity="few">%d дні поспіль</item>
+        <item quantity="many">%d днів поспіль</item>
+        <item quantity="other">%d дня поспіль</item>
+    </plurals>
+    <plurals name="stats_caption_days">
+        <item quantity="one">%1$d з %2$d дня</item>
+        <item quantity="few">%1$d з %2$d днів</item>
+        <item quantity="many">%1$d з %2$d днів</item>
+        <item quantity="other">%1$d з %2$d дня</item>
+    </plurals>
+    <plurals name="meal_items">
+        <item quantity="one">%1$d страва · з %2$s</item>
+        <item quantity="few">%1$d страви · з %2$s</item>
+        <item quantity="many">%1$d страв · з %2$s</item>
+        <item quantity="other">%1$d страви · з %2$s</item>
+    </plurals>
+    <plurals name="portion_chip">
+        <item quantity="one">%1$s порція · %2$s %3$s</item>
+        <item quantity="few">%1$s порції · %2$s %3$s</item>
+        <item quantity="many">%1$s порцій · %2$s %3$s</item>
+        <item quantity="other">%1$s порції · %2$s %3$s</item>
+    </plurals>
 </resources>

@@ -1,5 +1,7 @@
 package com.nutricart.app.data.remote
 
+import com.nutricart.app.data.remote.dto.OFF_PRODUCT_FIELDS
+import com.nutricart.app.data.remote.dto.OFF_SEARCH_FIELDS
 import com.nutricart.app.data.remote.dto.ProductResponseDto
 import com.nutricart.app.data.remote.dto.SearchResponseDto
 import retrofit2.http.GET
@@ -18,7 +20,7 @@ interface OpenFoodFactsApi {
     suspend fun searchByName(
         @Query("search_terms") query: String,
         @Query("page_size") pageSize: Int = 25,
-        @Query("fields") fields: String = FIELDS,
+        @Query("fields") fields: String = SEARCH_FIELDS,
     ): SearchResponseDto
 
     // Used by the barcode scanner (FoodRepository.byBarcode).
@@ -31,9 +33,13 @@ interface OpenFoodFactsApi {
     companion object {
         const val BASE_URL = "https://world.openfoodfacts.org/"
 
-        // OFF returns ONLY the requested fields — a field missing here is
-        // silently absent from every response (review-caught: the additives
-        // feature shipped dead because additives_tags wasn't listed).
-        const val FIELDS = "code,product_name,brands,nutriments,serving_quantity,additives_tags"
+        // OFF returns ONLY the requested fields. The list lives next to
+        // ProductDto (a test checks every DTO field is in it) and includes the
+        // _uk/_ru/_be and generic names that Ukrainian and Belarusian
+        // products are often known by (see ProductNames).
+        const val FIELDS = OFF_PRODUCT_FIELDS
+
+        // Search skips OFF's estimates, which only the scanner's form uses.
+        const val SEARCH_FIELDS = OFF_SEARCH_FIELDS
     }
 }

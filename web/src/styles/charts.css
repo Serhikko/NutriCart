@@ -1,0 +1,93 @@
+/* Charts (charts/CaloriesChart.tsx, charts/WeightChart.tsx), DESIGN.md §7: recharts
+   restyled. recharts draws the axes, grid, bars and lines with its own animation off;
+   every colour comes from here, and the entrance motion is the .a-* classes of
+   motion.css (bars rise, the goal wipes in, the line draws itself). */
+
+.chart-card { padding: 18px 16px 14px; }
+@media (min-width: 900px) { .chart-card { padding: 20px 20px 18px; } }
+
+/* The selected day, Health style: label, kcal (handing off digit by digit), one line of verdict. */
+.sel-head { display: grid; justify-items: start; gap: 2px; min-height: 64px; }
+.sel-head .s-l, .wt-head .s-l { font: 600 var(--t-footnote)/1.3 var(--font-text); color: var(--label-2); }
+.sel-head .s-v { font: 700 var(--t-stat)/1.1 var(--font-rounded); letter-spacing: -0.025em; white-space: nowrap; }
+.sel-head .s-v .unit { font-size: var(--t-subhead); }
+.sel-head .s-d { font-size: var(--t-footnote); line-height: 1.36; color: var(--label-2); }
+.sel-head .s-d.over { color: var(--label); font-weight: 600; }
+
+/* The plot and its focus: the group takes the arrow keys, so it shows the focus ring. */
+.chart { position: relative; margin-top: 12px; border-radius: 12px; }
+.chart:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+.chart-plot { position: relative; width: 100%; }
+.kcal-chart .chart-plot { height: 196px; }
+.wt-chart .chart-plot { height: 150px; }
+.kcal-chart, .wt-chart { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+@media (min-width: 900px) { .kcal-chart .chart-plot { height: 290px; } }
+
+.chart .recharts-surface { display: block; overflow: visible; }
+/* The drawing never takes the pointer: recharts' layers are focusable (tabindex -1), and a click
+   would park focus, with the browser's ring, on one of them. Clicks land on the chart group,
+   which picks the day from the pointer's position and takes the arrow keys next. */
+.chart .recharts-wrapper { pointer-events: none; cursor: inherit !important; }
+.chart .axis { font: 500 11.5px var(--font-text); fill: var(--label-2); font-variant-numeric: tabular-nums; }
+.chart .recharts-cartesian-axis-tick-value { font-variant-numeric: tabular-nums; }
+.chart .xlab { font: 600 var(--t-caption) var(--font-text); fill: var(--label-2); }
+.chart .xlab.today { fill: var(--tint); }
+.chart .recharts-cartesian-grid line { stroke: var(--sep); stroke-width: 1; }
+
+/* ------------------------------------------------------------- calories */
+.chart .ghost { fill: var(--fill-2); stroke: var(--sep); stroke-width: 1; }
+.chart .eaten { fill: url(#g-ember-v); }
+.chart .today .eaten { fill: url(#p-today); }
+/* Past the goal: hatched in ink and outlined, so "over" never rests on hue alone. */
+.chart .over-cap { fill: url(#p-over); stroke: var(--over-lap); stroke-width: 1.5; }
+.chart .bar-g { transform-box: fill-box; }
+.chart .bar-col { transition: opacity 260ms var(--ease-out); }
+.chart .bar-col.dim { opacity: .38; }
+.chart .goal { stroke: var(--label-2); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.chart .goal-wipe { --d: 760; }
+.chart .goal-pill { --d: 1100; transform-box: fill-box; transform-origin: 50% 50%; }
+.chart .goal-pill rect { fill: var(--surface); stroke: var(--sep-strong); stroke-width: 1; }
+.chart .goal-pill text { font: 650 11px var(--font-rounded); fill: var(--label); font-variant-numeric: tabular-nums; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: .78125rem; color: var(--label-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.lg-ok { background: linear-gradient(var(--ember-1), var(--ember-2)); }
+.lg-over { background: repeating-linear-gradient(-45deg, var(--over-lap) 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px var(--over-lap); }
+.lg-today { background: repeating-linear-gradient(-45deg, var(--ember-2) 0 2px, color-mix(in srgb, var(--ember-2) 35%, transparent) 2px 4px); }
+
+/* --------------------------------------------------------------- weight */
+/* The picked day (the latest until one is picked) on its own line above its weight and the 30-day chip. */
+.wt-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.wt-head .s-l { flex: 0 0 100%; margin-bottom: -4px; }
+.big-v { font: 700 1.875rem/1.05 var(--font-rounded); letter-spacing: -0.025em; white-space: nowrap; }
+.big-v .unit { font-size: var(--t-subhead); }
+.delta .delta-v { display: inline-flex; align-items: center; gap: 3px; }
+.delta.flat { background: var(--fill); color: var(--label); padding-left: 9px; }
+.wt-chart { margin-top: 8px; }
+.wt-area { --d: 1000; }
+.wt-area .recharts-area-area { fill: url(#g-weight-area); stroke: none; }
+.wt-area .recharts-area-curve { stroke: none; }
+.wt-line { --d: 560; fill: none; stroke: url(#g-weight); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.wt-dot { --d: 1600; fill: var(--surface); stroke: var(--weight); stroke-width: 2.5; transform-box: fill-box; transform-origin: 50% 50%; }
+.wt-ping { --d: 1700; fill: none; stroke: var(--weight); stroke-width: 2; transform-box: fill-box; transform-origin: 50% 50%; opacity: 0; }
+/* The ping waits unseen for its moment (the point pops first), then fades out for good. */
+.chart .wt-ping.a-ping { animation-fill-mode: forwards; }
+/* The picked point: a hairline down the plot behind the line and a dot on it, both gliding to the next pick. */
+.wt-rule, .wt-sel-dot { transition: transform 220ms var(--ease-out); }
+.wt-rule { stroke: var(--sep-strong); stroke-width: 1.5; transform: translateX(var(--x)); }
+.chart .wt-sel-dot { transform: translate(var(--x), var(--y)); }
+
+/* Selection follows a mouse only where hovering is real (no sticky hover after a tap). */
+@media not ((hover: hover) and (pointer: fine)) {
+  .kcal-chart, .wt-chart { cursor: default; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart .bar-col, .wt-rule, .wt-sel-dot { transition: none; }
+}
+/* Forced colours would flatten the bars and the line into the background: keep their paint, and the
+   legend's swatches with it (their gradients and hatching would go, leaving the key as bare text). */
+@media (forced-colors: active) {
+  .chart .recharts-surface, .legend i { forced-color-adjust: none; }
+}

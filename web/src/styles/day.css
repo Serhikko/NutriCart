@@ -1,0 +1,415 @@
+/* My day and a partner's day (pages/MyDay.tsx, pages/Day.tsx) and their cards:
+   DayHero, MacrosCard, ActivityTiles, MealCard, WaterCard, WeightCard, NudgeBox,
+   the entry action sheet and the desktop week card. Ported from the mock's
+   "today" section (DESIGN.md §6.3, §6.7); the motion is §5.2. */
+
+/* ------------------------------------------------------------- the grid
+   Phone: one column. The hero (with the macros), the activity tiles, the meals,
+   water and weight, in that order, though the tiles, water and weight live in the
+   side column of the desktop grid (display: contents lets them take part). */
+@media (max-width: 899px) {
+  .today-grid { display: flex; flex-direction: column; }
+  .today-main, .today-side { display: contents; }
+  .today-grid .hero { order: 1; }
+  .today-side .tiles { order: 2; }
+  .today-grid .meals-col { order: 3; }
+  .today-side .water-card { order: 4; margin-top: 30px; }
+  .today-side .weight-card { order: 5; margin-top: 12px; }
+  .today-side .nudge-card { order: 6; margin-top: 30px; }
+}
+/* A day that is still loading keeps the last one on screen, quieter, until its own arrives:
+   the whole grid on My day, only the day on a partner's (the nudge card beside it stays as
+   it is). .today-main may be display: contents, so its children are the ones that fade. */
+.today-grid.stale { opacity: .55; transition: opacity 200ms var(--ease-out) 120ms; }
+.today-grid { transition: opacity 160ms var(--ease-out); }
+.today-main.stale > * { animation: day-stale 200ms var(--ease-out) 120ms both; }
+@keyframes day-stale { to { opacity: .55; } }
+
+/* ------------------------------------------------------------- the hero */
+.hero { position: relative; isolation: isolate; display: grid; justify-items: center; padding: 6px 0 4px; min-width: 0; }
+.hero .ring-wrap { position: relative; display: grid; place-items: center; width: min(252px, 66vw); aspect-ratio: 1; }
+.hero .ring-wrap > * { grid-area: 1 / 1; }
+.hero .ring { width: 100%; height: 100%; }
+/* The halo: a ring-shaped radial glow round the ring (a gradient, never a blur). */
+.hero .stage-light {
+  width: 128%;
+  background: radial-gradient(closest-side, transparent 52%, var(--ember-glow) 66%, transparent 96%);
+}
+.hero .zone-glow { opacity: 0; }
+.hero-center {
+  position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center;
+  gap: 2px; padding: 0 30px; text-align: center;
+}
+.hero-num { font: 700 var(--t-hero)/1 var(--font-rounded); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Four digits and a separator ("1,842") still fit inside the ring. */
+.hero-num.long { font-size: calc(var(--t-hero) * .8); }
+.hero-cap { max-width: 132px; font: 600 var(--t-subhead)/1.25 var(--font-text); color: var(--label-2); text-wrap: balance; }
+.hero.no-target .ring-wrap { aspect-ratio: auto; min-height: 160px; }
+/* No target, no ring: the halo would be a ghost ring round the numeral, and on a phone (where
+   the wrap is only 160 px tall) it would spill over the day navigator and the tiles. A soft
+   disc behind the numeral instead (T4), no taller than the wrap. */
+.hero.no-target .stage-light {
+  width: auto; height: 100%;
+  background: radial-gradient(closest-side, var(--ember-glow), transparent 72%);
+}
+.zone-badge {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 5px 11px 5px 8px;
+  border-radius: var(--r-chip); background: var(--ink); color: var(--on-ink);
+  font: 650 var(--t-footnote)/1.2 var(--font-text); letter-spacing: -0.005em; white-space: nowrap;
+}
+.zone-badge .icon { width: 15px; height: 15px; stroke-width: 3; stroke: url(#g-ember-icon); }
+
+.hero-side { width: 100%; min-width: 0; }
+.kpis { display: flex; justify-content: center; width: 100%; margin-top: 14px; }
+.kpi { position: relative; flex: 1; max-width: 140px; min-width: 0; display: grid; justify-items: center; gap: 1px; padding: 0 8px; }
+.kpi + .kpi::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: .5px; background: var(--sep-strong); }
+.kpi .k-l { font: 500 var(--t-footnote)/1.3 var(--font-text); color: var(--label-2); white-space: nowrap; }
+.kpi .k-v { font: 650 1.25rem/1.15 var(--font-rounded); letter-spacing: -0.02em; white-space: nowrap; }
+.kpi .k-v .unit { font-size: var(--t-caption); }
+
+/* ------------------------------------------------------------ macros */
+.macros-card { margin-top: 18px; }
+.macros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.macros-card .macro { min-width: 0; }
+.macros-card .m-l { display: flex; align-items: center; gap: 6px; font: 600 var(--t-footnote)/1.3 var(--font-text); color: var(--label-2); }
+.macros-card .m-l::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--m); }
+.macros-card .m-v { margin-top: 3px; font: 700 var(--t-stat-sm)/1.15 var(--font-rounded); letter-spacing: -0.02em; white-space: nowrap; }
+.macros-card .m-v .unit { font-size: var(--t-footnote); }
+.macros-card .bar { margin-top: 8px; }
+/* At 0 g the parked fill's anti-aliased edge would show as a sliver at the start of the track. */
+.macros-card .bar > i { opacity: clamp(0, var(--w, 0) * 1000, 1); }
+.macros-card .m-of { margin-top: 6px; font-size: var(--t-footnote); color: var(--label-2); white-space: nowrap; }
+/* "Targets": a plain link with a 44 px target, flush with the card's edge. */
+.macros-card .card-head .btn-plain { display: inline-flex; align-items: center; }
+
+/* ------------------------------------------------------- activity tiles */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.tile { display: flex; flex-direction: column; min-width: 0; padding: 14px 16px 13px; }
+.tile .card-head { margin-bottom: 6px; align-items: flex-start; }
+.tile .card-head .label { align-items: flex-start; line-height: 1.25; }
+.tile .card-head .label .icon { margin-top: -1px; }
+/* Values sit at the bottom, so they line up even when one label wraps (Ukrainian). */
+.tile .t-v { margin-top: auto; font: 700 var(--t-stat)/1.1 var(--font-rounded); letter-spacing: -0.025em; white-space: nowrap; }
+.tile .t-v .unit { font-size: .875rem; }
+.tile .t-f { margin-top: 4px; font-size: var(--t-caption); color: var(--label-2); }
+/* A partner's day: water, steps and active energy side by side, compact. */
+.tiles.three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.tiles.three .tile { padding: 12px 12px 11px; border-radius: 20px; }
+.tiles.three .card-head .label { font-size: var(--t-footnote); gap: 4px; }
+.tiles.three .card-head .label .icon { width: 16px; height: 16px; }
+.tiles.three .t-v { font-size: 1.25rem; }
+/* A narrow phone: the glyph goes above the label, so a long word ("Активність") keeps the tile's width. */
+@media (max-width: 420px) {
+  .tiles.three .card-head .label { flex-direction: column; align-items: flex-start; gap: 3px; }
+}
+.tiles.three .t-v .unit { font-size: var(--t-caption); }
+
+/* ------------------------------------------------------------ meals */
+.section-head .title-2 { margin: 0; }
+.meals { gap: 12px; }
+.card.meal { padding: 0; overflow: hidden; }
+.meal-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px; }
+/* Decorative squircles: white glyph on the meal's gradient, in both themes. */
+.mtile {
+  flex: none; width: 34px; height: 34px; border-radius: var(--r-tile-icon); display: grid; place-items: center;
+  color: var(--on-accent); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--on-accent) 35%, transparent);
+  background: linear-gradient(150deg, var(--mt-1), var(--mt-2));
+}
+.mtile .icon { width: 20px; height: 20px; stroke-width: 2.1; }
+/* The tiles' gradients come from the palette: sunrise, sun, moon (the protein indigo), cookie (teal). */
+.mtile.BREAKFAST { --mt-1: color-mix(in oklch, var(--ember-1) 70%, var(--fat)); --mt-2: color-mix(in oklch, var(--ember-1), var(--ember-2)); }
+.mtile.LUNCH { --mt-1: color-mix(in oklch, var(--fat) 60%, var(--carbs)); --mt-2: var(--ember-1); }
+.mtile.DINNER { --mt-1: color-mix(in oklch, var(--protein) 60%, var(--water-2)); --mt-2: var(--protein); }
+.mtile.SNACK { --mt-1: color-mix(in oklch, var(--water-2) 50%, var(--carbs)); --mt-2: color-mix(in oklch, var(--weight), var(--carbs)); }
+@supports (color: oklch(from red l c h)) {
+  .mtile.BREAKFAST { --mt-1: oklch(from var(--ember-1) calc(l + .06) calc(c - .02) calc(h + 11)); }
+  .mtile.LUNCH { --mt-1: oklch(from var(--ember-1) calc(l + .1) c calc(h + 28)); }
+  .mtile.DINNER { --mt-1: oklch(from var(--protein) calc(l + .14) c h); }
+  .mtile.SNACK { --mt-1: oklch(from color-mix(in oklch, var(--weight), var(--carbs)) calc(l + .18) c h); }
+}
+.meal-t { flex: 1; min-width: 0; }
+.meal-t h3 { font: 600 var(--t-headline)/1.25 var(--font-text); letter-spacing: -0.016em; }
+.meal-t .sub { display: block; font-size: var(--t-footnote); color: var(--label-2); }
+.meal-kcal { flex: none; font: 650 1.1875rem/1 var(--font-rounded); letter-spacing: -0.02em; white-space: nowrap; }
+.meal-kcal .unit { font-size: var(--t-caption); }
+
+/* Rows: a one-row grid each, so a new row can unfold and a deleted one fold away
+   (grid-template-rows, the page's only layout animation). */
+.entries { margin: 0; }
+.entry-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 300ms var(--spring-snappy), opacity 200ms var(--ease-out); }
+.entry-wrap.leaving { grid-template-rows: 0fr; opacity: 0; }
+.entry-clip { min-height: 0; overflow: hidden; }
+.entry { position: relative; touch-action: pan-y; }
+/* Inset hairlines start under the text, as in an iOS inset list. */
+.entry::before { content: ""; position: absolute; z-index: 2; top: 0; right: 0; left: 62px; border-top: .5px solid var(--sep); pointer-events: none; }
+.entry-row {
+  position: relative; z-index: 1; display: flex; align-items: center; min-height: 58px;
+  padding-left: 62px; background: var(--surface);
+  transform: translateX(var(--sx, 0px)); transition: transform 380ms var(--spring-snappy);
+}
+.entry.dragging .entry-row { transition: none; }
+.e-body {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; align-self: stretch;
+  padding: 9px 16px 9px 0; text-align: left; color: inherit;
+}
+button.e-body { border-radius: 0; transition: background-color 160ms var(--ease-out); }
+button.e-body:active { background: var(--fill-2); }
+button.e-body:focus-visible { outline-offset: -3px; border-radius: 10px; }
+@media (hover: hover) and (pointer: fine) { button.e-body:hover { background: var(--fill-2); } }
+.e-main { flex: 1; min-width: 0; display: grid; }
+/* Long names wrap to two lines, never past the kcal column (harness bug 3). */
+.e-name {
+  font-size: var(--t-callout); line-height: 1.3; letter-spacing: -0.01em; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.e-meta { font-size: var(--t-footnote); color: var(--label-2); }
+.e-kcal { flex: none; font: 600 var(--t-callout)/1 var(--font-rounded); white-space: nowrap; }
+.e-kcal .unit { font-size: var(--t-caption); }
+
+/* Edit mode: a red minus disc slides in before every row (only the disc column moves). */
+.del { flex: none; width: 0; overflow: hidden; display: grid; place-items: center; align-self: stretch;
+  transition: width 420ms var(--spring-snappy), margin 420ms var(--spring-snappy); }
+/* The 24 px disc lines up with the names above it; the text moves over by the disc and a gap. */
+.meal.editing .del { width: 44px; margin-left: -10px; }
+.del-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; }
+.del-btn > span { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--danger); color: var(--on-danger); }
+.del-btn .icon { width: 14px; height: 14px; stroke-width: 3; }
+.del-btn:active > span { transform: scale(.9); }
+/* The disc's column clips (it slides in from zero width): the ring goes inside the 44 px button. */
+.del-btn:focus-visible { outline-offset: -3px; }
+
+/* Swipe to delete (touch): the row slides left over a red Delete. */
+.swipe-del {
+  position: absolute; z-index: 0; top: 0; right: 0; bottom: 0; width: 88px;
+  background: var(--danger); color: var(--on-danger); font: 600 var(--t-subhead)/1 var(--font-text);
+  visibility: hidden;
+}
+.entry.shifted .swipe-del { visibility: visible; }
+
+/* Back from Add (A4), a live insert, an undone delete: the row unfolds (.a-unfold, motion.css)
+   and an Ember wash fades out over it. */
+.entry-wrap.fresh .entry-row::after {
+  content: ""; position: absolute; inset: 0; background: var(--ember-glow); pointer-events: none;
+  opacity: 0; animation: fresh 1800ms var(--ease-out) 900ms backwards;
+}
+
+.add-row {
+  display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px;
+  border-top: .5px solid var(--sep); color: var(--tint); font-weight: 500; font-size: var(--t-body);
+  transition: background-color 160ms var(--ease-out);
+}
+.add-row:active { background: var(--fill-2); }
+.add-row:focus-visible { outline-offset: -3px; border-radius: 0 0 var(--r-card) var(--r-card); }
+@media (hover: hover) and (pointer: fine) { .add-row:hover { background: var(--fill-2); } }
+.add-row .pd { width: 34px; height: 34px; display: grid; place-items: center; flex: none; }
+.add-row .pd span { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--tint) 12%, transparent); }
+.add-row .pd .icon { width: 15px; height: 15px; stroke-width: 2.6; }
+
+/* A partner's empty day. */
+.day-nothing { padding: 0; }
+/* Phone: the nudge card follows the day. */
+.today-grid + .nudge-card { margin-top: 30px; }
+
+/* ------------------------------------------------------------- water */
+.water-card .card-head, .weight-card .card-head { min-height: 24px; }
+.water-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; row-gap: 10px; }
+.water-card .big-v, .weight-card .big-v { font: 700 1.875rem/1.05 var(--font-rounded); letter-spacing: -0.025em; white-space: nowrap; }
+.water-card .big-v .unit, .weight-card .big-v .unit { font-size: var(--t-subhead); }
+.glasses { display: flex; gap: 5px; padding-bottom: 2px; }
+.glass-i { width: 19px; height: 28px; overflow: visible; }
+.glass-i .body { fill: var(--fill-2); stroke: var(--sep-strong); stroke-width: 1.1; }
+.glass-i .liq { fill: url(#g-water); }
+/* A glass fills on its own spring (T9) and drains quickly on Undo (T10). */
+.glass-i .liq-g {
+  transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(var(--f, 0));
+  transition: transform 620ms var(--spring-bouncy);
+}
+.glasses.draining .liq-g { transition: transform 220ms var(--ease-in); }
+.water-card .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.water-card .btn-row .undo { margin: 0 0 0 auto; }
+
+/* ------------------------------------------------------------- weight */
+.weight-now { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 32px; }
+/* The chip's arrow and figure (hidden from screen readers, which hear the signed value). */
+.weight-now .delta-v { display: inline-flex; align-items: center; gap: 3px; }
+.weight-form { margin-top: 14px; }
+.weight-form .btn { flex: none; }
+
+/* -------------------------------------------------- the week (desktop) */
+.week-mini { display: block; color: inherit; transition: box-shadow 200ms var(--ease-out), transform 380ms var(--spring-snappy); }
+.week-mini .card-head .meta .icon { color: var(--label-3); }
+.week-mini .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-top: 4px; }
+.week-mini:active { transform: scale(.985); }
+@media (hover: hover) and (pointer: fine) { .week-mini:hover { box-shadow: var(--shadow-lift); } }
+
+/* ------------------------------------------------- the entry's actions */
+.es { display: grid; gap: 16px; }
+.es-head { display: flex; align-items: flex-start; gap: 12px; }
+.es-head .mtile { width: 46px; height: 46px; border-radius: 14px; }
+.es-head .mtile .icon { width: 24px; height: 24px; }
+.es-head .t { flex: 1; min-width: 0; }
+.es-head .eyebrow { font-size: var(--t-footnote); }
+.es-head h2 { margin-top: 2px; font: 650 1.1875rem/1.22 var(--font-display); letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.es-head p.num { margin-top: 2px; font-size: var(--t-footnote); color: var(--label-2); }
+.es-actions, .es-amount { display: grid; gap: 10px; }
+/* The form takes focus on a touch screen after Edit amount (not the field, whose keyboard
+   would cover the sheet); it is a landing spot, not a control, so no ring. */
+.es-amount:focus { outline: none; }
+.es-cancel { justify-self: center; }
+.es-kcal { justify-self: center; display: flex; align-items: baseline; font: 700 var(--t-display)/1 var(--font-rounded); letter-spacing: -0.03em; }
+.es-kcal .unit { font-size: var(--t-body); }
+
+/* -------------------------------------------------------- nudge card */
+.nudge-card .card-head { margin-bottom: 12px; }
+.nudge-form { margin: 0; }
+.nudge-field {
+  display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 4px 4px 16px;
+  border-radius: var(--r-chip); background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep);
+}
+.nudge-field:focus-within { background: var(--surface); box-shadow: inset 0 0 0 2px var(--focus); }
+.nudge-field input { flex: 1; width: 0; min-width: 0; padding: 10px 0; border: 0; background: none; outline: none; font-size: var(--t-body); color: var(--label); }
+.nudge-field input::placeholder { color: var(--label-2); opacity: 1; }
+.nudge-field .send {
+  flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--ink); color: var(--on-ink); transition: transform 380ms var(--spring-snappy), opacity 200ms;
+}
+.nudge-field .send:active:not(:disabled) { transform: scale(.92); transition-duration: var(--dur-press), 200ms; }
+.nudge-field .send:disabled { opacity: .38; }
+.nudge-chips { margin-top: 12px; }
+.nudge-status { min-height: 1.36em; margin-top: 10px; font-size: var(--t-footnote); line-height: 1.36; color: var(--label-2); }
+.nudge-status:empty { min-height: 0; margin-top: 0; }
+.nudge-recent { margin-top: 18px; padding-top: 14px; border-top: .5px solid var(--sep); }
+.nudge-recent-t { margin-bottom: 10px; font: 600 var(--t-footnote)/1.3 var(--font-text); color: var(--label-2); }
+.bubbles { display: grid; gap: 8px; }
+.bubble-wrap { display: grid; grid-template-rows: 1fr; }
+.bubble-clip { min-height: 0; overflow: hidden; display: grid; justify-items: end; }
+/* Your own messages, as a chat shows them: right-aligned bubbles in the ink. */
+.bubble {
+  max-width: 85%; display: grid; justify-items: end; gap: 3px; padding: 9px 14px 8px;
+  border-radius: 20px 20px 6px 20px; background: var(--ember-track); color: var(--label);
+}
+.bubble p { font-size: var(--t-callout); line-height: 1.3; overflow-wrap: anywhere; justify-self: start; }
+/* One column no wider than the bubble: a long stamp (large text, Ukrainian) wraps after the
+   time instead of widening the track past the bubble, where .bubble-clip would cut it. */
+.bubble { grid-template-columns: minmax(0, 1fr); }
+.bubble .stamp { font-size: var(--t-caption); text-align: end; }
+.bubble .stamp > span { white-space: nowrap; }
+/* --label-2 on the tinted bubble is just under 4.5:1 at 12 px; a quarter of --label lifts it (about 5.9:1). */
+.bubble .stamp { color: color-mix(in srgb, var(--label-2) 75%, var(--label)); }
+
+/* A partner's name before the list of people you follow has arrived. */
+.lh .title-skel { margin-bottom: .1em; }
+
+/* The Live chip beside the date (partner's today). */
+.lh .eyebrow .live { margin-left: 8px; vertical-align: 2px; }
+
+/* -------------------------------------------------------------- loading */
+.day-skeleton .hero .ring-wrap { place-items: center; }
+.day-skeleton .kpis { flex-direction: column; align-items: center; gap: 8px; }
+.day-skeleton .meals { order: 3; margin-top: 24px; }
+@media (max-width: 1399px) {
+  .day-skeleton .today-side { display: none; }
+}
+
+/* ======================================================= wider screens */
+/* 900-1399 px: the sidebar takes 264 px, and two columns would leave the hero card too
+   narrow for the ring and its KPIs side by side (at 1280 the KPIs and macros ran out of
+   the card). One column instead, the phone's order, with water and weight side by side
+   at the end. */
+@media (min-width: 900px) and (max-width: 1399px) {
+  .today-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }
+  .today-main, .today-side { display: contents; }
+  .today-grid .hero, .today-grid .meals-col, .today-side .tiles, .today-side .week-mini, .today-side .nudge-card,
+  .day-skeleton .meals { grid-column: 1 / -1; }
+  .today-grid .hero { grid-row: 1; }
+  .today-side .tiles { grid-row: 2; margin-top: 16px; }
+  .today-grid .meals-col { grid-row: 3; }
+  .today-side .week-mini { grid-row: 4; margin-top: 30px; }
+  .today-side .nudge-card { grid-row: 4; margin-top: 30px; }
+  .today-side .water-card, .today-side .weight-card { grid-row: 5; margin-top: 16px; }
+  .day-skeleton .meals { grid-row: 2; }
+}
+/* >= 1400 px: two columns, the hero and the meals on the left, a sticky column on the right. */
+@media (min-width: 1400px) {
+  .today-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px; align-items: start; }
+  .today-main { min-width: 0; }
+  .today-side { position: sticky; top: 24px; display: grid; gap: 16px; min-width: 0; }
+  .today-side:empty { display: none; }
+  .today-side .tiles { margin-top: 0; }
+}
+@media (min-width: 900px) {
+  /* The hero is a white card: the ring on the left, the KPIs and the macros beside it. */
+  .hero {
+    grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: stretch; gap: 28px;
+    padding: 24px 28px; border-radius: 28px; background: var(--surface); box-shadow: var(--shadow-1);
+  }
+  .hero .ring-wrap { width: 248px; }
+  .hero .stage-light { width: 120%; }
+  .hero-num { font-size: 4.75rem; }
+  .hero-num.long { font-size: 3.75rem; }
+  /* The side's own width decides how its contents sit (the container queries below). */
+  .hero-side { display: grid; gap: 18px; align-content: center; container: hero-side / inline-size; }
+  .kpis { justify-content: flex-start; margin-top: 0; }
+  .kpi { flex: none; max-width: none; justify-items: start; padding: 0 18px; }
+  .kpi:first-child { padding-left: 0; }
+  .kpi .k-v { font-size: var(--t-stat-sm); }
+  .hero .macros-card { margin: 0; padding: 18px 0 0; border-radius: 0; background: none; box-shadow: none; border-top: .5px solid var(--sep); }
+  .hero .macros-card .card-head { margin-bottom: 12px; }
+  .hero .tiles.three { margin-top: 0; }
+  .hero .tiles.three .tile { background: var(--surface-2); box-shadow: none; }
+  .hero.no-target .ring-wrap { width: 220px; min-height: 0; aspect-ratio: 1; }
+
+  .meals-col .section-head { margin-top: 30px; }
+
+  .day-skeleton .hero { min-height: 296px; }
+  .day-skeleton .kpis { align-items: flex-start; }
+}
+/* 900-959 px: the narrowest hero card; a smaller ring leaves the KPIs and the tiles room. */
+@media (min-width: 900px) and (max-width: 959px) {
+  .hero { gap: 20px; }
+  .hero .ring-wrap { width: 200px; }
+  .hero-num { font-size: 3.75rem; }
+  .hero-num.long { font-size: 3rem; }
+  .hero.no-target .ring-wrap { width: 184px; }
+}
+
+/* The hero's side, by its own width (it is 260-330 px beside the ring at 900-1000 and
+   1400-1520 px, wider elsewhere). */
+@container hero-side (max-width: 320px) {
+  .kpi { padding: 0 12px; }
+  .macros-card .macros { gap: 10px; }
+  /* A partner's three tiles: the glyph goes above the label (as on a narrow phone), so a
+     long word ("Активність") and a value with its unit keep inside the tile. */
+  .tiles.three { gap: 6px; }
+  .tiles.three .tile { padding: 10px 10px 9px; }
+  .tiles.three .card-head .label { flex-direction: column; align-items: flex-start; gap: 3px; font-size: var(--t-caption); }
+  .tiles.three .t-v { font-size: 1.125rem; }
+}
+/* Narrower still: the three tiles become three rows, label left and value right, as a
+   Health summary list ("Вуглеводи" keeps inside its macro column with a closer dot). */
+@container hero-side (max-width: 290px) {
+  .macros-card .m-l { gap: 4px; }
+  .tiles.three { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .tiles.three .tile { flex-direction: row; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; }
+  .tiles.three .tile .card-head { flex: 1; min-width: 0; margin: 0; }
+  .tiles.three .card-head .label { flex-direction: row; align-items: center; gap: 5px; font-size: var(--t-footnote); }
+  .tiles.three .t-v { margin-top: 0; font-size: 1.0625rem; }
+}
+
+/* ===================================================== motion (§5.2)
+   The entrance classes (.a-ring, .a-bloom, .a-rise ...) are in motion.css; these are the
+   day's own moments. */
+/* Z1-Z3: landing in the zone pulses the halo twice and pops the badge, once. */
+.zone-moment .zone-glow { animation: halo-pulse 1000ms var(--ease-out) 2 both; animation-delay: calc(var(--d, 0) * 1ms); }
+.zone-moment .zone-badge { animation: pop 620ms var(--spring-bouncy) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+/* The glasses fill one after another on the first open (T9): .first .a-liquid in motion.css. */
+
+@media (prefers-reduced-motion: reduce) {
+  .zone-moment .zone-glow, .entry-wrap.fresh .entry-row::after { animation: none !important; }
+  .zone-moment .zone-badge { animation: fade 200ms linear both; }
+  .entry-wrap, .entry-row, .del, .glass-i .liq-g, .week-mini, .nudge-field .send { transition-duration: 1ms !important; }
+}
+@media (forced-colors: active) {
+  .mtile, .del-btn > span, .zone-badge, .bubble { forced-color-adjust: none; }
+  .glass-i, .glass-i * { forced-color-adjust: none; }
+}

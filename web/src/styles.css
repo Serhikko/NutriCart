@@ -1,0 +1,15 @@
+/* NutriCart "Ember". The index of the stylesheets, imported once from main.tsx.
+   Order matters: tokens, then base and the shell, then shared components, then
+   each area of the site, and motion last so its preferences win. */
+@import './styles/tokens.css';     /* custom properties, light + dark, springs, @property */
+@import './styles/base.css';       /* reset, body, type classes, .num, .sr, focus ring, .icon */
+@import './styles/layout.css';     /* .app shell, .stage, .page, sidebar, tab bar, top bar */
+@import './styles/components.css'; /* Button, Card, LargeTitle, DayNav, Toast, fields */
+@import './styles/numbers.css';    /* Ring, Digits, Bar, DayMarker, Skeleton */
+@import './styles/controls.css';   /* Sheet, AmountStepper, ChipGroup, SegmentedControl, Notice, EmptyState, OfflineBanner */
+@import './styles/day.css';        /* My day, partner Day */
+@import './styles/add.css';        /* Add food */
+@import './styles/week.css';       /* My week, partner Week */
+@import './styles/charts.css';     /* recharts restyle */
+@import './styles/pages.css';      /* Welcome, Onboarding, Settings */
+@import './styles/motion.css';     /* keyframes, entrances, view transitions, preferences */

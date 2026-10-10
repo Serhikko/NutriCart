@@ -9,7 +9,16 @@ import com.nutricart.app.domain.model.ProductSource
  * stored here, so search keeps working without internet.
  *
  * id format: "off:<barcode>" for Open Food Facts products,
- *            "local:<uuid>" for user-created foods (future).
+ *            "local:<uuid>" for foods the user created from scratch,
+ *            "local:barcode:<digits>" for foods the user added from a scan
+ *            that Open Food Facts didn't know (or knew only partly). The
+ *            scanner checks this id FIRST, so the user's own entry wins
+ *            over Open Food Facts on the next scan. Both "local:" kinds are
+ *            ProductSource.LOCAL and behave alike (edit, delete, search);
+ *            "zakaz:<digits>" for products a Ukrainian shop's catalogue
+ *            gave the scanner when Open Food Facts had nothing usable,
+ *            saved under the scanned digits (ProductSource.ZAKAZ):
+ *            read-only cached data, like "off:" rows.
  *
  * The four per-100g values are NON-null on purpose: the API mapper simply
  * drops incomplete products, so everything in this table is fully usable.
@@ -29,6 +38,11 @@ data class FoodProductEntity(
     val carbsPer100g: Double,
     /** Label portion size in grams, when the producer stated one. */
     val servingSizeG: Double?,
+    /**
+     * A drink (v15): amounts are typed and shown in ml. The per-100 values are
+     * unchanged (1 ml of a drink is about 1 g), only the unit label differs.
+     */
+    val isLiquid: Boolean = false,
     // Detail nutrients (v0.11): null = the source didn't state them — never 0.
     val fiberPer100g: Double? = null,
     val sugarsPer100g: Double? = null,
@@ -44,4 +58,12 @@ data class FoodProductEntity(
      * fresh DTO would silently wipe the star.
      */
     val isFavorite: Boolean = false,
-)
+) {
+    companion object {
+        /** Id of the user's own product saved under a scanned barcode. */
+        fun localBarcodeId(barcode: String): String = "local:barcode:$barcode"
+
+        /** Id of a product from a Ukrainian shop's catalogue, under the scanned barcode. */
+        fun zakazId(barcode: String): String = "zakaz:$barcode"
+    }
+}

@@ -27,14 +27,15 @@ interface FoodDao {
     suspend fun searchByName(query: String): List<FoodProductEntity>
 
     /**
-     * User-created products matching the query. Separate from searchByName
-     * because these must join ONLINE results too — the Open Food Facts API
-     * cannot know about them. ('LOCAL' = ProductSource.LOCAL by name.)
+     * User-created products and products saved from a Ukrainian shop's
+     * catalogue, matching the query. Separate from searchByName because
+     * these must join ONLINE results too — the Open Food Facts API cannot
+     * know about them. ('LOCAL' / 'ZAKAZ' = ProductSource values by name.)
      */
     @Query(
         """
         SELECT * FROM food_product
-        WHERE source = 'LOCAL'
+        WHERE source IN ('LOCAL', 'ZAKAZ')
           AND (name LIKE '%' || :query || '%' OR brand LIKE '%' || :query || '%')
         ORDER BY name
         LIMIT 20

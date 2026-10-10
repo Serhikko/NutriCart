@@ -1,0 +1,94 @@
+name: Supabase migrations
+
+# Applies new files in supabase/migrations to the Supabase project, so nobody
+# pastes SQL into the dashboard by hand. Every run first rehearses on a
+# throwaway Postgres: all migrations plus the database tests, then the
+# production-shaped case (0001-0006 run by hand, the rest by the script).
+# Only if both pass does the second job connect to Supabase, with the
+# SUPABASE_DB_URL secret (the Session pooler connection string; see
+# supabase/README.md). Without the secret it only rehearses.
+
+on:
+  push:
+    branches: [ master, claude/dreamy-cerf-wa8d9u ]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/migrate.sh'
+      - 'supabase/tests/**'
+      - '.github/workflows/supabase-migrate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: psql
+        run: command -v psql || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
+      - name: Every migration and the database tests
+        run: bash supabase/tests/run.sh
+
+      - name: The script on a database set up by hand through 0006, like production
+        run: |
+          psql -X -q -v ON_ERROR_STOP=1 -c 'create database rehearsal'
+          export PGDATABASE=rehearsal
+          psql -X -q -v ON_ERROR_STOP=1 -f supabase/tests/supabase_stub.sql
+          for f in supabase/migrations/000[1-6]_*.sql; do psql -X -q -v ON_ERROR_STOP=1 -f "$f"; done
+          export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/rehearsal"
+          bash supabase/migrate.sh
+          bash supabase/migrate.sh | tee second-run.txt
+          grep -qx 'nothing new to apply' second-run.txt
+
+  apply:
+    needs: rehearse
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/claude/dreamy-cerf-wa8d9u'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: supabase-production
+    # One apply at a time against the one database. A newer apply replaces
+    # one still waiting (never one running), from either branch: when that
+    # newer one comes from the other branch, re-run the replaced one.
+    concurrency:
+      group: supabase-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: psql
+        run: command -v psql || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
+      - name: Apply new migrations to Supabase
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGSSLMODE: require
+          PGCONNECT_TIMEOUT: 20
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice::SUPABASE_DB_URL is not set, so nothing was applied to Supabase (see supabase/README.md)."
+            exit 0
+          fi
+          bash supabase/migrate.sh

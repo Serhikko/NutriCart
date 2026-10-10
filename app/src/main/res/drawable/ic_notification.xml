@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material "restaurant" glyph (Apache 2.0) — notification icons must be
-     flat white; the system tints them itself. -->
+<!-- Notification small icon: the Ember open ring (white; the system uses alpha only). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M11,9H9V2H7v7H5V2H3v7c0,2.12 1.66,3.84 3.75,3.97V22h2.5v-9.03C11.34,12.84 13,11.12 13,9V2h-2v7zM16,6v8h2.5v8H21V2c-2.76,0 -5,2.24 -5,4z" />
+        android:pathData="M12,5.5a6.5,6.5 0 1,1 0,13a6.5,6.5 0 1,1 0,-13"
+        android:fillColor="#00000000"
+        android:strokeColor="#59FFFFFF"
+        android:strokeWidth="3" />
+    <path
+        android:pathData="M12,5.5A6.5,6.5 0 1,1 6.37,8.75"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="3" />
 </vector>

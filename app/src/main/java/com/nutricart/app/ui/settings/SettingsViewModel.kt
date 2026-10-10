@@ -12,6 +12,15 @@ import com.nutricart.app.data.repository.WorkoutRepository
 import com.nutricart.app.data.settings.SecretsDataStore
 import com.nutricart.app.data.settings.SettingsDataStore
 import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.data.remote.TelegramApi
+import com.nutricart.app.cloud.CloudAccount
+import com.nutricart.app.cloud.CloudPartner
+import com.nutricart.app.cloud.CloudRepository
+import com.nutricart.app.cloud.CloudResult
+import com.nutricart.app.domain.logic.PasswordGenerator
+import com.nutricart.app.partner.PartnerRepository
+import com.nutricart.app.partner.PartnerResult
+import com.nutricart.app.partner.PartnerScheduling
 import com.nutricart.app.reminders.MealReminderScheduling
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.nutricart.app.domain.logic.CalorieCalculator
@@ -24,6 +33,7 @@ import com.nutricart.app.domain.model.WorkoutKind
 import com.nutricart.app.domain.model.WorkoutType
 import java.time.DayOfWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -78,6 +88,45 @@ data class SettingsUiState(
     val aiKeyStored: Boolean = false,
     /** Shown right after a successful save; cleared as soon as the field changes. */
     val aiKeySavedNotice: Boolean = false,
+    // --- Partner sharing (Telegram) ---
+    /** The bot token as typed (masked on screen). */
+    val botTokenText: String = "",
+    val botTokenStored: Boolean = false,
+    /** The bot's @username once Telegram confirmed the token. */
+    val botUsername: String? = null,
+    /** The linked partner's name; null = not connected. */
+    val partnerName: String? = null,
+    val partnerShareMeals: Boolean = true,
+    val partnerNotifyMissed: Boolean = true,
+    val partnerInboxEnabled: Boolean = true,
+    /** True while a Telegram call is in flight — the buttons wait. */
+    val partnerBusy: Boolean = false,
+    /** One-shot outcome of the last partner action, shown under the section. */
+    val partnerNotice: PartnerNotice? = null,
+    // --- Cloud sync (Supabase) ---
+    /** False in a build without keys: the section shows one line and nothing else. */
+    val cloudConfigured: Boolean = false,
+    val cloudEnabled: Boolean = false,
+    /** The name as typed; saved on Save, prefilled from the store. */
+    val cloudNameText: String = "",
+    val cloudNameStored: String? = null,
+    /** The live pairing code and when it expires (epoch millis); null = none. */
+    val cloudPairingCode: Pair<String, Long>? = null,
+    val cloudPartners: List<CloudPartner> = emptyList(),
+    /** The last attempt to list them failed: the screen says so instead of "Nobody yet". */
+    val cloudPartnersFailed: Boolean = false,
+    val cloudLastSyncEpochMillis: Long? = null,
+    /** Short error code of the last failed sync, from CloudSyncWorker; null = fine. */
+    val cloudLastError: String? = null,
+    val cloudPendingCount: Int = 0,
+    val cloudBusy: Boolean = false,
+    val cloudNotice: CloudNotice? = null,
+    /** The email field, and what the server says about the account's email (null = not asked yet). */
+    val cloudEmailText: String = "",
+    val cloudPasswordText: String = "",
+    val cloudAccount: CloudAccount? = null,
+    /** The switch was turned on but no name is stored yet: ask for one first. */
+    val showCloudNameDialog: Boolean = false,
     val saved: Boolean = false,
     val showResetDialog: Boolean = false,
 ) {
@@ -119,6 +168,30 @@ data class SettingsUiState(
         get() = aiKeyText.trim().let { key ->
             key.isNotEmpty() && key.all { it in ' '..'~' }
         }
+
+    val botTokenValid: Boolean
+        get() = TelegramApi.TOKEN_PATTERN.matches(botTokenText.trim())
+
+    val cloudNameValid: Boolean
+        get() = cloudNameText.trim().length in 1..40
+
+    val cloudEmailValid: Boolean
+        get() = cloudEmailText.trim().let { it.contains('@') && it.substringAfter('@').contains('.') }
+
+    val cloudPasswordValid: Boolean
+        get() = PasswordGenerator.isAcceptable(cloudPasswordText)
+
+    /** After a load of the partner list ([loaded] null = it failed): a failure keeps what was shown. */
+    fun withCloudPartners(loaded: List<CloudPartner>?): SettingsUiState =
+        if (loaded == null) copy(cloudPartnersFailed = true) else copy(cloudPartners = loaded, cloudPartnersFailed = false)
+}
+
+/** What the cloud section reports after an action. */
+enum class CloudNotice { ENABLED, NAME_SAVED, CODE_READY, UNLINKED, EMAIL_SENT, NOT_CONFIGURED, OFFLINE, AUTH, FAILED }
+
+/** What the partner section reports after an action; each maps to one string. */
+enum class PartnerNotice {
+    BOT_SAVED, LINKED, TEST_SENT, NO_MESSAGE_YET, BAD_TOKEN, OFFLINE, BUSY, BLOCKED, FAILED,
 }
 
 /** One reminder row: the meal, on/off, and the time in minutes from midnight. */
@@ -134,12 +207,18 @@ class SettingsViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val settings: SettingsDataStore,
     private val secrets: SecretsDataStore,
+    private val partnerRepository: PartnerRepository,
+    private val partnerScheduling: PartnerScheduling,
+    private val cloudRepository: CloudRepository,
     healthConnectManager: HealthConnectManager,
     @ApplicationContext private val appContext: Context,
-) : ViewModel() {
+) : ViewModel(), SettingsActions {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    // Declared before init, which may already start a load.
+    private var partnersJob: Job? = null
 
     init {
         // Health Connect diagnostics live here now. The "open Health Connect
@@ -160,6 +239,62 @@ class SettingsViewModel @Inject constructor(
             _uiState.update {
                 it.copy(aiKeyText = stored.orEmpty(), aiKeyStored = !stored.isNullOrBlank())
             }
+        }
+        // Same rule for the bot token field…
+        viewModelScope.launch {
+            val stored = secrets.telegramBotToken.first()
+            _uiState.update {
+                it.copy(botTokenText = stored.orEmpty(), botTokenStored = !stored.isNullOrBlank())
+            }
+        }
+        // …while the link, the bot name and the toggles are not typed into,
+        // so they can follow the store live.
+        viewModelScope.launch {
+            partnerRepository.link.collect { link ->
+                _uiState.update { it.copy(partnerName = link?.name) }
+            }
+        }
+        viewModelScope.launch {
+            partnerRepository.botUsername.collect { username ->
+                _uiState.update { it.copy(botUsername = username) }
+            }
+        }
+        viewModelScope.launch {
+            settings.partnerShareMeals.collect { on -> _uiState.update { it.copy(partnerShareMeals = on) } }
+        }
+        viewModelScope.launch {
+            settings.partnerNotifyMissed.collect { on -> _uiState.update { it.copy(partnerNotifyMissed = on) } }
+        }
+        viewModelScope.launch {
+            settings.partnerInboxEnabled.collect { on -> _uiState.update { it.copy(partnerInboxEnabled = on) } }
+        }
+
+        // Cloud sync: the flags follow the store live; the name field is read
+        // once (it is typed into), then kept in step by saveCloudName.
+        _uiState.update { it.copy(cloudConfigured = cloudRepository.isConfigured) }
+        viewModelScope.launch {
+            val stored = cloudRepository.displayName.first()
+            _uiState.update { it.copy(cloudNameText = stored.orEmpty(), cloudNameStored = stored) }
+        }
+        viewModelScope.launch {
+            cloudRepository.isEnabled.collect { on ->
+                _uiState.update { it.copy(cloudEnabled = on) }
+                // partners() needs only the session, which disable() keeps.
+                refreshCloudPartners()
+                if (on) refreshCloudAccount()
+            }
+        }
+        viewModelScope.launch {
+            cloudRepository.pairingCode.collect { code -> _uiState.update { it.copy(cloudPairingCode = code) } }
+        }
+        viewModelScope.launch {
+            cloudRepository.lastSyncEpochMillis.collect { t -> _uiState.update { it.copy(cloudLastSyncEpochMillis = t) } }
+        }
+        viewModelScope.launch {
+            cloudRepository.lastError.collect { e -> _uiState.update { it.copy(cloudLastError = e) } }
+        }
+        viewModelScope.launch {
+            cloudRepository.pendingCount.collect { n -> _uiState.update { it.copy(cloudPendingCount = n) } }
         }
 
         // Load the saved profile and latest weight once into the editable form.
@@ -206,7 +341,7 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(reminders = rows) }
     }
 
-    fun toggleReminder(slot: MealSlot, enabled: Boolean) {
+    override fun toggleReminder(slot: MealSlot, enabled: Boolean) {
         viewModelScope.launch {
             settings.setReminderEnabled(slot, enabled)
             if (enabled) {
@@ -220,13 +355,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun startEditingReminder(slot: MealSlot) =
+    override fun startEditingReminder(slot: MealSlot) =
         _uiState.update { it.copy(editingReminderSlot = slot) }
 
-    fun cancelEditingReminder() =
+    override fun cancelEditingReminder() =
         _uiState.update { it.copy(editingReminderSlot = null) }
 
-    fun setReminderTime(minutesOfDay: Int) {
+    override fun setReminderTime(minutesOfDay: Int) {
         val slot = _uiState.value.editingReminderSlot ?: return
         _uiState.update { it.copy(editingReminderSlot = null) }
         viewModelScope.launch {
@@ -244,11 +379,11 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(recurring = rules) }
     }
 
-    fun setShowRecurringDialog(show: Boolean) =
+    override fun setShowRecurringDialog(show: Boolean) =
         _uiState.update { it.copy(showRecurringDialog = show) }
 
     /** Adds a rule; if it covers today, today's entry appears immediately. */
-    fun addRecurring(type: WorkoutType, amount: Int, days: Set<DayOfWeek>) {
+    override fun addRecurring(type: WorkoutType, amount: Int, days: Set<DayOfWeek>) {
         _uiState.update { it.copy(showRecurringDialog = false) }
         if (amount <= 0 || days.isEmpty()) return
         viewModelScope.launch {
@@ -266,16 +401,16 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun deleteRecurring(rule: RecurringWorkoutEntity) {
+    override fun deleteRecurring(rule: RecurringWorkoutEntity) {
         viewModelScope.launch {
             workoutRepository.deleteRecurring(rule.id)
             refreshRecurring()
         }
     }
 
-    fun selectSex(sex: Sex) = _uiState.update { it.copy(sex = sex) }
+    override fun selectSex(sex: Sex) = _uiState.update { it.copy(sex = sex) }
 
-    fun selectBirthDate(date: LocalDate) = _uiState.update { state ->
+    override fun selectBirthDate(date: LocalDate) = _uiState.update { state ->
         state.copy(
             birthDate = date,
             // The 18+ rule applies when editing too, not only in onboarding.
@@ -283,14 +418,14 @@ class SettingsViewModel @Inject constructor(
         )
     }
 
-    fun setHeightText(text: String) = _uiState.update { it.copy(heightCmText = text) }
+    override fun setHeightText(text: String) = _uiState.update { it.copy(heightCmText = text) }
 
-    fun setWeightText(text: String) = _uiState.update { it.copy(weightKgText = text) }
+    override fun setWeightText(text: String) = _uiState.update { it.copy(weightKgText = text) }
 
-    fun selectActivityLevel(level: ActivityLevel) =
+    override fun selectActivityLevel(level: ActivityLevel) =
         _uiState.update { it.copy(activityLevel = level) }
 
-    fun selectGoal(goal: Goal) = _uiState.update { state ->
+    override fun selectGoal(goal: Goal) = _uiState.update { state ->
         val rate = when {
             goal == Goal.MAINTAIN -> 0.0
             state.targetKgPerWeek > 0.0 -> state.targetKgPerWeek
@@ -299,18 +434,18 @@ class SettingsViewModel @Inject constructor(
         state.copy(goal = goal, targetKgPerWeek = rate)
     }
 
-    fun selectRate(rate: Double) = _uiState.update { it.copy(targetKgPerWeek = rate) }
+    override fun selectRate(rate: Double) = _uiState.update { it.copy(targetKgPerWeek = rate) }
 
-    fun selectSnacksPerDay(count: Int) = _uiState.update { it.copy(snacksPerDay = count) }
+    override fun selectSnacksPerDay(count: Int) = _uiState.update { it.copy(snacksPerDay = count) }
 
-    fun selectCookingSessions(sessions: Int) =
+    override fun selectCookingSessions(sessions: Int) =
         _uiState.update { it.copy(cookingSessionsPerWeek = sessions) }
 
-    fun toggleVegetarian(enabled: Boolean) = _uiState.update { it.copy(isVegetarian = enabled) }
+    override fun toggleVegetarian(enabled: Boolean) = _uiState.update { it.copy(isVegetarian = enabled) }
 
-    fun toggleNoPork(enabled: Boolean) = _uiState.update { it.copy(noPork = enabled) }
+    override fun toggleNoPork(enabled: Boolean) = _uiState.update { it.copy(noPork = enabled) }
 
-    fun toggleAllergen(allergen: Allergen) = _uiState.update { state ->
+    override fun toggleAllergen(allergen: Allergen) = _uiState.update { state ->
         val newSet =
             if (allergen in state.allergies) state.allergies - allergen
             else state.allergies + allergen
@@ -321,7 +456,7 @@ class SettingsViewModel @Inject constructor(
      * Turning manual targets ON with empty fields prefills them with what the
      * automatic math computes RIGHT NOW — the user edits numbers, not a void.
      */
-    fun toggleManualTargets(enabled: Boolean) = _uiState.update { state ->
+    override fun toggleManualTargets(enabled: Boolean) = _uiState.update { state ->
         val weightKg = state.weightKg
         val heightCm = state.heightCm
         if (enabled && state.customKcalText.isBlank() && weightKg != null && heightCm != null) {
@@ -348,18 +483,18 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setCustomKcalText(text: String) = _uiState.update { it.copy(customKcalText = text) }
+    override fun setCustomKcalText(text: String) = _uiState.update { it.copy(customKcalText = text) }
 
-    fun setCustomProteinText(text: String) = _uiState.update { it.copy(customProteinText = text) }
+    override fun setCustomProteinText(text: String) = _uiState.update { it.copy(customProteinText = text) }
 
-    fun setCustomFatText(text: String) = _uiState.update { it.copy(customFatText = text) }
+    override fun setCustomFatText(text: String) = _uiState.update { it.copy(customFatText = text) }
 
-    fun setCustomCarbsText(text: String) = _uiState.update { it.copy(customCarbsText = text) }
+    override fun setCustomCarbsText(text: String) = _uiState.update { it.copy(customCarbsText = text) }
 
-    fun setShowResetDialog(show: Boolean) = _uiState.update { it.copy(showResetDialog = show) }
+    override fun setShowResetDialog(show: Boolean) = _uiState.update { it.copy(showResetDialog = show) }
 
     /** Saves the profile and today's weight; the screen navigates back on `saved`. */
-    fun setAiKeyText(value: String) =
+    override fun setAiKeyText(value: String) =
         _uiState.update { it.copy(aiKeyText = value, aiKeySavedNotice = false) }
 
     /**
@@ -367,7 +502,7 @@ class SettingsViewModel @Inject constructor(
      * save() is gated on canSave, and refusing to store a key because the
      * weight field happens to be empty would make no sense.
      */
-    fun saveAiKey() {
+    override fun saveAiKey() {
         val key = _uiState.value.aiKeyText.trim()
         if (!_uiState.value.aiKeyValid) return
         viewModelScope.launch {
@@ -378,14 +513,239 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun deleteAiKey() {
+    override fun deleteAiKey() {
         viewModelScope.launch {
             secrets.clearAiApiKey()
             _uiState.update { it.copy(aiKeyText = "", aiKeyStored = false) }
         }
     }
 
-    fun save() {
+    // --- Partner sharing ---
+
+    override fun setBotTokenText(value: String) =
+        _uiState.update { it.copy(botTokenText = value, partnerNotice = null) }
+
+    fun clearPartnerNotice() = _uiState.update { it.copy(partnerNotice = null) }
+
+    /** Runs one partner action with the busy flag and turns its result into a notice. */
+    private fun partnerAction(onOk: PartnerNotice, block: suspend () -> PartnerResult) {
+        if (_uiState.value.partnerBusy) return // one call at a time
+        _uiState.update { it.copy(partnerBusy = true, partnerNotice = null) }
+        viewModelScope.launch {
+            val result = try {
+                block()
+            } finally {
+                _uiState.update { it.copy(partnerBusy = false) }
+            }
+            _uiState.update { it.copy(partnerNotice = noticeFor(result, onOk)) }
+        }
+    }
+
+    private fun noticeFor(result: PartnerResult, onOk: PartnerNotice): PartnerNotice = when (result) {
+        PartnerResult.Ok -> onOk
+        PartnerResult.NoMessageYet -> PartnerNotice.NO_MESSAGE_YET
+        PartnerResult.BadToken, PartnerResult.NoToken -> PartnerNotice.BAD_TOKEN
+        PartnerResult.Offline -> PartnerNotice.OFFLINE
+        PartnerResult.Busy -> PartnerNotice.BUSY
+        PartnerResult.Blocked -> PartnerNotice.BLOCKED
+        PartnerResult.NotLinked, PartnerResult.Failed -> PartnerNotice.FAILED
+    }
+
+    /** Verifies the token with Telegram and stores it only if accepted. */
+    override fun saveBotToken() {
+        val token = _uiState.value.botTokenText.trim()
+        if (!_uiState.value.botTokenValid) return
+        partnerAction(PartnerNotice.BOT_SAVED) {
+            partnerRepository.saveToken(token).also { result ->
+                if (result == PartnerResult.Ok) {
+                    _uiState.update { it.copy(botTokenText = token, botTokenStored = true) }
+                    partnerScheduling.reanchor()
+                }
+            }
+        }
+    }
+
+    override fun deleteBotToken() {
+        viewModelScope.launch {
+            partnerRepository.deleteToken()
+            partnerScheduling.cancelAll()
+            partnerScheduling.reanchor() // website nudges keep their cycle while cloud sync is on
+            _uiState.update { it.copy(botTokenText = "", botTokenStored = false, partnerNotice = null) }
+        }
+    }
+
+    /** Links whoever last wrote to the bot, then greets them (string from the UI language). */
+    override fun connectPartner(greeting: String) {
+        partnerAction(PartnerNotice.LINKED) {
+            partnerRepository.connectPartner(greeting).also { result ->
+                if (result == PartnerResult.Ok) partnerScheduling.reanchor()
+            }
+        }
+    }
+
+    override fun unlinkPartner() {
+        viewModelScope.launch {
+            partnerRepository.unlinkPartner()
+            partnerScheduling.cancelAll()
+            partnerScheduling.reanchor() // website nudges keep their cycle while cloud sync is on
+            _uiState.update { it.copy(partnerNotice = null) }
+        }
+    }
+
+    override fun sendPartnerTest(text: String) {
+        partnerAction(PartnerNotice.TEST_SENT) { partnerRepository.sendText(text) }
+    }
+
+    override fun setPartnerShareMeals(enabled: Boolean) {
+        viewModelScope.launch { settings.setPartnerShareMeals(enabled) }
+    }
+
+    override fun setPartnerNotifyMissed(enabled: Boolean) {
+        viewModelScope.launch { settings.setPartnerNotifyMissed(enabled) }
+    }
+
+    /** The inbox toggle also starts or stops the polling cycle. */
+    override fun setPartnerInboxEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settings.setPartnerInboxEnabled(enabled)
+            partnerScheduling.reanchor()
+        }
+    }
+
+    // --- Cloud sync ---
+
+    override fun setCloudNameText(value: String) = _uiState.update { it.copy(cloudNameText = value, cloudNotice = null) }
+
+    fun clearCloudNotice() = _uiState.update { it.copy(cloudNotice = null) }
+
+    override fun dismissCloudNameDialog() = _uiState.update { it.copy(showCloudNameDialog = false) }
+
+    /**
+     * The switch. Turning it on needs a display name first (the website says
+     * "<name>'s day"), so without one the dialog opens and the real enable
+     * happens from there. Turning it off is immediate and keeps the account.
+     */
+    override fun toggleCloudSync(enabled: Boolean) {
+        if (!enabled) {
+            viewModelScope.launch {
+                cloudRepository.disable()
+                partnerScheduling.reanchor() // stop the nudge polling if Telegram is not linked
+                // The partners keep reading what was uploaded: the list and Remove stay.
+                _uiState.update { it.copy(cloudNotice = null) }
+            }
+            return
+        }
+        val name = _uiState.value.cloudNameText.trim()
+        if (name.isEmpty()) {
+            _uiState.update { it.copy(showCloudNameDialog = true) }
+        } else {
+            enableCloudSync(name)
+        }
+    }
+
+    override fun enableCloudSync(displayName: String) {
+        _uiState.update { it.copy(showCloudNameDialog = false, cloudNameText = displayName.trim()) }
+        cloudAction(CloudNotice.ENABLED) {
+            cloudRepository.enable(displayName).also { result ->
+                if (result == CloudResult.Ok) {
+                    _uiState.update { it.copy(cloudNameStored = displayName.trim()) }
+                    partnerScheduling.reanchor() // nudges from the website ride the inbox cycle
+                    refreshCloudPartners()
+                }
+            }
+        }
+    }
+
+    override fun saveCloudName() {
+        val name = _uiState.value.cloudNameText.trim()
+        if (!_uiState.value.cloudNameValid) return
+        cloudAction(CloudNotice.NAME_SAVED) {
+            cloudRepository.setDisplayName(name).also { result ->
+                if (result == CloudResult.Ok) _uiState.update { it.copy(cloudNameStored = name) }
+            }
+        }
+    }
+
+    override fun newPairingCode() {
+        cloudAction(CloudNotice.CODE_READY) { cloudRepository.newPairingCode() }
+    }
+
+    /**
+     * Loads who can see the day: on open, on every return to the screen, and every 10 s while a
+     * code is live. One load at a time, so a late answer never overwrites a newer one. A new request
+     * replaces the load in flight, except the poll's ([replace] false): it leaves that load to finish,
+     * so on a slow or hanging link the load still reaches its answer or its timeout (and the error).
+     */
+    fun refreshCloudPartners(replace: Boolean = true) {
+        if (!replace && partnersJob?.isActive == true) return
+        partnersJob?.cancel()
+        partnersJob = viewModelScope.launch {
+            val list = cloudRepository.partners()
+            _uiState.update { it.withCloudPartners(list) }
+        }
+    }
+
+    // --- Account email (milestone 3) ---
+
+    override fun setCloudEmailText(value: String) = _uiState.update { it.copy(cloudEmailText = value, cloudNotice = null) }
+
+    override fun setCloudPasswordText(value: String) = _uiState.update { it.copy(cloudPasswordText = value, cloudNotice = null) }
+
+    /** Fills the password field with a made-up one, shown in clear so it can be copied down. */
+    override fun generateCloudPassword() = _uiState.update { it.copy(cloudPasswordText = PasswordGenerator.generate(), cloudNotice = null) }
+
+    /** Asks the server whether the account has an email yet; the field defaults to the one typed last. */
+    fun refreshCloudAccount() {
+        viewModelScope.launch {
+            val stored = cloudRepository.linkedEmail.first()
+            val account = cloudRepository.account()
+            _uiState.update {
+                it.copy(
+                    cloudAccount = account,
+                    cloudEmailText = it.cloudEmailText.ifEmpty { stored ?: account?.pendingEmail.orEmpty() },
+                )
+            }
+        }
+    }
+
+    override fun linkCloudEmail() {
+        val state = _uiState.value
+        val email = state.cloudEmailText.trim()
+        if (!state.cloudEmailValid || !state.cloudPasswordValid) return
+        cloudAction(CloudNotice.EMAIL_SENT) {
+            cloudRepository.linkEmail(email, state.cloudPasswordText).also { result ->
+                if (result == CloudResult.Ok) refreshCloudAccount()
+            }
+        }
+    }
+
+    override fun unlinkCloudPartner(linkId: String) {
+        cloudAction(CloudNotice.UNLINKED) {
+            cloudRepository.unlink(linkId).also { refreshCloudPartners() }
+        }
+    }
+
+    private fun cloudAction(onOk: CloudNotice, block: suspend () -> CloudResult) {
+        if (_uiState.value.cloudBusy) return
+        _uiState.update { it.copy(cloudBusy = true, cloudNotice = null) }
+        viewModelScope.launch {
+            val result = try {
+                block()
+            } finally {
+                _uiState.update { it.copy(cloudBusy = false) }
+            }
+            val notice = when (result) {
+                CloudResult.Ok -> onOk
+                CloudResult.NotConfigured -> CloudNotice.NOT_CONFIGURED
+                CloudResult.Offline -> CloudNotice.OFFLINE
+                CloudResult.Auth -> CloudNotice.AUTH
+                CloudResult.Failed -> CloudNotice.FAILED
+            }
+            _uiState.update { it.copy(cloudNotice = notice) }
+        }
+    }
+
+    override fun save() {
         val state = _uiState.value
         if (!state.canSave) return
         val heightCm = state.heightCm ?: return
@@ -425,7 +785,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     /** Wipes everything; AppRoot then automatically returns to onboarding. */
-    fun confirmReset() {
+    override fun confirmReset() {
         // Close the dialog immediately: it must not stay tappable while the
         // reset runs (double-confirm would launch the reset twice).
         _uiState.update { it.copy(showResetDialog = false) }

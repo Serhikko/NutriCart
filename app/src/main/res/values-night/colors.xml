@@ -1,0 +1,5 @@
+<resources>
+    <!-- Dark values of the Ember tokens in values/colors.xml. -->
+    <color name="ember_bg">#000000</color>
+    <color name="ember_notification">#FF9F5A</color>
+</resources>

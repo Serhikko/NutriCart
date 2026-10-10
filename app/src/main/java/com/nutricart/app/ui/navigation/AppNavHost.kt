@@ -1,35 +1,46 @@
 package com.nutricart.app.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -40,10 +51,21 @@ import androidx.navigation.navArgument
 import com.nutricart.app.MainViewModel
 import com.nutricart.app.R
 import com.nutricart.app.domain.model.MealSlot
-import com.nutricart.app.ui.common.LoadingBox
 import com.nutricart.app.ui.dashboard.DashboardScreen
 import com.nutricart.app.ui.diary.DiaryScreen
 import com.nutricart.app.ui.diary.FoodSearchScreen
+import com.nutricart.app.ui.diary.FoodSearchViewModel
+import com.nutricart.app.ui.ember.Ember
+import com.nutricart.app.ui.ember.EmberEasing
+import com.nutricart.app.ui.ember.EmberIcons
+import com.nutricart.app.ui.ember.EmberSpinner
+import com.nutricart.app.ui.ember.FloatingTabBar
+import com.nutricart.app.ui.ember.LocalNavAnimatedScope
+import com.nutricart.app.ui.ember.LocalSharedTransitionScope
+import com.nutricart.app.ui.ember.LocalSheetPresentation
+import com.nutricart.app.ui.ember.SheetPresentation
+import com.nutricart.app.ui.ember.SheetStage
+import com.nutricart.app.ui.ember.TabItem
 import com.nutricart.app.ui.fridge.FridgeScreen
 import com.nutricart.app.ui.mealplan.MealPlanScreen
 import com.nutricart.app.ui.mealplan.RecipeDetailScreen
@@ -72,28 +94,70 @@ object Routes {
 }
 
 /**
+ * The title of the screen a stacked screen (Recipe, Settings, Food search) goes back to, for its
+ * "‹ Meal plan" link: "Today", "Meal plan", "Fridge" or "Food diary", falling back to "Back". Null
+ * outside the app shell (screenshot tests pass the label themselves).
+ */
+val LocalBackLabel = staticCompositionLocalOf<String?> { null }
+
+/**
+ * "Back from Add" (§3.4 A5): after Food search logs to a meal and pops, the screen below it (Today or
+ * the Diary) finds that meal in [slot], shows its "Added to Lunch" toast once and calls [consume].
+ */
+@Immutable
+class AddedHandOff(val slot: MealSlot?, val consume: () -> Unit)
+
+/** Provided by the app shell to Today and the Diary; null elsewhere (and in screenshot tests). */
+val LocalAddedHandOff = compositionLocalOf<AddedHandOff?> { null }
+
+/** The saved-state key Food search hands the logged meal through (UI layer only). */
+private const val ADDED_KEY = "ember.added"
+
+/**
  * Top of the UI tree. The screen simply follows the saved flag:
  * while it is unknown we show a loader; while onboarding is not finished we show
  * the questionnaire; once onboarding saves "completed = true" this recomposes
- * and the whole app switches to the main NavHost. One mechanism, no navigation
- * calls needed for the switch.
+ * and the whole app switches to the main shell (a short cross-fade). One
+ * mechanism, no navigation calls needed for the switch.
  */
 @Composable
 fun AppRoot(mainViewModel: MainViewModel = hiltViewModel()) {
     val completed by mainViewModel.onboardingCompleted.collectAsState()
-    when (completed) {
-        null -> LoadingBox()
-        false -> OnboardingScreen()
-        true -> AppNavHost()
+    Crossfade(targetState = completed, animationSpec = tween(300, easing = EmberEasing.Out), label = "root") { state ->
+        when (state) {
+            null -> RootLoader()
+            false -> OnboardingScreen()
+            true -> AppShell()
+        }
     }
 }
 
+/** A few frames while the saved flag loads: the page colour and a 28 dp Ember spinner, nothing more. */
 @Composable
-private fun AppNavHost() {
+private fun RootLoader() {
+    Box(Modifier.fillMaxSize().background(Ember.colors.bg), contentAlignment = Alignment.Center) {
+        EmberSpinner(size = 28.dp, contentDescription = stringResource(R.string.loading))
+    }
+}
+
+/**
+ * The app shell: the page (a NavHost on a stage that recedes while a sheet presents), the floating
+ * tab bar over it, and the quick-add sheet. Insets are not padded here: every screen's
+ * LargeTitleScaffold owns them, so nothing is padded twice.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun AppShell() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
+    val currentRoute = backStackEntry?.destination?.route ?: Routes.DASHBOARD
     var showQuickAdd by rememberSaveable { mutableStateOf(false) }
+    // The bar keeps its pill on the last tab while a stacked screen covers it, so it slides away
+    // and comes back without the pill jumping.
+    var lastTab by rememberSaveable { mutableStateOf(Routes.DASHBOARD) }
+    LaunchedEffect(currentRoute) { if (currentRoute in TAB_ROUTES) lastTab = currentRoute }
+    val presentation = remember { SheetPresentation() }
+    val motion = rememberNavMotion()
 
     // Pops safely: after the first pop there is nothing behind, and popping the
     // start destination would leave a blank screen (double-tap protection).
@@ -103,167 +167,212 @@ private fun AppNavHost() {
         }
     }
 
-    Scaffold(
-        bottomBar = {
-            // The tab bar shows only on the four top-level screens.
-            if (currentRoute in TAB_ROUTES) {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.DASHBOARD,
-                        onClick = { navController.navigateToTab(Routes.DASHBOARD) },
-                        icon = { Icon(Icons.Filled.Home, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_today)) },
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.PLAN,
-                        onClick = { navController.navigateToTab(Routes.PLAN) },
-                        icon = { Icon(Icons.Filled.DateRange, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_plan)) },
-                    )
-                    // The centre "+" is a bar SLOT, not a floating button:
-                    // Material docks FABs on a BottomAppBar, never on a
-                    // NavigationBar, so a real dock would mean hand-rolled
-                    // offsets fighting the window insets. As a slot it also
-                    // stays evenly spaced with the tabs for free.
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { showQuickAdd = true },
-                        icon = {
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                shape = CircleShape,
-                            ) {
-                                Icon(
-                                    Icons.Filled.Add,
-                                    contentDescription = stringResource(R.string.quick_add_title),
-                                    // 24 dp icon + 4 + 4 = a 32 dp circle, the
-                                    // same height as the tabs' selection pill.
-                                    modifier = Modifier.padding(4.dp),
+    CompositionLocalProvider(LocalSheetPresentation provides presentation) {
+        Box(Modifier.fillMaxSize()) {
+            SheetStage {
+                // The day ring flies between Food search and Today / the Diary (back from Add).
+                SharedTransitionLayout {
+                    CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = Routes.DASHBOARD,
+                            modifier = Modifier.fillMaxSize(),
+                            // Tabs cross-fade with a 10 dp rise (a sideways slide would wrongly
+                            // suggest they are a stack); stacked screens push in from the side
+                            // and pop back out (seekable, so predictive back can scrub them).
+                            enterTransition = { if (betweenTabs()) motion.tabEnter else motion.pushEnter },
+                            exitTransition = { if (betweenTabs()) motion.tabExit else motion.pushExit },
+                            popEnterTransition = { if (betweenTabs()) motion.tabEnter else motion.popEnter },
+                            popExitTransition = { if (betweenTabs()) motion.tabExit else motion.popExit },
+                        ) {
+                            screen(Routes.DASHBOARD) { entry ->
+                                AddedReceiver(entry) {
+                                    DashboardScreen(
+                                        onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                                        onOpenRecipe = { recipeId, portionFactor ->
+                                            navController.navigate(Routes.recipe(recipeId, portionFactor))
+                                        },
+                                    )
+                                }
+                            }
+                            screen(Routes.PLAN) {
+                                MealPlanScreen(
+                                    onOpenRecipe = { recipeId, portionFactor ->
+                                        navController.navigate(Routes.recipe(recipeId, portionFactor))
+                                    },
                                 )
                             }
-                        },
-                        // A label even though the icon speaks for itself: an
-                        // unlabelled item is laid out by a different branch of
-                        // NavigationBarItem and its icon would sit lower than
-                        // the four tabs beside it.
-                        label = { Text(stringResource(R.string.add_action)) },
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.FRIDGE,
-                        onClick = { navController.navigateToTab(Routes.FRIDGE) },
-                        icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
-                        label = { Text(stringResource(R.string.fridge_title)) },
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.DIARY,
-                        onClick = { navController.navigateToTab(Routes.DIARY) },
-                        icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_diary)) },
-                    )
+                            screen(
+                                route = Routes.RECIPE,
+                                arguments = listOf(
+                                    navArgument("recipeId") { type = NavType.LongType },
+                                    navArgument("factor") { type = NavType.FloatType },
+                                ),
+                            ) { entry ->
+                                Stacked(navController, entry) { RecipeDetailScreen(onBack = goBack) }
+                            }
+                            screen(Routes.FRIDGE) {
+                                FridgeScreen(
+                                    onOpenRecipe = { recipeId, portionFactor ->
+                                        navController.navigate(Routes.recipe(recipeId, portionFactor))
+                                    },
+                                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                                )
+                            }
+                            screen(Routes.DIARY) { entry ->
+                                AddedReceiver(entry) {
+                                    DiaryScreen(
+                                        onAddFood = { epochDay, slot ->
+                                            navController.navigate(Routes.foodSearch(epochDay, slot))
+                                        },
+                                    )
+                                }
+                            }
+                            screen(Routes.SETTINGS) { entry ->
+                                Stacked(navController, entry) { SettingsScreen(onBack = goBack) }
+                            }
+                            screen(
+                                route = Routes.FOOD_SEARCH,
+                                arguments = listOf(
+                                    navArgument("epochDay") { type = NavType.LongType },
+                                    navArgument("slot") { type = NavType.StringType },
+                                    navArgument("autoScan") { type = NavType.BoolType },
+                                ),
+                            ) { entry ->
+                                // The same entry-scoped ViewModel the screen uses: onDone runs both
+                                // for the back arrow and after a log, and only a log is handed on.
+                                val viewModel: FoodSearchViewModel = hiltViewModel()
+                                val below = remember(entry.id) { entryBelow(navController, entry) }
+                                Stacked(navController, entry) {
+                                    FoodSearchScreen(
+                                        onDone = {
+                                            if (viewModel.uiState.value.logged) {
+                                                below?.savedStateHandle?.set(ADDED_KEY, viewModel.mealSlot.name)
+                                            }
+                                            goBack()
+                                        },
+                                        viewModel = viewModel,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        },
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Routes.DASHBOARD,
-            modifier = Modifier.padding(innerPadding),
-            // Stacked screens glide in from the right; switching between the
-            // bottom-bar tabs cross-fades instead (a sideways slide would
-            // wrongly suggest the tabs are a stack).
-            enterTransition = {
-                if (bothAreTabs(initialState.destination.route, targetState.destination.route)) {
-                    fadeIn(tween(220))
-                } else {
-                    slideInHorizontally(tween(350)) { it / 4 } + fadeIn(tween(350))
-                }
-            },
-            exitTransition = { fadeOut(tween(200)) },
-            popEnterTransition = { fadeIn(tween(250)) },
-            popExitTransition = {
-                if (bothAreTabs(initialState.destination.route, targetState.destination.route)) {
-                    fadeOut(tween(220))
-                } else {
-                    slideOutHorizontally(tween(300)) { it / 4 } + fadeOut(tween(300))
-                }
-            },
-        ) {
-            composable(Routes.DASHBOARD) {
-                DashboardScreen(
-                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                    onOpenRecipe = { recipeId, portionFactor ->
-                        navController.navigate(Routes.recipe(recipeId, portionFactor))
-                    },
-                )
-            }
-            composable(Routes.PLAN) {
-                MealPlanScreen(
-                    onOpenRecipe = { recipeId, portionFactor ->
-                        navController.navigate(Routes.recipe(recipeId, portionFactor))
-                    },
-                )
-            }
-            composable(
-                route = Routes.RECIPE,
-                arguments = listOf(
-                    navArgument("recipeId") { type = NavType.LongType },
-                    navArgument("factor") { type = NavType.FloatType },
-                ),
-            ) {
-                RecipeDetailScreen(onBack = goBack)
-            }
-            composable(Routes.FRIDGE) {
-                FridgeScreen(
-                    onOpenRecipe = { recipeId, portionFactor ->
-                        navController.navigate(Routes.recipe(recipeId, portionFactor))
-                    },
-                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                )
-            }
-            composable(Routes.DIARY) {
-                DiaryScreen(
-                    onAddFood = { epochDay, slot ->
-                        navController.navigate(Routes.foodSearch(epochDay, slot))
-                    },
-                )
-            }
-            composable(Routes.SETTINGS) {
-                SettingsScreen(onBack = goBack)
-            }
-            composable(
-                route = Routes.FOOD_SEARCH,
-                arguments = listOf(
-                    navArgument("epochDay") { type = NavType.LongType },
-                    navArgument("slot") { type = NavType.StringType },
-                    navArgument("autoScan") { type = NavType.BoolType },
-                ),
-            ) {
-                FoodSearchScreen(onDone = goBack)
-            }
-            // Future screens (shopping list) are added here.
+
+            // Over the page, not in it: the bar never fades with a screen. It leaves on stacked
+            // screens and while a sheet presents.
+            AppBottomBar(
+                currentRoute = lastTab,
+                onSelectTab = { route -> navController.navigateToTab(route) },
+                onQuickAdd = { showQuickAdd = true },
+                modifier = Modifier.align(Alignment.BottomCenter),
+                visible = currentRoute in TAB_ROUTES && !presentation.presenting,
+            )
+        }
+
+        // Lives outside the NavHost on purpose: the sheet belongs to the app, not
+        // to one tab, and it renders in its own window anyway. Rows that navigate
+        // close it FIRST, so a dismissal can never race a navigation.
+        if (showQuickAdd) {
+            QuickAddSheet(
+                onDismiss = { showQuickAdd = false },
+                onLogFood = { slot ->
+                    showQuickAdd = false
+                    navController.navigate(Routes.foodSearch(LocalDate.now().toEpochDay(), slot))
+                },
+                onScanFood = { slot ->
+                    showQuickAdd = false
+                    navController.navigate(
+                        Routes.foodSearch(LocalDate.now().toEpochDay(), slot, autoScan = true)
+                    )
+                },
+            )
         }
     }
+}
 
-    // Lives outside the Scaffold on purpose: the sheet belongs to the app, not
-    // to one tab, and it renders in its own window anyway. Rows that navigate
-    // close it FIRST, so a dismissal can never race a navigation.
-    if (showQuickAdd) {
-        QuickAddSheet(
-            onDismiss = { showQuickAdd = false },
-            onLogFood = { slot ->
-                showQuickAdd = false
-                navController.navigate(Routes.foodSearch(LocalDate.now().toEpochDay(), slot))
-            },
-            onScanFood = { slot ->
-                showQuickAdd = false
-                navController.navigate(
-                    Routes.foodSearch(LocalDate.now().toEpochDay(), slot, autoScan = true)
-                )
-            },
-        )
+/**
+ * The floating tab bar (Today · Plan · Fridge · Diary and the separate + for Quick add), filling the
+ * width at the bottom of whatever it is aligned in. It takes no layout space from the page; the
+ * scroll-edge fade under it belongs to the page (LargeTitleScaffold draws it under its docked button
+ * and toasts). Stateless: AppNavHost passes the current route and does the navigating (screenshot
+ * tests reuse it). [visible] = false slides it away.
+ */
+@Composable
+fun AppBottomBar(
+    currentRoute: String?,
+    onSelectTab: (route: String) -> Unit,
+    onQuickAdd: () -> Unit,
+    modifier: Modifier = Modifier,
+    visible: Boolean = true,
+) {
+    val items = listOf(
+        TabItem(Routes.DASHBOARD, stringResource(R.string.tab_today), EmberIcons.Day),
+        TabItem(Routes.PLAN, stringResource(R.string.tab_plan), EmberIcons.Plan),
+        TabItem(Routes.FRIDGE, stringResource(R.string.fridge_title), EmberIcons.Fridge),
+        TabItem(Routes.DIARY, stringResource(R.string.tab_diary), EmberIcons.Diary),
+    )
+    // The + announces once ("Quick add"); there is no visible label to repeat it.
+    FloatingTabBar(
+        items = items,
+        selectedRoute = currentRoute,
+        onSelect = onSelectTab,
+        onAdd = onQuickAdd,
+        addLabel = stringResource(R.string.quick_add_title),
+        modifier = modifier.fillMaxWidth(),
+        visible = visible,
+    )
+}
+
+/** A destination that hands its AnimatedVisibilityScope to the shared day ring (Shared.kt). */
+private fun NavGraphBuilder.screen(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable (NavBackStackEntry) -> Unit,
+) {
+    composable(route, arguments) { entry ->
+        CompositionLocalProvider(LocalNavAnimatedScope provides this) { content(entry) }
     }
 }
+
+/** A stacked screen: its back link names the screen below it. */
+@Composable
+private fun Stacked(navController: NavHostController, entry: NavBackStackEntry, content: @Composable () -> Unit) {
+    // Fixed when the screen first appears: the back stack moves under it while it leaves.
+    val belowRoute = remember(entry.id) { entryBelow(navController, entry)?.destination?.route }
+    val label = stringResource(
+        when (belowRoute) {
+            Routes.DASHBOARD -> R.string.dashboard_title
+            Routes.PLAN -> R.string.plan_title
+            Routes.FRIDGE -> R.string.fridge_title
+            Routes.DIARY -> R.string.diary_title
+            else -> R.string.back
+        },
+    )
+    CompositionLocalProvider(LocalBackLabel provides label, content = content)
+}
+
+/** Today and the Diary: the meal Food search just logged to, for their "Added to …" toast. */
+@Composable
+private fun AddedReceiver(entry: NavBackStackEntry, content: @Composable () -> Unit) {
+    val handle = entry.savedStateHandle
+    val slotName by handle.getStateFlow<String?>(ADDED_KEY, null).collectAsState()
+    val handOff = remember(slotName) {
+        AddedHandOff(slot = slotName?.let { name -> MealSlot.entries.firstOrNull { it.name == name } }) {
+            handle[ADDED_KEY] = null
+        }
+    }
+    CompositionLocalProvider(LocalAddedHandOff provides handOff, content = content)
+}
+
+/**
+ * The destination entry right under [entry] (graphs are skipped). Asked when [entry] first appears,
+ * which is when it is on top; otherwise null, and the link says "Back". The whole back stack is
+ * library-internal API, so only the public previous entry is read.
+ */
+private fun entryBelow(navController: NavHostController, entry: NavBackStackEntry): NavBackStackEntry? =
+    navController.previousBackStackEntry.takeIf { navController.currentBackStackEntry?.id == entry.id }
 
 /** Standard bottom-bar navigation: one copy of each tab, tab state preserved. */
 private fun NavHostController.navigateToTab(route: String) {
@@ -277,5 +386,39 @@ private fun NavHostController.navigateToTab(route: String) {
 private val TAB_ROUTES =
     setOf(Routes.DASHBOARD, Routes.PLAN, Routes.FRIDGE, Routes.DIARY)
 
-private fun bothAreTabs(from: String?, to: String?): Boolean =
-    from in TAB_ROUTES && to in TAB_ROUTES
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.betweenTabs(): Boolean =
+    initialState.destination.route in TAB_ROUTES && targetState.destination.route in TAB_ROUTES
+
+/**
+ * Screen transitions (§3.5), in pixels for this density. Tabs: the new page fades in rising 10 dp
+ * while the old one fades and shrinks to .985. Push: in from 24 dp to the side. Pop (button, system
+ * or predictive back): the page below slides back from the other side, the top one leaves 48 dp
+ * sideways shrinking to .94. Exits are about 40% shorter than entrances; "Remove animations" makes
+ * them instant (Compose scales every tween by the animator scale).
+ */
+private class NavMotion(density: Density, direction: Int) {
+    private val rise = with(density) { 10.dp.roundToPx() }
+    private val shift = with(density) { 24.dp.roundToPx() } * direction
+    private val away = with(density) { 48.dp.roundToPx() } * direction
+
+    val tabEnter: EnterTransition =
+        fadeIn(tween(360, 60, EmberEasing.Out)) + slideInVertically(tween(360, 60, EmberEasing.Out)) { rise }
+    val tabExit: ExitTransition =
+        fadeOut(tween(200, easing = EmberEasing.In)) + scaleOut(tween(200, easing = EmberEasing.In), .985f)
+    val pushEnter: EnterTransition =
+        fadeIn(tween(360, 60, EmberEasing.Out)) + slideInHorizontally(tween(360, 60, EmberEasing.Smooth)) { shift }
+    val pushExit: ExitTransition =
+        fadeOut(tween(200, easing = EmberEasing.In)) + scaleOut(tween(200), .985f)
+    val popEnter: EnterTransition =
+        fadeIn(tween(300, easing = EmberEasing.Out)) + slideInHorizontally(tween(300, easing = EmberEasing.Smooth)) { -shift }
+    val popExit: ExitTransition =
+        fadeOut(tween(250, easing = EmberEasing.In)) + slideOutHorizontally(tween(250)) { away } + scaleOut(tween(250), .94f)
+}
+
+@Composable
+private fun rememberNavMotion(): NavMotion {
+    val density = LocalDensity.current
+    // Right-to-left layouts push from the left.
+    val direction = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
+    return remember(density, direction) { NavMotion(density, direction) }
+}

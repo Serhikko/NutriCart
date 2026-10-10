@@ -1,5 +1,6 @@
 package com.nutricart.app.data.repository
 
+import com.nutricart.app.cloud.CloudMirror
 import com.nutricart.app.data.local.dao.DayNutritionTotals
 import com.nutricart.app.data.local.dao.FoodLogDao
 import com.nutricart.app.data.local.entity.FoodLogEntryEntity
@@ -7,14 +8,24 @@ import com.nutricart.app.data.local.entity.FoodProductEntity
 import com.nutricart.app.data.local.entity.SavedMealItemEntity
 import com.nutricart.app.domain.logic.FoodMath
 import com.nutricart.app.domain.model.MealSlot
+import com.nutricart.app.partner.PartnerScheduling
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** The food diary: what was eaten, when, and the day's running totals. */
+/**
+ * The food diary: what was eaten, when, and the day's running totals.
+ *
+ * Every write path ends with [PartnerScheduling.onMealLogged] and a
+ * [CloudMirror] call: they live here and not in the four ViewModels that log
+ * food, so a fifth way to log added later can never forget to announce or
+ * mirror the write. Both decide for themselves whether anything is sent.
+ */
 @Singleton
 class DiaryRepository @Inject constructor(
     private val foodLogDao: FoodLogDao,
+    private val partnerScheduling: PartnerScheduling,
+    private val cloudMirror: CloudMirror,
 ) {
 
     fun observeDay(epochDay: Long): Flow<List<FoodLogEntryEntity>> =
@@ -39,9 +50,10 @@ class DiaryRepository @Inject constructor(
         meal: MealSlot,
         epochDay: Long,
     ) {
-        foodLogDao.insert(
-            entryFor(product, grams, servings, meal, epochDay, System.currentTimeMillis())
-        )
+        val entry = entryFor(product, grams, servings, meal, epochDay, System.currentTimeMillis())
+        val id = foodLogDao.insert(entry)
+        cloudMirror.foodLogged(entry.copy(id = id))
+        partnerScheduling.onMealLogged(meal, epochDay)
     }
 
     /** The one place that turns a product + grams into a diary snapshot row. */
@@ -80,7 +92,10 @@ class DiaryRepository @Inject constructor(
         )
     }
 
-    suspend fun delete(entry: FoodLogEntryEntity) = foodLogDao.delete(entry)
+    suspend fun delete(entry: FoodLogEntryEntity) {
+        foodLogDao.delete(entry)
+        cloudMirror.foodDeleted(entry)
+    }
 
     /**
      * Logs every item of a saved meal into one diary section. The items are
@@ -94,27 +109,28 @@ class DiaryRepository @Inject constructor(
         epochDay: Long,
     ) {
         val now = System.currentTimeMillis()
-        foodLogDao.insertAll(
-            items.map { item ->
-                FoodLogEntryEntity(
-                    epochDay = epochDay,
-                    meal = meal,
-                    productId = item.productId,
-                    name = item.name,
-                    grams = item.grams,
-                    servings = item.servings,
-                    kcal = item.kcal,
-                    proteinG = item.proteinG,
-                    fatG = item.fatG,
-                    carbsG = item.carbsG,
-                    fiberG = item.fiberG,
-                    sugarsG = item.sugarsG,
-                    saltG = item.saltG,
-                    saturatedFatG = item.saturatedFatG,
-                    loggedAtEpochMillis = now,
-                )
-            }
-        )
+        val entries = items.map { item ->
+            FoodLogEntryEntity(
+                epochDay = epochDay,
+                meal = meal,
+                productId = item.productId,
+                name = item.name,
+                grams = item.grams,
+                servings = item.servings,
+                kcal = item.kcal,
+                proteinG = item.proteinG,
+                fatG = item.fatG,
+                carbsG = item.carbsG,
+                fiberG = item.fiberG,
+                sugarsG = item.sugarsG,
+                saltG = item.saltG,
+                saturatedFatG = item.saturatedFatG,
+                loggedAtEpochMillis = now,
+            )
+        }
+        val ids = foodLogDao.insertAll(entries)
+        cloudMirror.foodLogged(entries.zip(ids) { e, id -> e.copy(id = id) })
+        partnerScheduling.onMealLogged(meal, epochDay)
     }
 
     /**
@@ -127,11 +143,12 @@ class DiaryRepository @Inject constructor(
         epochDay: Long,
     ) {
         val now = System.currentTimeMillis()
-        foodLogDao.insertAll(
-            items.map { (product, grams) ->
-                entryFor(product, grams, servings = null, meal, epochDay, now)
-            }
-        )
+        val entries = items.map { (product, grams) ->
+            entryFor(product, grams, servings = null, meal, epochDay, now)
+        }
+        val ids = foodLogDao.insertAll(entries)
+        cloudMirror.foodLogged(entries.zip(ids) { e, id -> e.copy(id = id) })
+        partnerScheduling.onMealLogged(meal, epochDay)
     }
 
     /**
@@ -147,20 +164,21 @@ class DiaryRepository @Inject constructor(
         meal: MealSlot,
         epochDay: Long,
     ) {
-        foodLogDao.insert(
-            FoodLogEntryEntity(
-                epochDay = epochDay,
-                meal = meal,
-                productId = null,
-                name = name,
-                grams = null,
-                servings = null,
-                kcal = kcal,
-                proteinG = proteinG,
-                fatG = fatG,
-                carbsG = carbsG,
-                loggedAtEpochMillis = System.currentTimeMillis(),
-            )
+        val entry = FoodLogEntryEntity(
+            epochDay = epochDay,
+            meal = meal,
+            productId = null,
+            name = name,
+            grams = null,
+            servings = null,
+            kcal = kcal,
+            proteinG = proteinG,
+            fatG = fatG,
+            carbsG = carbsG,
+            loggedAtEpochMillis = System.currentTimeMillis(),
         )
+        val id = foodLogDao.insert(entry)
+        cloudMirror.foodLogged(entry.copy(id = id))
+        partnerScheduling.onMealLogged(meal, epochDay)
     }
 }

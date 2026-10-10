@@ -16,6 +16,7 @@ import com.nutricart.app.data.local.dao.RecipeDao
 import com.nutricart.app.data.local.dao.RecurringWorkoutDao
 import com.nutricart.app.data.local.dao.SavedMealDao
 import com.nutricart.app.data.local.dao.ShoppingDao
+import com.nutricart.app.data.local.dao.SyncOutboxDao
 import com.nutricart.app.data.local.dao.WaterDao
 import com.nutricart.app.data.local.dao.WeightDao
 import com.nutricart.app.data.local.dao.WorkoutDao
@@ -393,6 +394,52 @@ private val MIGRATION_11_12 = object : Migration(11, 12) {
     }
 }
 
+/**
+ * v12 -> v13: the cloud sync outbox (release v1.1). Pending cloud writes are
+ * queued here in the same transaction as the Room write they mirror.
+ */
+private val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `sync_outbox` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `tableName` TEXT NOT NULL,
+                `remoteId` TEXT NOT NULL,
+                `payloadJson` TEXT NOT NULL,
+                `createdAtEpochMillis` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_sync_outbox_createdAtEpochMillis` " +
+                "ON `sync_outbox` (`createdAtEpochMillis`)"
+        )
+    }
+}
+
+/**
+ * v14 (cloud milestone 3): the phone pulls rows the website wrote. Those rows
+ * keep their cloud id in a new nullable, unique column so a later pull can
+ * update or delete the same local row, and a phone-side delete can send the
+ * right tombstone. Rows the phone logged itself leave it null.
+ */
+private val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `food_log_entry` ADD COLUMN `cloudId` TEXT")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_food_log_entry_cloudId` ON `food_log_entry` (`cloudId`)")
+        db.execSQL("ALTER TABLE `water_entry` ADD COLUMN `cloudId` TEXT")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_water_entry_cloudId` ON `water_entry` (`cloudId`)")
+    }
+}
+
+/** v15: drinks are flagged so the amount dialog asks for ml instead of grams. */
+private val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `food_product` ADD COLUMN `isLiquid` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 /** Tells Hilt how to build the database and its DAOs (one instance for the whole app). */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -405,7 +452,8 @@ object DatabaseModule {
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
-                MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
+                MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+                MIGRATION_13_14, MIGRATION_14_15,
             )
             // Dev-only safety net for schema changes WITHOUT a migration yet:
             // wipes and recreates the DB. Remove before the first real release.
@@ -454,4 +502,7 @@ object DatabaseModule {
 
     @Provides
     fun provideFridgeDao(db: AppDatabase): FridgeDao = db.fridgeDao()
+
+    @Provides
+    fun provideSyncOutboxDao(db: AppDatabase): SyncOutboxDao = db.syncOutboxDao()
 }

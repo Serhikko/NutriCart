@@ -39,6 +39,13 @@ interface WeightDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: WeightEntryEntity)
 
+    /** One-shot read of everything — the cloud backfill when sync is switched on. */
+    @Query("SELECT * FROM weight_entry ORDER BY epochDay ASC")
+    suspend fun all(): List<WeightEntryEntity>
+
+    @Query("SELECT * FROM weight_entry WHERE epochDay = :epochDay AND source = :source LIMIT 1")
+    suspend fun forDay(epochDay: Long, source: com.nutricart.app.domain.model.WeightSource): WeightEntryEntity?
+
     // Used by "reset the app" in settings.
     @Query("DELETE FROM weight_entry")
     suspend fun deleteAll()

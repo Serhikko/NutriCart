@@ -1,0 +1,244 @@
+/* The shell (Layout.tsx): the stage that recedes under sheets, the page column,
+   the compact top bar, the floating capsule tab bar with its + button, the
+   scroll-edge fade, and the desktop sidebar. Per-route grids live with their
+   pages (day.css, add.css, week.css, pages.css). */
+
+.app { min-height: 100dvh; }
+
+/* Phone and tablet: the top bar and the tab bar with its edge fade are fixed over the page, so a
+   control scrolled into view by Tab (or by scrollIntoView) must stop clear of both, not under them. */
+@media (max-width: 899px) {
+  html {
+    scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 56px);
+    scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 152px);
+  }
+}
+
+/* Shared SVG paint servers (gradients and patterns), referenced by id from icons, rings and charts.
+   Zero-sized rather than display: none, which would switch the gradients off in some browsers. */
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+.defs .s-e1 { stop-color: var(--ember-1); }
+.defs .s-e2 { stop-color: var(--ember-2); }
+.defs .s-e3 { stop-color: var(--ember-3); }
+.defs .s-w1 { stop-color: var(--water-2); }
+.defs .s-w2 { stop-color: var(--water); }
+.defs .s-wt { stop-color: var(--weight); }
+.defs .s-wt-a { stop-color: var(--weight); stop-opacity: .26; }
+.defs .s-wt-z { stop-color: var(--weight); stop-opacity: 0; }
+.defs .f-e2 { fill: var(--ember-2); }
+.defs .f-e2-soft { fill: var(--ember-2); opacity: .38; }
+.defs .f-surface { fill: var(--surface); }
+.defs .f-over { fill: var(--over-lap); }
+
+/* ----------------------------------------------------------------- stage */
+/* The page wrapper. It holds no fixed chrome, so it can recede under a sheet on its own. */
+.stage { position: relative; min-height: 100dvh; transform-origin: 50% 0; background: var(--bg); }
+/* The bottom padding is at least the edge fade's height (150 px): scrolled to the end, the last
+   thing on a page (an ink "Start tracking", "Forget this device") sits clear of the fade instead
+   of half dissolving into it. */
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 18px)
+    max(var(--gutter), env(safe-area-inset-right, 0px))
+    calc(env(safe-area-inset-bottom, 0px) + 152px)
+    max(var(--gutter), env(safe-area-inset-left, 0px));
+}
+.page:focus { outline: none; }
+/* The scroll position the compact top bar reacts to (IntersectionObserver fallback only). */
+.top-sentinel { position: absolute; top: 64px; left: 0; width: 1px; height: 1px; pointer-events: none; visibility: hidden; }
+
+/* ------------------------------------------------------ compact top bar */
+.topbar {
+  position: fixed; inset: 0 0 auto 0; z-index: var(--z-topbar);
+  height: calc(env(safe-area-inset-top, 0px) + 50px);
+  padding: env(safe-area-inset-top, 0px) 56px 0;
+  display: grid; place-items: center;
+  background: var(--mat-top);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border-bottom: .5px solid var(--mat-line);
+  opacity: 0; pointer-events: none;
+  transition: opacity 240ms var(--ease-out);
+}
+.topbar b {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 600 var(--t-headline)/1.2 var(--font-text); letter-spacing: -0.016em;
+  transform: translateY(6px); transition: transform 320ms var(--spring-snappy);
+}
+.topbar b span { color: var(--label-2); font-weight: 500; }
+.scrolled .topbar { opacity: 1; }
+.scrolled .topbar b { transform: none; }
+/* Where the browser can, the bar is tied to the scroll position itself (24 -> 72 px), no script involved. */
+@supports (animation-timeline: scroll()) {
+  .topbar, .topbar b { transition: none; }
+  .topbar { animation: topbar-in linear both; animation-timeline: scroll(root block); animation-range: 24px 72px; }
+  .topbar b { animation: topbar-title linear both; animation-timeline: scroll(root block); animation-range: 24px 72px; }
+}
+@keyframes topbar-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes topbar-title { from { transform: translateY(6px); } to { transform: none; } }
+
+/* --------------------------------------------- tab bar, + and edge fade */
+/* Content fades out under the glass (<= 6% visible), so tab labels stay legible over anything. */
+.tab-fade {
+  position: fixed; inset: auto 0 0 0; z-index: var(--z-fade); pointer-events: none;
+  height: calc(env(safe-area-inset-bottom, 0px) + 150px);
+  background: linear-gradient(to bottom,
+    color-mix(in srgb, var(--bg) 0%, transparent),
+    color-mix(in srgb, var(--bg) 70%, transparent) 26%,
+    color-mix(in srgb, var(--bg) 94%, transparent) 44%,
+    var(--bg) 60%);
+}
+.tabbar {
+  position: fixed; z-index: var(--z-tabbar);
+  left: 0; right: 0; margin-inline: auto;
+  width: min(calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 560px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  display: flex; gap: 10px; align-items: center;
+}
+/* The glass lives on .tabs and .fab themselves: nothing above them may become a backdrop root. */
+.tabs {
+  position: relative; flex: 1; min-width: 0; height: var(--tabbar-h); padding: 4px;
+  display: flex; border-radius: var(--r-chip);
+  background: var(--mat-bar);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-float), inset 0 0 0 .5px var(--mat-line), inset 0 1px 0 var(--mat-edge);
+  view-transition-name: tabbar;
+  transition: transform 480ms var(--spring-snappy), opacity 300ms var(--ease-out);
+}
+.tab {
+  position: relative; z-index: 1; flex: 1 1 auto; min-width: 44px;
+  display: grid; justify-items: center; align-content: center; gap: 2px; padding: 0 6px;
+  border-radius: var(--r-chip); color: var(--label-2);
+  font: 600 min(var(--t-tab), 15px)/1.15 var(--font-text); letter-spacing: 0; white-space: nowrap;
+  transition: color 200ms var(--ease-out), transform 380ms var(--spring-snappy);
+}
+/* A larger default text size (the browser's font setting) grows the labels only as far as the bar
+   is wide, as iOS does, rather than cutting every one with an ellipsis. The Ukrainian labels are
+   the long ones ("Налаштування"): measured in Chromium they fit up to about 5.6vw - 10px from
+   375 px up, and exactly the default 10.5 px at 360 (the narrower bar below 360 px fits that too). */
+:lang(uk) .tab { font-size: min(var(--t-tab), max(10.5px, calc(5.6vw - 10px))); }
+.tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tab .icon { width: 25px; height: 25px; stroke-width: 1.85; }
+.tab[aria-current="page"] { color: var(--label); }
+.tab[aria-current="page"] .icon { stroke: url(#g-ember-icon); }
+.tab:active { transform: scale(.94); }
+.tab:focus-visible { outline-offset: -3px; }
+/* The pill is placed by TabBar (--pos, --size) and squash-stretches between tabs with WAAPI.
+   Until it is measured (or without layout, as in tests) the active tab paints its own pill. */
+.tab-pill {
+  position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0;
+  width: var(--size, 0px); transform: translateX(var(--pos, 0px));
+  border-radius: var(--r-chip); background: var(--fill); pointer-events: none;
+}
+.tabs:not([data-measured]) .tab-pill { display: none; }
+.tabs:not([data-measured]) .tab[aria-current="page"] { background: var(--fill); }
+.fab {
+  position: relative; flex: none; width: var(--tabbar-h); height: var(--tabbar-h); border-radius: 50%;
+  display: grid; place-items: center; color: var(--label);
+  background: var(--mat-bar);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-float), inset 0 0 0 .5px var(--mat-line), inset 0 1px 0 var(--mat-edge);
+  view-transition-name: fab;
+  transition: transform 420ms var(--spring-bouncy), opacity 300ms var(--ease-out);
+}
+.fab .icon { width: 30px; height: 30px; stroke-width: 2.6; stroke: url(#g-ember-icon); }
+.fab.bell .icon { width: 27px; height: 27px; stroke-width: 2.1; }
+.fab:active { transform: scale(.9); transition-duration: var(--dur-press); }
+
+/* First page of the session: the bar rises into place once (G10). */
+.tabbar.intro .tabs, .tabbar.intro .fab { animation: tabbar-in 700ms var(--spring-snappy) 120ms backwards; }
+@keyframes tabbar-in { from { opacity: 0; transform: translateY(24px); } }
+/* Under 360 px (a small phone, or 400% zoom) the Ukrainian labels ("Налаштування") need every
+   pixel: 12 px side margins, a narrower gap, tighter tab padding and a slightly smaller + keep
+   all four whole. */
+@media (max-width: 359px) {
+  .tabbar { gap: 6px; width: calc(100% - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
+  .tab { padding-inline: 2px; }
+  .fab { width: 52px; height: 52px; }
+}
+
+/* ---------------------------------------------- a sheet is presented (S3, S7)
+   The Sheet sets html.presenting (phone, and the centred dialog at 900-1239 px; never for the
+   docked inspector at >= 1240 px). On a phone the stage recedes behind it, showing the part of
+   the page that was on screen (Layout keeps --sy, the scroll offset at that moment, and puts the
+   scroll back afterwards), the tab bar leaves, and black shows round the receded page. On a
+   desktop the page only scales back a little, with no black. */
+.presenting .tabs, .presenting .fab {
+  transform: translateY(160%); opacity: 0; pointer-events: none;
+  transition: transform 300ms var(--ease-in), opacity 300ms var(--ease-in);
+}
+.presenting .topbar, .presenting .tab-fade { visibility: hidden; }
+@media (max-width: 899px) {
+  html.presenting, html.presenting body { background: var(--behind); }
+  .presenting .stage {
+    position: fixed; inset: 0; height: 100dvh; overflow: clip;
+    box-shadow: 0 0 0 .5px var(--stage-edge);
+    animation: recede 560ms var(--spring-sheet) both;
+  }
+  .presenting .stage > .page { margin-top: calc(var(--sy, 0px) * -1); }
+  .stage.restoring { animation: restore 420ms var(--spring-smooth) both; transform-origin: 50% var(--sy, 0px); }
+}
+@media (min-width: 900px) and (max-width: 1239px) {
+  .stage { transition: transform 420ms var(--spring-smooth); }
+  .presenting .stage { transform: scale(.97); transform-origin: 50% calc(var(--sy, 0px) + 50vh); transition-duration: 560ms; }
+}
+@keyframes recede { to { transform: translateY(calc(env(safe-area-inset-top, 0px) + 10px)) scale(.93); border-radius: 26px; } }
+@keyframes restore { from { transform: translateY(calc(env(safe-area-inset-top, 0px) + 10px)) scale(.93); border-radius: 26px; } }
+
+/* --------------------------------------------------------------- sidebar */
+.sidebar { display: none; }
+
+@media (min-width: 900px) {
+  .tabbar, .tab-fade, .topbar { display: none; }
+
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: var(--z-sidebar); width: var(--sidebar-w);
+    display: flex; flex-direction: column; gap: 6px; overflow-y: auto; overscroll-behavior: contain;
+    padding: calc(env(safe-area-inset-top, 0px) + 26px) 16px calc(env(safe-area-inset-bottom, 0px) + 18px) max(16px, env(safe-area-inset-left, 0px));
+    background: color-mix(in srgb, var(--surface) 55%, var(--bg));
+    border-right: .5px solid var(--sep);
+    view-transition-name: sidebar;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px 14px;
+    font: 700 1.1875rem/1 var(--font-display); letter-spacing: -0.02em; color: var(--label);
+  }
+  .brand img { width: 30px; height: 30px; border-radius: 8px; flex: none; }
+  .side-nav { position: relative; display: grid; gap: 2px; }
+  .side-link {
+    position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px;
+    border-radius: 12px; font: 500 var(--t-subhead)/1 var(--font-text); color: var(--label);
+    transition: background-color 160ms var(--ease-out);
+  }
+  .side-link .icon { width: 22px; height: 22px; color: var(--label-2); }
+  .side-link[aria-current="page"] { font-weight: 600; }
+  .side-link[aria-current="page"] .icon { stroke: url(#g-ember-icon); }
+  .side-pill {
+    position: absolute; z-index: 0; left: 0; right: 0; top: 0;
+    height: var(--size, 0px); transform: translateY(var(--pos, 0px));
+    border-radius: 12px; background: var(--fill); pointer-events: none;
+  }
+  .side-nav:not([data-measured]) .side-pill { display: none; }
+  .side-nav:not([data-measured]) .side-link[aria-current="page"] { background: var(--fill); }
+  .side-sec { margin: 18px 12px 6px; font: 600 var(--t-footnote)/1 var(--font-text); color: var(--label-2); }
+  .side-list { display: grid; gap: 2px; }
+  .side-list .person { height: 48px; padding: 0 12px; border-radius: 12px; }
+  .side-list .person[aria-current] { background: var(--fill); }
+  .side-link:hover:not([aria-current="page"]), .side-list .person:hover:not([aria-current]) { background: var(--fill-2); }
+  .side-foot {
+    margin-top: auto; display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 12px;
+    border-top: .5px solid var(--sep); border-radius: 0 0 12px 12px; color: var(--label);
+  }
+  .side-foot:hover { background: var(--fill-2); }
+  .side-foot .avatar { background: linear-gradient(150deg, var(--ember-1), var(--ember-3)); }
+  .side-foot .who { min-width: 0; display: grid; gap: 2px; }
+  .side-foot b { font: 600 .875rem/1.2 var(--font-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-foot .who span { font-size: var(--t-caption); color: var(--label-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .stage { margin-left: var(--sidebar-w); }
+  .page {
+    max-width: 1160px;
+    padding: calc(env(safe-area-inset-top, 0px) + 40px) 48px calc(env(safe-area-inset-bottom, 0px) + 64px);
+  }
+}

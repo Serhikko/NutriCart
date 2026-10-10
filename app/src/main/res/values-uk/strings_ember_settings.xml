@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="form_unit_cm">см</string>
+    <string name="form_unit_kg">кг</string>
+    <string name="form_unit_g">г</string>
+    <string name="form_unit_min">хв</string>
+    <!-- "1 повтор", "2 повтори", "5 повторів". -->
+    <plurals name="form_unit_reps" tools:ignore="ImpliedQuantity">
+        <item quantity="one">повтор</item>
+        <item quantity="few">повтори</item>
+        <item quantity="many">повторів</item>
+        <item quantity="other">повтору</item>
+    </plurals>
+</resources>

@@ -8,7 +8,10 @@ import com.nutricart.app.data.remote.dto.toEntityOrNull
 import com.nutricart.app.domain.logic.ProductRanker
 import com.nutricart.app.domain.model.ProductSource
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import retrofit2.HttpException
 import java.io.IOException
+import java.net.SocketTimeoutException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,45 +30,75 @@ data class FoodSearchResult(
 class FoodRepository @Inject constructor(
     private val api: OpenFoodFactsApi,
     private val foodDao: FoodDao,
+    private val shops: ZakazShops,
 ) {
 
     /**
-     * Barcode lookup, offline-first: a fully-detailed cache row answers
-     * instantly. A row cached BEFORE the detail-nutrient columns existed
-     * (all four null) gets an online refresh attempt — OFF may well know the
-     * values, and without this the user's most-scanned staples would show
-     * "—" forever (review-caught). Offline, the stale row still wins over an
-     * error.
-     * null = the database genuinely does not know this barcode.
-     * No internet with NO cached row is NOT "unknown" — the IOException
-     * propagates, and the user sees "you are offline" instead of "not found".
+     * Barcode lookup: Found, Incomplete (OFF or a Ukrainian shop knows the
+     * product only partly) or NotFound. The order of the checks — the user's
+     * own product first, then the cache, then Open Food Facts form by form,
+     * then the Ukrainian shops — lives in the pure [lookUpBarcode],
+     * unit-tested on the JVM; this only wires it to Room, Retrofit and
+     * [ZakazShops]. No internet with nothing to show still throws
+     * IOException, so the user sees "you are offline" instead of "not found".
      */
-    suspend fun byBarcode(barcode: String): FoodProductEntity? {
-        val cached = foodDao.byId("off:$barcode")
-        if (cached != null && !cached.missingDetails()) return cached
-        return try {
-            val product = api.productByBarcode(barcode).product
-                ?.toEntityOrNull(System.currentTimeMillis())
-                ?: return cached // OFF lost/hides the product — keep what we have
-            // Same star rule as search: fresh API data must not wipe it.
-            val merged = product.copy(isFavorite = cached?.isFavorite ?: false)
-            foodDao.upsert(merged)
-            merged
+    suspend fun byBarcode(scanned: String): BarcodeLookup =
+        lookUpBarcode(
+            scanned,
+            lookupSources,
+            nowMillis = System::currentTimeMillis,
+            pause = { delay(it) },
+        )
+
+    private val lookupSources = object : BarcodeLookupSources {
+        override suspend fun ownProduct(code: String): FoodProductEntity? =
+            foodDao.byId(FoodProductEntity.localBarcodeId(code))
+
+        override suspend fun cachedOffProduct(code: String): FoodProductEntity? =
+            foodDao.byId("off:$code")
+
+        override suspend fun cachedShopProduct(code: String): FoodProductEntity? =
+            foodDao.byId(FoodProductEntity.zakazId(code))
+
+        override suspend fun save(product: FoodProductEntity) = foodDao.upsert(product)
+
+        override suspend fun askShops(code14: String): ShopAnswer = shops.ask(code14)
+
+        override suspend fun askOff(code: String): OffAnswer = try {
+            val response = api.productByBarcode(code)
+            val product = response.product
+            if (product == null || response.status == 0) OffAnswer.Unknown
+            else OffAnswer.Product(product)
         } catch (e: CancellationException) {
             throw e
+        } catch (e: HttpException) {
+            when (e.code()) {
+                // The v2 endpoint answers 404 for an unknown code: keep going.
+                404 -> OffAnswer.Unknown
+                // Rate-limited (OFF allows 15 product reads a minute per IP)
+                // or overloaded: "busy", never "not found".
+                429, 503 -> OffAnswer.Busy(
+                    retryAfterSeconds(e.response()?.headers()?.get("Retry-After")),
+                )
+                // Anything else is a server problem — use what we have.
+                else -> {
+                    Log.w("FoodRepository", "Barcode lookup failed with HTTP ${e.code()}")
+                    OffAnswer.Failed
+                }
+            }
+        } catch (e: SocketTimeoutException) {
+            // Connected, but OFF didn't answer in time: OFF is unavailable,
+            // the phone is not offline (and the shops may still answer).
+            Log.w("FoodRepository", "Barcode lookup timed out")
+            OffAnswer.Failed
         } catch (e: IOException) {
-            cached ?: throw e // offline — the ViewModel shows a dedicated message
+            OffAnswer.Offline(e)
         } catch (e: Exception) {
-            // Server error or unexpected response — log it, use what we have.
+            // Unexpected response shape — log it, use what we have.
             Log.w("FoodRepository", "Barcode lookup failed", e)
-            cached
+            OffAnswer.Failed
         }
     }
-
-    /** True for rows cached before v0.11 — no detail nutrient is known. */
-    private fun FoodProductEntity.missingDetails(): Boolean =
-        fiberPer100g == null && sugarsPer100g == null &&
-            saltPer100g == null && saturatedFatPer100g == null
 
     suspend fun search(query: String): FoodSearchResult {
         return try {
@@ -81,10 +114,10 @@ class FoodRepository @Inject constructor(
             // Spec rule: EVERY looked-up product goes into the cache,
             // so the app keeps working without internet.
             foodDao.upsertAll(products)
-            // User-created products first (the API cannot know them), then the
-            // API results — and the whole list re-ranked by how often the user
-            // actually logs each product. (The offline branch needs no merge —
-            // searchByName already covers all sources.)
+            // User-created and shop products first (the API cannot know them),
+            // then the API results — and the whole list re-ranked by how often
+            // the user actually logs each product. (The offline branch needs no
+            // merge — searchByName already covers all sources.)
             FoodSearchResult(
                 ranked(foodDao.searchLocalByName(query) + products),
                 offline = false,
@@ -116,7 +149,14 @@ class FoodRepository @Inject constructor(
     /** Top products for the "frequent" list under an empty search box. */
     suspend fun frequentProducts(): List<FoodProductEntity> = foodDao.frequentProducts(10)
 
-    /** Creates a user-defined product and returns it ready for logging. */
+    /**
+     * Creates a user-defined product and returns it ready for logging.
+     *
+     * With a [barcode] (a scan that Open Food Facts didn't know, or knew only
+     * partly) the product is saved as "local:barcode:<digits>", which the
+     * scanner checks first — so the next scan of the same pack finds it.
+     * Saving under that id again replaces the values but keeps the star.
+     */
     suspend fun createCustomProduct(
         name: String,
         brand: String?,
@@ -129,9 +169,14 @@ class FoodRepository @Inject constructor(
         sugarsPer100g: Double?,
         saltPer100g: Double?,
         saturatedFatPer100g: Double?,
+        barcode: String? = null,
+        isLiquid: Boolean = false,
     ): FoodProductEntity {
+        val id = barcode?.takeIf { it.isNotBlank() }?.let { FoodProductEntity.localBarcodeId(it) }
+            ?: ("local:" + UUID.randomUUID())
+        val existing = if (barcode.isNullOrBlank()) null else foodDao.byId(id)
         val product = FoodProductEntity(
-            id = "local:" + UUID.randomUUID(),
+            id = id,
             name = name.trim(),
             brand = brand?.trim()?.takeIf { it.isNotEmpty() },
             kcalPer100g = kcalPer100g,
@@ -139,12 +184,14 @@ class FoodRepository @Inject constructor(
             fatPer100g = fatPer100g,
             carbsPer100g = carbsPer100g,
             servingSizeG = servingSizeG,
+            isLiquid = isLiquid,
             fiberPer100g = fiberPer100g,
             sugarsPer100g = sugarsPer100g,
             saltPer100g = saltPer100g,
             saturatedFatPer100g = saturatedFatPer100g,
             source = ProductSource.LOCAL,
             cachedAtEpochMillis = System.currentTimeMillis(),
+            isFavorite = existing?.isFavorite ?: false,
         )
         foodDao.upsert(product)
         return product

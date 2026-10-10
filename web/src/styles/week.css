@@ -1,0 +1,80 @@
+/* My week and a partner's week (MyWeek.tsx, Week.tsx, charts/WeekOverview.tsx),
+   DESIGN.md §6.5 and §6.8. The charts themselves are in charts.css. */
+
+/* ------------------------------------------------------------ title row */
+/* "12-day streak": a white capsule with the Ember flame. */
+.streak {
+  display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px 0 9px;
+  border-radius: var(--r-chip); background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 .5px var(--sep);
+  font: 600 .875rem/1 var(--font-text); letter-spacing: -0.01em; color: var(--label); white-space: nowrap;
+}
+.streak .icon { stroke: url(#g-ember-icon); }
+
+/* ----------------------------------------------------------------- grid */
+/* Phone: one column, hero on the stage then the cards. */
+.week-grid { display: grid; gap: 12px; }
+.week-grid > * { min-width: 0; }
+
+/* ------------------------------------------------------------------ hero */
+/* The daily average on the stage itself (no card), with a warm light behind the numeral. */
+.week-hero { position: relative; isolation: isolate; padding: 4px 0 6px; }
+.week-hero .stage-light { left: 30%; }
+.week-hero .hero-l { margin: 0; font: 600 var(--t-subhead)/1.3 var(--font-text); letter-spacing: -0.008em; color: var(--label-2); }
+.week-num {
+  display: flex; align-items: baseline; margin: 2px 0 0 -2px;
+  font: 700 var(--t-week-hero)/1 var(--font-rounded); letter-spacing: -0.03em; white-space: nowrap;
+}
+.week-num .unit { font-size: 1.25rem; margin-left: 8px; }
+/* No completed day to average yet: a quiet dash where the number goes. */
+.week-num .grad-dash { color: var(--label-3); }
+.week-hero .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-top: 18px; }
+.week-cap { margin: 14px 0 0; font-size: var(--t-subhead); line-height: 1.35; color: var(--label-2); text-wrap: balance; }
+.week-cap b { color: var(--label); font-weight: 600; }
+
+/* --------------------------------------------------------------- states */
+/* Nothing logged in seven days: seven ghost days above the message. */
+.ghost-week { display: inline-flex; align-items: flex-end; gap: 9px; height: 64px; }
+.ghost-week i {
+  width: 14px; height: 100%; border-radius: var(--r-chip);
+  background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--sep);
+}
+.ghost-week i:nth-child(7) { background: var(--ember-track); box-shadow: none; }
+.week-empty { padding: 40px 0 24px; }
+
+/* Loading: the hero's lines and discs, then the two cards, at their final sizes. */
+.week-loading .week-hero { display: grid; gap: 10px; justify-items: start; }
+.week-loading .days { width: 100%; margin-top: 8px; }
+.week-loading .dm { gap: 7px; }
+.week-loading .sk-num { border-radius: 18px; }
+.sk-cal { height: 420px; }
+.sk-wt { height: 268px; }
+
+/* -------------------------------------------------------------- desktop */
+/* The chart cards grow at 900 px (charts.css), whichever column they sit in: so do their stand-ins. */
+@media (min-width: 900px) {
+  .week-grid { gap: 16px; }
+  .sk-cal { height: 470px; }
+  .sk-wt { height: 278px; }
+}
+/* Hero and weight in the narrow left column, the calories chart filling the right one: no dead column.
+   Only from 1024 px: at 900-1023 px the sidebar leaves the left column 210-260 px, too narrow for the
+   84 px average, seven 36 px markers and the weight chart's dates, so those widths keep the phone's
+   single column (as the day page does below 1240 px). */
+@media (min-width: 1024px) {
+  .week-grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-areas: "hero cal" "wt cal";
+    gap: 24px 32px; align-items: start;
+  }
+  .w-hero { grid-area: hero; }
+  .w-cal { grid-area: cal; }
+  .w-wt { grid-area: wt; }
+  .week-hero .stage-light { width: 110%; }
+  .week-num { font-size: 5.25rem; }
+}
+/* 1024-1139 px: the left column is 263-311 px. A slightly smaller average keeps "kcal" (or "ккал")
+   inside it, and slightly smaller discs keep air between the days (37-44 px each). */
+@media (min-width: 1024px) and (max-width: 1139px) {
+  .week-num { font-size: 4.5rem; }
+  .week-hero .days { --dm-size: 32px; }
+}
