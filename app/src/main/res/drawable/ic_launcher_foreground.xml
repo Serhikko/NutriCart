@@ -1,14 +1,67 @@
-<!-- Simple white "plate" ring as a placeholder launcher icon (pure vector, no PNGs). -->
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ember launcher icon, foreground layer: one open Ember ring from 12 o'clock round to 10 o'clock, built like the
+     app's Ring (two half arcs whose vertical gradients are flat across the 6 o'clock band, round ends drawn as circles
+     filled with the same gradients) and one specular highlight. Original artwork, from web/public/icon.svg. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- track -->
     <path
-        android:fillColor="#FFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M54,24 A30,30 0 1,0 54,84 A30,30 0 1,0 54,24 Z M54,34 A20,20 0 1,1 54,74 A20,20 0 1,1 54,34 Z" />
+        android:pathData="M54,33.47a20.53,20.53 0 1,1 0,41.06a20.53,20.53 0 1,1 0,-41.06"
+        android:fillColor="#00000000"
+        android:strokeColor="#14FFFFFF"
+        android:strokeWidth="8.72" />
+    <!-- right half: amber to vermilion. It runs 0.4% of a turn past 6 o'clock, under the left half,
+         as the app's Ring does: two anti-aliased ends meeting at one point leave a hairline seam. -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M50,44 h8 v20 h-8 Z" />
+        android:pathData="M54,33.47A20.53,20.53 0 1,1 53.48,74.52"
+        android:fillColor="#00000000"
+        android:strokeWidth="8.72">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="0" android:startY="37.83" android:endX="0" android:endY="70.17">
+                <item android:offset="0" android:color="#FFFFB340" />
+                <item android:offset="1" android:color="#FFFF6A3D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- left half: vermilion to raspberry, ending at 10 o'clock -->
+    <path
+        android:pathData="M54,74.53A20.53,20.53 0 0,1 36.22,43.73"
+        android:fillColor="#00000000"
+        android:strokeWidth="8.72">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="0" android:startY="70.17" android:endX="0" android:endY="43.73">
+                <item android:offset="0" android:color="#FFFF6A3D" />
+                <item android:offset="1" android:color="#FFFF375F" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- start cap (12 o'clock) -->
+    <path android:pathData="M49.64,33.47a4.36,4.36 0 1,0 8.72,0a4.36,4.36 0 1,0 -8.72,0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="37.83" android:endX="0" android:endY="70.17">
+                <item android:offset="0" android:color="#FFFFB340" />
+                <item android:offset="1" android:color="#FFFF6A3D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- end cap (10 o'clock) -->
+    <path android:pathData="M31.86,43.73a4.36,4.36 0 1,0 8.72,0a4.36,4.36 0 1,0 -8.72,0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="70.17" android:endX="0" android:endY="43.73">
+                <item android:offset="0" android:color="#FFFF6A3D" />
+                <item android:offset="1" android:color="#FFFF375F" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- specular highlight -->
+    <path
+        android:pathData="M54.56,30.09A23.91,23.91 0 0,1 75.49,43.52"
+        android:fillColor="#00000000"
+        android:strokeColor="#42FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="0.7" />
 </vector>

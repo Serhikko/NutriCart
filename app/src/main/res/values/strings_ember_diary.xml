@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Diary and Food search (G2). The gram unit on its own, next to a number drawn digit by digit
+         (grams_value carries the number inside it). -->
+    <string name="diary_unit_g">g</string>
+    <!-- The amount sheet's unit in portions mode: "1 portion", "1.5 portions". -->
+    <plurals name="diary_unit_portions">
+        <item quantity="one">portion</item>
+        <item quantity="other">portions</item>
+    </plurals>
+    <!-- TalkBack for the amount sheet's preview ring; %1$s is a formatted percentage ("66%"). -->
+    <string name="diary_ring_after_cd">%1$s of today\'s target after this</string>
+</resources>

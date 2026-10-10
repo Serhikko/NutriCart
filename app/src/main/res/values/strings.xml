@@ -83,7 +83,7 @@
     <string name="weight_edit_hint">Changing the weight adds a new entry for today to your weight history.</string>
     <string name="reset_button">Reset the app and start over</string>
     <string name="reset_confirm_title">Delete all data?</string>
-    <string name="reset_confirm_text">Your profile and weight history will be deleted from this device. This cannot be undone.</string>
+    <string name="reset_confirm_text">Everything NutriCart keeps on this phone will be deleted: your profile, diary, meal plan, shopping list, fridge, activity, weight history, settings and keys. If you sync, the copy in the cloud is not deleted. This cannot be undone.</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
 
@@ -390,7 +390,7 @@
 
     <!-- Shown by Health Connect when the user asks why we need permissions -->
     <string name="privacy_rationale_title">Your health data</string>
-    <string name="privacy_rationale_text">NutriCart reads steps, active calories, heart rate, exercise sessions, sleep and weight from Health Connect to adjust your daily calorie target and to show your daily activity on the dashboard. All data stays on this device — nothing is uploaded anywhere.</string>
+    <string name="privacy_rationale_text">NutriCart reads steps, active calories, heart rate, exercise sessions, sleep and weight from Health Connect to adjust your daily calorie target and to show your activity for the day. It all stays on this device unless you turn on cloud sync in Settings: then your weight and each day\'s activity totals (steps and active calories) are uploaded so the NutriCart website can show them. Heart rate, sleep and individual readings never leave the phone.</string>
     <string name="fridge_title">Fridge</string>
     <string name="fridge_tab_stock">In stock</string>
     <string name="fridge_tab_to_buy">To buy</string>
@@ -507,5 +507,82 @@
     <string name="cloud_email_pending">Confirmation sent to %1$s. Open the link in that email, then come back.</string>
     <string name="cloud_email_linked">Signed in as %1$s. On the website, open Settings and sign in with this email and your password.</string>
     <string name="cloud_notice_email_sent">Check your inbox for the confirmation link. Write the password down: it is not stored on the phone.</string>
-    <string name="cloud_privacy_hint">What leaves the phone: meal names and calories, water, weight and your daily activity totals. Never heart rate, sleep or the AI key. Stored in the EU; delete it any time by turning sync off.</string>
+    <string name="cloud_privacy_hint">What leaves the phone: your meals with their calories and nutrients, water, weight, each day\'s totals (calorie target, eaten, active calories, steps) and your profile (sex, date of birth, height, goal), so the website shows the same targets. Never heart rate, sleep, the AI key or the Telegram token. Stored in the EU. Turning sync off stops syncing; what is already in the cloud stays there.</string>
+
+    <!-- Ember redesign: strings of the new screens and components. -->
+    <string name="day_kcal_left">kcal left</string>
+    <string name="day_kcal_over">kcal over</string>
+    <string name="day_zone">In the zone</string>
+    <string name="ring_day_line">%1$s of %2$s kcal eaten, %3$s left</string>
+    <string name="ring_day_line_over">%1$s of %2$s kcal eaten, %3$s over</string>
+    <string name="compact_left">%1$s · %2$s left</string>
+    <string name="compact_over">%1$s · %2$s over</string>
+    <string name="today_menu_meta">from your plan</string>
+    <string name="macros_title">Macros</string>
+    <string name="macros_meta">eaten / target</string>
+    <string name="of_target_g">of %1$d g</string>
+    <string name="limit_near">near limit</string>
+    <string name="limit_over">over</string>
+    <string name="tile_source">Health Connect · %1$s</string>
+    <string name="toast_added_to">Added to %1$s</string>
+    <string name="date_range">%1$s – %2$s</string>
+    <string name="week_average">Daily average</string>
+    <string name="stats_caption_rest">on plan · target %1$s kcal</string>
+    <string name="chart_today_so_far">Today so far</string>
+    <string name="chart_under">%1$s under the %2$s target</string>
+    <string name="chart_over">%1$s over the %2$s target</string>
+    <string name="chart_within">%1$s over · within 5%%, on plan</string>
+    <string name="legend_on_plan">On plan</string>
+    <string name="legend_over">Over target</string>
+    <string name="legend_today">Today so far</string>
+    <string name="legend_not_logged">Not logged</string>
+    <string name="chart_last_7">Last 7 days</string>
+    <string name="chart_last_30">Last 30 days</string>
+    <string name="chart_last_90">Last 90 days</string>
+    <string name="marker_good">%1$s: %2$s kcal, on plan</string>
+    <string name="marker_over">%1$s: %2$s kcal, over target</string>
+    <string name="marker_today">%1$s: %2$s kcal so far</string>
+    <string name="marker_empty">%1$s: nothing logged</string>
+    <string name="meals_section">Meals</string>
+    <string name="meal_empty">Nothing yet</string>
+    <string name="diary_total_left">Total · %1$s left of %2$s</string>
+    <string name="diary_total_over">Total · %1$s over %2$s</string>
+    <string name="add_empty_hint">Search by name, or scan the barcode on the pack.</string>
+    <string name="add_left_after">%1$s kcal left after this</string>
+    <string name="add_over_after">%1$s kcal over after this</string>
+    <string name="favorite_on">In favorites</string>
+    <string name="favorite_off">Not in favorites</string>
+    <string name="plan_footnote" formatted="false">7 days within ±5% of your target, protein first.</string>
+    <string name="plan_on_target">On target</string>
+    <string name="plan_locked">Locked</string>
+    <string name="day_tomorrow">Tomorrow</string>
+    <string name="amount_less">Less</string>
+    <string name="amount_more">More</string>
+    <string name="recipe_portion_chip">×%1$s portion</string>
+    <string name="fridge_ideas_meta">from what you have</string>
+    <string name="ai_card_title">Assistant</string>
+    <string name="shopping_progress">%1$d of %2$d in the basket</string>
+    <string name="shopping_ticked_state">Bought</string>
+    <string name="shopping_have_state">Already at home</string>
+    <string name="settings_save_changes">Save changes</string>
+    <string name="settings_saves_now">Everything below saves as soon as you change it.</string>
+    <string name="reminder_time_cd">%1$s reminder time, %2$s</string>
+    <string name="onboarding_step">%1$d of %2$d</string>
+    <string name="per_day">kcal a day</string>
+    <plurals name="streak_days">
+        <item quantity="one">%d-day streak</item>
+        <item quantity="other">%d-day streak</item>
+    </plurals>
+    <plurals name="stats_caption_days">
+        <item quantity="one">%1$d of %2$d day</item>
+        <item quantity="other">%1$d of %2$d days</item>
+    </plurals>
+    <plurals name="meal_items">
+        <item quantity="one">%1$d item · from %2$s</item>
+        <item quantity="other">%1$d items · from %2$s</item>
+    </plurals>
+    <plurals name="portion_chip">
+        <item quantity="one">%1$s portion · %2$s %3$s</item>
+        <item quantity="other">%1$s portions · %2$s %3$s</item>
+    </plurals>
 </resources>

@@ -1,4 +1,8 @@
 <resources>
-    <!-- Minimal Activity theme: real theming happens in Compose (ui/theme/Theme.kt). -->
-    <style name="Theme.NutriCart" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Minimal Activity theme: real theming happens in Compose (ui/ember/Theme.kt). The window
+         background is the Ember stage colour, so the splash and the first frame match the app
+         (and there is no white flash in dark mode: see values-night). -->
+    <style name="Theme.NutriCart" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ember_bg</item>
+    </style>
 </resources>

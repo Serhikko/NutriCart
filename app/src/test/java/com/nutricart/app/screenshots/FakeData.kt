@@ -315,7 +315,7 @@ object FakeData {
                 carbsG = entries.sumOf { it.carbsG },
             ),
             note = t("Long run in the morning, ate more than planned at lunch.",
-                "Зранку довга пробіжка, в обід з'їв більше, ніж планував."),
+                "Зранку довга пробіжка, в обід зʼїв більше, ніж планував."),
         )
     }
 

@@ -69,7 +69,8 @@ tasks.withType<Test>().configureEach {
         // Where the PNGs go; shoot.sh collects them from here.
         val shotsDir = layout.buildDirectory.dir("outputs/screenshots").get().asFile
         systemProperty("nutricart.screenshots.dir", shotsDir.absolutePath)
-        // -Pscreenshots.variants=light,dark renders only those variants (light, dark, uk, fs130).
+        // -Pscreenshots.variants=light,dark renders only those variants (light, dark, uk, fs130, fs200, rm, uk130;
+        // uk200 only when named).
         providers.gradleProperty("screenshots.variants").orNull
             ?.let { systemProperty("nutricart.screenshots.variants", it) }
         // Real-GPU-like rendering in Robolectric: elevation shadows, dialogs, sheets.
@@ -100,8 +101,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.core) // Settings/ArrowBack icons
-    implementation(libs.androidx.compose.ui.text.google.fonts) // Manrope via Google Fonts
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose) // LifecycleResumeEffect
     implementation(libs.androidx.navigation.compose)

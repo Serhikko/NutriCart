@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Quick add and the shared sheets (G4). Units stand beside a number that is drawn on its own
+         (the stepper's well, the big portion count), so they carry no %d. -->
+    <string name="quickadd_unit_min">min</string>
+    <plurals name="quickadd_unit_reps">
+        <item quantity="one">rep</item>
+        <item quantity="other">reps</item>
+    </plurals>
+    <string name="quickadd_unit_kg">kg</string>
+    <plurals name="quickadd_portions">
+        <item quantity="one">portion</item>
+        <item quantity="other">portions</item>
+    </plurals>
+    <!-- The workout sheet's estimate is drawn as "≈ 318 kcal"; TalkBack reads this instead. -->
+    <string name="quickadd_kcal_about">About %1$s kcal</string>
+    <string name="quickadd_approx" translatable="false">≈</string>
+</resources>

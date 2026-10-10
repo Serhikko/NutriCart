@@ -50,8 +50,15 @@ ready-to-shop grocery list. Offline-first, ad-free, in English and Ukrainian.
 
 ## Tech stack
 
-Kotlin · Jetpack Compose (Material 3) · Room · Hilt · WorkManager ·
+Kotlin · Jetpack Compose · Room · Hilt · WorkManager ·
 Retrofit + kotlinx.serialization · Health Connect · Glance · JUnit
+
+The interface is "Ember", the same design as the NutriCart website: its own
+Compose components in `app/src/main/java/com/nutricart/app/ui/ember/` (tokens,
+type, motion, the day ring, digits that change one by one, cards, inset
+lists, sheets, the floating tab bar), drawn in the bundled Inter typeface,
+with Material 3 underneath only for the few widgets it hosts (bottom sheet,
+date and time pickers, pull to refresh), coloured from the same tokens.
 
 ## Architecture
 
@@ -84,7 +91,8 @@ Every screen has a stateless `XxxContent(state, callbacks)` half, and
 `app/src/test/java/com/nutricart/app/screenshots/` renders them with fake data
 through [Roborazzi](https://github.com/takahirom/roborazzi) on Robolectric
 (no device, no emulator) — phone size 393×852 dp at 440 dpi, light and dark,
-key screens also in Ukrainian and at font scale 1.3.
+key screens also in Ukrainian, at font scales 1.3 and 2.0, and with
+"Remove animations" turned on.
 
 ```
 ./gradlew :app:testDebugUnitTest -Pscreenshots                           # all of them
@@ -92,9 +100,41 @@ key screens also in Ukrainian and at font scale 1.3.
 ./gradlew :app:testDebugUnitTest -Pscreenshots -Pscreenshots.variants=light
 ```
 
-PNGs land in `app/build/outputs/screenshots/<light|dark|uk|fs130>/`. Without
+PNGs land in `app/build/outputs/screenshots/<variant>/<shot>.png`. Without
 `-Pscreenshots` (CI, a plain `./gradlew :app:testDebugUnitTest`) the
 screenshot tests are excluded and the unit tests run exactly as before.
+
+| Variant | What it renders | Which tests |
+|---|---|---|
+| `light`, `dark` | the light and dark themes | every test |
+| `uk` | Ukrainian | tests marked `@KeyScreen` |
+| `fs130`, `fs200` | font scale 1.3 and 2.0 | `@KeyScreen` |
+| `rm` | "Remove animations" on (animator duration scale 0, set before the activity starts, so the app's own detection runs) | `@KeyScreen` |
+| `uk130` | Ukrainian at font scale 1.3 (the longest words at Android's "Large" text) | `@KeyScreen` |
+| `uk200` | Ukrainian at font scale 2.0; only when named (`-Pscreenshots.variants=uk200`) | `@KeyScreen` |
+
+- Motion is shot as frames: a test written with `shootFrames(...)` pauses the
+  clock and saves `<shot>-t<ms>.png` at each time (for example the first open
+  of Today, back from Add food, a sheet rising, the plan regenerating).
+- After every capture the harness lists each clickable element smaller than
+  48 × 48 dp in `app/build/outputs/screenshots/touch-targets.txt` (a report,
+  not a failure; it should stay empty).
+- Inter is a font resource, so Robolectric renders the same type as a phone.
+- `DigitsRedrawTest` runs the animated numbers in a real activity on a paused
+  looper, so effects start after the first draw as on a phone (the compose test
+  rule starts them before it), and checks each number ends on its real value.
+- `ComponentScreenshots` is the gallery of shared pieces (the Today cards, the
+  profile form, the fridge assistant, the shared sheets);
+  `Ember*Screenshots` cover the design system's components in depth.
+
+## Third-party assets
+
+- **Inter** (the app's typeface), © The Inter Project Authors, under the
+  SIL Open Font License 1.1. The four static weights (400, 500, 600, 700,
+  from Google Fonts) live in `app/src/main/res/font/` and are bundled, so the
+  app needs no downloadable-fonts provider and no network for its type; the
+  licence text ships inside the APK as
+  `app/src/main/assets/licenses/OFL-Inter.txt`.
 
 ## License
 

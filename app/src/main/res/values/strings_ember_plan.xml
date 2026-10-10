@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Meal plan, Recipe, Fridge and To buy (G3). -->
+    <!-- The gram unit on its own, drawn smaller next to a number that changes digit by digit
+         (grams_value carries the number inside it). -->
+    <string name="plan_unit_g">g</string>
+    <!-- A plan meal's portion factor in its slot line ("Lunch · ×1.20"); %1$s is already formatted. -->
+    <string name="plan_portion_factor">×%1$s</string>
+    <!-- A plan day's total against the target, numbers already formatted with the thousands
+         separator ("2,220 / 2,240 kcal"); day_kcal_vs_target takes plain integers. -->
+    <string name="plan_kcal_vs_target">%1$s / %2$s kcal</string>
+    <!-- A recipe screen opened with an id the recipe book no longer has. -->
+    <string name="recipe_missing_title">Recipe not found</string>
+    <string name="recipe_missing_lead">Nothing to cook here</string>
+    <string name="recipe_missing_body">This dish is no longer in the recipe book, perhaps after an app update. Go back and pick another one.</string>
+</resources>

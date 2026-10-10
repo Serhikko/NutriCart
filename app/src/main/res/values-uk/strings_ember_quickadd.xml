@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="quickadd_unit_min">хв</string>
+    <!-- "1 повтор", "2 повтори", "5 повторів". -->
+    <plurals name="quickadd_unit_reps" tools:ignore="ImpliedQuantity">
+        <item quantity="one">повтор</item>
+        <item quantity="few">повтори</item>
+        <item quantity="many">повторів</item>
+        <item quantity="other">повтору</item>
+    </plurals>
+    <string name="quickadd_unit_kg">кг</string>
+    <!-- "1 порція", "3 порції", "5 порцій". -->
+    <plurals name="quickadd_portions" tools:ignore="ImpliedQuantity">
+        <item quantity="one">порція</item>
+        <item quantity="few">порції</item>
+        <item quantity="many">порцій</item>
+        <item quantity="other">порції</item>
+    </plurals>
+    <string name="quickadd_kcal_about">Приблизно %1$s ккал</string>
+</resources>

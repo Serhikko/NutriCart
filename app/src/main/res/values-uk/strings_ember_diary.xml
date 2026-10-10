@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="diary_unit_g">г</string>
+    <!-- A unit beside a number that is drawn on its own (the stepper's well), so no %d here:
+         "1 порція", "21 порція", "2 порції", "5 порцій". -->
+    <plurals name="diary_unit_portions" tools:ignore="ImpliedQuantity">
+        <item quantity="one">порція</item>
+        <item quantity="few">порції</item>
+        <item quantity="many">порцій</item>
+        <item quantity="other">порції</item>
+    </plurals>
+    <string name="diary_ring_after_cd">Після цього — %1$s денної цілі</string>
+</resources>

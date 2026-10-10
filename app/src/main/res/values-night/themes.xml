@@ -1,0 +1,6 @@
+<resources>
+    <!-- Dark twin of values/themes.xml: a dark window before Compose draws its first frame. -->
+    <style name="Theme.NutriCart" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ember_bg</item>
+    </style>
+</resources>

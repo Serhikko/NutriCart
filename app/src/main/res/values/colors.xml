@@ -1,3 +1,7 @@
 <resources>
-    <color name="ic_launcher_background">#059669</color>
+    <!-- Ember tokens the platform needs outside Compose (ui/ember/Tokens.kt holds the rest). -->
+    <!-- bg: the window background behind the first frame and the system splash. -->
+    <color name="ember_bg">#F5F5F7</color>
+    <!-- tint: the notification accent (the shade adjusts it for contrast). -->
+    <color name="ember_notification">#C2410C</color>
 </resources>

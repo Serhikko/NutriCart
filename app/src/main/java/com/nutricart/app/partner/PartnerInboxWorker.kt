@@ -93,6 +93,8 @@ class PartnerInboxWorker @AssistedInject constructor(
         )
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            // The Ember tint (day and night values); the shade adjusts it for contrast itself.
+            .setColor(ContextCompat.getColor(applicationContext, R.color.ember_notification))
             .setContentTitle(sender)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

@@ -164,6 +164,8 @@ class MealReminderWorker @AssistedInject constructor(
         val slotLabel = applicationContext.getString(slotLabelRes(slot))
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            // The Ember tint (day and night values); the shade adjusts it for contrast itself.
+            .setColor(ContextCompat.getColor(applicationContext, R.color.ember_notification))
             .setContentTitle(applicationContext.getString(R.string.reminder_title))
             .setContentText(applicationContext.getString(R.string.reminder_text, slotLabel))
             .setContentIntent(pending)

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen widget (B4). widget_eaten_of_target takes plain integers (%d), which cannot
+         carry the locale's thousands separator; this one takes numbers already formatted. -->
+    <string name="widget_eaten_line">%1$s / %2$s kcal</string>
+</resources>
