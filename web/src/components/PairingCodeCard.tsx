@@ -21,6 +21,8 @@ interface PairingCodeCardProps {
   /** Copies the code; omitted where the clipboard is not available. */
   onCopy?: () => void;
   copyLabel?: string;
+  /** Why no code can be made yet (no name saved): shown, and "New code" waits. */
+  blockedHint?: string;
 }
 
 /**
@@ -30,7 +32,18 @@ interface PairingCodeCardProps {
  * Without a live code the capsule shows six empty places instead, so the
  * group keeps its shape.
  */
-export function PairingCodeCard({ code, minutesLeft, expired, fresh = false, onNew, pending = false, failed = false, onCopy, copyLabel }: PairingCodeCardProps) {
+export function PairingCodeCard({
+  code,
+  minutesLeft,
+  expired,
+  fresh = false,
+  onNew,
+  pending = false,
+  failed = false,
+  onCopy,
+  copyLabel,
+  blockedHint,
+}: PairingCodeCardProps) {
   const { t } = useI18n();
   const live = code !== null && minutesLeft > 0;
 
@@ -74,8 +87,9 @@ export function PairingCodeCard({ code, minutesLeft, expired, fresh = false, onN
       ) : null}
 
       {failed && <Notice tone="error" title={t('welcome.failed')} />}
+      {blockedHint && <p className="footnote">{blockedHint}</p>}
 
-      <Button variant="fill" icon="refresh" className="code-new" onClick={onNew} disabled={pending}>
+      <Button variant="fill" icon="refresh" className="code-new" onClick={onNew} disabled={pending || Boolean(blockedHint)}>
         {t('settings.code_new')}
       </Button>
     </div>

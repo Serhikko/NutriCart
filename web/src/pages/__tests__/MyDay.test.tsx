@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '../../lib/i18n';
@@ -35,6 +35,10 @@ const world = vi.hoisted(() => ({
   nudges: [] as Nudge[],
   /** The list of people you follow has not arrived yet. */
   followedPending: false,
+  /** The accounts in that list. */
+  followed: [{ linkId: 'l1', ownerId: 'p1', ownerName: 'Andrii' }],
+  /** When that list was fetched: by default after the page opened; 0 = a cached list from before. */
+  followedAt: Number.POSITIVE_INFINITY,
 }));
 /** What the page wrote to Supabase itself (Undo's copy, a row at a new amount). */
 const db = vi.hoisted(() => ({ inserts: [] as { table: string; row: Record<string, unknown> }[] }));
@@ -82,7 +86,9 @@ vi.mock('../../lib/queries', () => ({
   useWeek: () => ({ data: undefined }),
   useOwnerRealtime: () => undefined,
   useFollowed: () =>
-    world.followedPending ? { data: undefined, isError: false } : { data: [{ linkId: 'l1', ownerId: 'p1', ownerName: 'Andrii' }], isError: false },
+    world.followedPending
+      ? { data: undefined, isError: false, dataUpdatedAt: 0 }
+      : { data: world.followed, isError: false, dataUpdatedAt: world.followedAt },
   useMyProfile: () => ({ data: 'Olena' }),
   useMyNudges: () => ({ data: world.nudges }),
   // Sending succeeds at once.
@@ -103,6 +109,7 @@ vi.mock('../../lib/tracker', () => ({
 
 const { MyDay } = await import('../MyDay');
 const { Day } = await import('../Day');
+const { Week } = await import('../Week');
 const { WaterCard } = await import('../../components/WaterCard');
 const { WeightCard } = await import('../../components/WeightCard');
 
@@ -115,6 +122,7 @@ function renderAt(path: string, state?: unknown) {
     [
       { path: '/me/day', element: <MyDay /> },
       { path: '/a/:ownerId/day', element: <Day /> },
+      { path: '/a/:ownerId/week', element: <Week /> },
       { path: '/me/add/:epochDay/:slot', element: <p>add</p> },
     ],
     { initialEntries: [{ pathname: path, state }] },
@@ -145,6 +153,8 @@ beforeEach(() => {
   world.nudges = [];
   world.failing.clear();
   world.followedPending = false;
+  world.followed = [{ linkId: 'l1', ownerId: 'p1', ownerName: 'Andrii' }];
+  world.followedAt = Number.POSITIVE_INFINITY;
   db.inserts = [];
   writes.deleteFood.mockClear();
   writes.addWater.mockClear();
@@ -391,5 +401,34 @@ describe('Day (a partner)', () => {
     renderAt('/a/p1/day');
     expect(screen.queryByText(/NutriCart's day/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Loading…');
+  });
+
+  it('says access ended, instead of an empty day, once the owner removed you', () => {
+    world.days.set(TODAY, { entries: [], water: [], summary: null });
+    world.followed = [];
+    renderAt('/a/p1/day');
+    expect(screen.getByText(/You no longer follow this account/)).toBeInTheDocument();
+    expect(screen.queryByText('Nothing logged yet.')).not.toBeInTheDocument();
+    expect(document.getElementById('nudge')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'previous day' })).not.toBeInTheDocument();
+  });
+
+  it('says the same on their week', () => {
+    world.followed = [];
+    renderAt('/a/p1/week');
+    expect(screen.getByText(/You no longer follow this account/)).toBeInTheDocument();
+  });
+
+  it('shows the day, not the lock, while the only list is a cached one from before the follow', () => {
+    // A code was just redeemed but the list's refetch failed, or another tab followed them.
+    world.followed = [];
+    world.followedAt = 0;
+    renderAt('/a/p1/day');
+    expect(screen.queryByText(/You no longer follow this account/)).not.toBeInTheDocument();
+    expect(document.getElementById('nudge')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'previous day' })).toBeInTheDocument();
+    cleanup();
+    renderAt('/a/p1/week');
+    expect(screen.queryByText(/You no longer follow this account/)).not.toBeInTheDocument();
   });
 });

@@ -32,7 +32,9 @@ export function Day() {
   const { t, tag } = useI18n();
   const session = useSession();
   const { userId } = session;
-  const followed = useFollowed(userId);
+  // Polled like the day itself, so an open page notices within a minute when the owner removed you.
+  const followed = useFollowed(userId, 60_000);
+  const [openedAt] = useState(() => Date.now());
   const first = useRouteFirstOpen();
   const desktop = useMediaQuery(DESKTOP_QUERY, false);
   const today = todayEpochDay();
@@ -47,6 +49,11 @@ export function Day() {
   const owner = followed.data?.find((a) => a.ownerId === ownerId);
   const naming = followed.data === undefined && !followed.isError && (session.loading || userId != null);
   const title = t('day.title', { name: owner?.ownerName ?? 'NutriCart' });
+  // Not (or no longer) in that list: the owner removed you, you unfollowed elsewhere, or the link
+  // is someone else's. RLS then hides every row, which would read as an empty day. Only a list
+  // fetched since the page opened says so: the cached one may predate a code you just redeemed
+  // (its refetch failed, or another tab followed them), and a failed poll keeps the last answer.
+  const notFollowing = followed.data !== undefined && followed.dataUpdatedAt >= openedAt && !owner;
 
   // A day that is still loading keeps the last one on screen (dimmed), so the ring moves from
   // it. A day that failed to load does not: it gets the error and its Retry.
@@ -83,7 +90,7 @@ export function Day() {
       eyebrow={
         <>
           {longDate(epochDay, tag)}
-          {isToday && (
+          {isToday && !notFollowing && (
             <span key={pings.current.n} className={pings.current.n > 0 ? 'live ping' : 'live'}>
               {t('day.live')}
             </span>
@@ -93,20 +100,28 @@ export function Day() {
       title={naming ? <Skeleton variant="line" width="5.6em" height=".8em" className="title-skel" label={t('loading')} /> : title}
       compact={compact}
       actions={
-        <DayNav
-          label={isToday ? t('day.today') : shortDate(epochDay, tag)}
-          onPrev={() => setEpochDay((d) => d - 1)}
-          onNext={() => setEpochDay((d) => Math.min(today, d + 1))}
-          nextDisabled={epochDay >= today}
-        />
+        notFollowing ? undefined : (
+          <DayNav
+            label={isToday ? t('day.today') : shortDate(epochDay, tag)}
+            onPrev={() => setEpochDay((d) => d - 1)}
+            onNext={() => setEpochDay((d) => Math.min(today, d + 1))}
+            nextDisabled={epochDay >= today}
+          />
+        )
       }
     />
   );
 
-  const nudge = <NudgeBox ownerId={ownerId} userId={userId} />;
+  const nudge = notFollowing ? null : <NudgeBox ownerId={ownerId} userId={userId} />;
 
   let body;
-  if (!data && day.isError) {
+  if (notFollowing) {
+    body = (
+      <div className="card day-nothing a-rise">
+        <EmptyState icon="lock" title={t('day.not_following')} titleAs="p" />
+      </div>
+    );
+  } else if (!data && day.isError) {
     body = (
       <Notice
         tone="error"
@@ -170,7 +185,7 @@ export function Day() {
         <div className="today-side">{desktop && nudge}</div>
       </div>
       {!desktop && nudge}
-      {warmed !== epochDay - 1 && <WarmDay ownerId={ownerId} epochDay={epochDay - 1} onDone={setWarmed} />}
+      {warmed !== epochDay - 1 && !notFollowing && <WarmDay ownerId={ownerId} epochDay={epochDay - 1} onDone={setWarmed} />}
     </>
   );
 }

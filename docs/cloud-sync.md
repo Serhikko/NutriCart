@@ -52,19 +52,45 @@ keeps the account and its server data; a later enable re-uses the session.
 
 ## Pairing
 
-The phone generates a 6-character code (`PairingCode`: no 0/O/1/I), stores
-its SHA-256 on the server with a 15-minute expiry, and shows the plain code.
-The website calls `redeem_pairing_code(code)`, a `SECURITY DEFINER` function
-that checks hash, expiry and single use, rate-limits to five failures per ten
-minutes, and inserts a `partner_links` row. Row-level security then lets the
-partner read the owner's rows and insert `nudges`. Either side can delete the
-link.
+The owner makes a 6-character code (`PairingCode`: no 0/O/1/I), on the phone
+(Settings → Cloud sync & website → New code) or on the website (Settings →
+Share your day). Either client first deletes the owner's older codes, then
+inserts the new code's SHA-256 and shows the plain code; only the hash is
+stored. An owner may select, insert and delete their own `pairing_codes`
+rows and nobody else's (migration `0007`: the phone's upsert and the
+delete-before-insert both need the owner's SELECT policy). The server sets
+the 15-minute expiry from its own clock on insert, whatever the client sent,
+and keeps one code per account (an insert deletes the account's other
+codes). `code_hash` is not unique (`0007` drops 0001's constraint): with it,
+inserting candidate hashes told anyone which of them was someone else's
+live code without a single redeem. A redeem never matches the caller's own
+code (it counts as a wrong one, so a guess cannot be tested by making it
+one's own code first; the website says "your own code" from the code it is
+showing), and a hash held by live codes of two accounts links nobody.
+
+The partner types the code on the website (Home → Follow someone's day;
+Cyrillic look-alike letters are read as the Latin ones). It calls
+`redeem_pairing_code(code)`, a `SECURITY DEFINER` function that checks hash,
+expiry and single use and inserts a `partner_links` row. Five calls in ten
+minutes, right or wrong, lock the caller's account out: one caller's calls
+run one at a time, a success counts like a failure (so a second account
+holding the guesses learns nothing for free), and the redeem is the only way
+to learn whether a code is live. Row-level security then
+lets the partner read the owner's profile name and live rows (not the
+tombstones of deleted lines) and insert `nudges`. Either side can delete the
+link. `supabase/tests/pairing.test.sql` runs this whole flow against the
+schema in CI.
 
 ## Nudges
 
-The website inserts a `nudges` row. The phone's `PartnerInboxWorker` (the
-same 15-minute cycle as the Telegram inbox, plus one run on every app open)
-reads unseen nudges, marks them seen, and shows one notification per message.
+The website inserts a `nudges` row (clients may set only `owner_id`,
+`from_id`, `from_name` and `text`; the server fills `from_name` from the
+sender's profile name). The phone's `PartnerInboxWorker` (the same 15-minute
+cycle as the Telegram inbox, plus one run when the app starts, from
+`MainActivity.onCreate`; nothing polls while the app stays open) reads unseen
+nudges, marks them seen (the only column an owner may change), and shows one
+notification per message. Nothing else shows nudges to the owner, so an
+owner without the Android app gets none; the website tells the partner so.
 
 ## What never leaves the phone
 
@@ -97,8 +123,8 @@ so both clients print the same target for the same person.
   when someone taps Scan.
 
 A partner sees a web-only account exactly like a phone account: same Day and
-Week pages, same nudge button (the nudge then has nowhere to land until
-milestone 3's web push).
+Week pages, same nudge button (the nudge then has nowhere to land until Web
+Push, which is not in milestones 1–3; see the end of this document).
 
 ### Products added under their barcode (`custom_products`, migration `0005`)
 
@@ -222,9 +248,11 @@ in `PullRules`:
 
 The pull runs on every drain, on app open, and every 15 minutes in the
 background (WorkManager's minimum), so a lunch logged on the website is on the
-phone by the time it is opened. The website's writes to a phone account touch
-only `eaten_kcal` in `day_summaries` (`web/src/domain/summary.ts`); the phone
-republishes the full row, activity included, on its next sync.
+phone by the time it is opened. The website's writes to a phone account move
+only `eaten_kcal` in `day_summaries` (`web/src/domain/summary.ts`; the row's
+own `target_kcal` goes back unchanged, since the upsert's insert half must
+satisfy `NOT NULL`); the phone republishes the full row, activity included,
+on its next sync.
 
 ## Not in milestones 1–3
 

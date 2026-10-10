@@ -10,7 +10,8 @@ describe('day summary policy', () => {
     expect(daySummaryPayload({ targetKcal: null, primaryClient: 'web' }, 500, null)).toBeNull();
   });
   it("a phone account's existing row keeps the phone's target, only eaten moves", () => {
-    expect(daySummaryPayload({ targetKcal: 2100, primaryClient: 'phone' }, 1230, { target_kcal: 2350 })).toEqual({ eaten_kcal: 1230 });
+    // The target is sent back as it is: an upsert of eaten_kcal alone breaks target_kcal's NOT NULL.
+    expect(daySummaryPayload({ targetKcal: 2100, primaryClient: 'phone' }, 1230, { target_kcal: 2350 })).toEqual({ eaten_kcal: 1230, target_kcal: 2350 });
   });
   it('a phone account with no row yet gets the web target as a stand-in', () => {
     expect(daySummaryPayload({ targetKcal: 2100, primaryClient: 'phone' }, 1230, null)).toEqual({ eaten_kcal: 1230, target_kcal: 2100 });

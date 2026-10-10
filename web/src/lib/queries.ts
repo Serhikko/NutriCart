@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import { lastDays } from './dates';
-import { PAIRING_VALIDITY_MINUTES, generatePairingCode, hashPairingCode, normalizePairingCode } from './pairing';
+import { PAIRING_VALIDITY_MINUTES, generatePairingCode, hashPairingCode, normalizePairingCode, readStoredPairing } from './pairing';
 import type { DaySummary, FoodLogEntry, Nudge, WaterEntry, WeightEntry } from './diary';
 
 /**
@@ -21,10 +21,12 @@ export interface FollowedAccount {
 const ownerName = (row: { owner: { display_name: string | null } | null }, fallback: string) =>
   row.owner?.display_name?.trim() || fallback;
 
-export function useFollowed(userId: string | null) {
+/** `refetchInterval` (ms): a page showing a followed day notices within it when the owner removed you. */
+export function useFollowed(userId: string | null, refetchInterval?: number) {
   return useQuery({
     queryKey: ['followed', userId],
     enabled: Boolean(userId),
+    refetchInterval,
     queryFn: async (): Promise<FollowedAccount[]> => {
       const { data, error } = await supabase
         .from('partner_links')
@@ -65,7 +67,23 @@ export function useSaveMyName(userId: string | null) {
 }
 
 /** Error codes redeem_pairing_code raises, mapped to the welcome screen's messages. */
-export type RedeemFailure = 'bad_code' | 'own_code' | 'too_many' | 'offline' | 'failed';
+export type RedeemFailure = 'bad_code' | 'own_code' | 'too_many' | 'session' | 'offline' | 'failed';
+
+/**
+ * A request that never reached the server. supabase-js answers it with
+ * status 0 and an error without a code, whose message is the browser's own:
+ * "Failed to fetch" (Chrome), "NetworkError when attempting to fetch
+ * resource." (Firefox), "Load failed" or "The Internet connection appears to
+ * be offline." (Safari, so every browser on an iPhone).
+ */
+export function isOfflineError(error: { code?: string; message?: string } | null | undefined, status?: number): boolean {
+  if (status === 0) return true;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  return !error?.code && /fetch|load failed|network|internet connection|offline/i.test(error?.message ?? '');
+}
+
+/** No usable session: the RPC's "not signed in" (only the anon key was sent), or PostgREST refusing the JWT. */
+const SESSION_ERRORS = ['28000', 'PGRST301', 'PGRST303'];
 
 /** The people who redeemed this account's code (the phone's "Who can see your day"). */
 export interface MyPartner {
@@ -105,9 +123,13 @@ export function useRemovePartner(userId: string | null) {
 }
 
 /**
- * A fresh pairing code, as the phone's Settings makes one: older unused
- * codes of this account are discarded first, so exactly one works at a
- * time; only the hash goes to the server, the plain code stays on screen.
+ * A fresh pairing code, as the phone's Settings makes one: older codes of
+ * this account are discarded first, so exactly one works at a time (the
+ * delete matches rows only since migration 0007 lets an owner read their
+ * own codes); only the hash goes to the server, the plain code stays on
+ * screen. The server sets the 15 minutes from its own clock; the expiry sent
+ * here only matters on a project without 0007, and the countdown on screen
+ * is 15 minutes of this device's clock either way.
  */
 export function useNewPairingCode(userId: string | null) {
   return useMutation({
@@ -134,11 +156,16 @@ export function useRedeemCode(userId: string | null) {
     mutationFn: async (rawCode: string) => {
       const code = normalizePairingCode(rawCode);
       lastRedeemDetail = null;
-      const { data, error } = await supabase.rpc('redeem_pairing_code', { p_code: code });
+      // The database answers your own code like a wrong one (and counts it), so a guess cannot be
+      // tested by making it your own code first; the code this browser is showing is known here.
+      const shown = readStoredPairing();
+      if (shown && shown.owner === userId && normalizePairingCode(shown.code) === code) throw 'own_code';
+      const { data, error, status } = await supabase.rpc('redeem_pairing_code', { p_code: code });
       if (error) {
-        if (error.code === '22023') throw 'own_code';
+        if (error.code === '22023') throw 'own_code'; // a project without 0007 still raises it
         if (error.code === '54000') throw 'too_many';
-        if (error.message?.toLowerCase().includes('fetch')) throw 'offline';
+        if (SESSION_ERRORS.includes(error.code)) throw 'session';
+        if (isOfflineError(error, status)) throw 'offline';
         lastRedeemDetail = `${error.code ?? ''} ${error.message ?? ''}`.trim();
         throw 'failed';
       }

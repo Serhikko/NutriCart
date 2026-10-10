@@ -13,11 +13,15 @@ const store = vi.hoisted(() => ({
   /** While set, the lists do not answer (loading). */
   hold: null as Promise<void> | null,
   failRemove: false,
+  /** The account's saved name ('' for none) and its questionnaire (primary_client), if any. */
+  profile: 'Olena',
+  details: null as { primary_client: 'phone' | 'web'; sex: 'FEMALE'; birth_date: string; height_cm: number; goal: 'MAINTAIN'; custom_kcal_target: null } | null,
+  newCode: vi.fn(),
 }));
 
 vi.mock('../../lib/session', () => ({ useSession: () => ({ userId: 'u1', email: null, isAnonymous: true, loading: false }) }));
 vi.mock('../../lib/supabase', () => ({ supabase: { auth: {} }, isConfigured: true }));
-vi.mock('../../lib/tracker', () => ({ useProfileDetails: () => ({ data: null }) }));
+vi.mock('../../lib/tracker', () => ({ useProfileDetails: () => ({ data: store.details }) }));
 vi.mock('../../lib/queries', async () => {
   const { useMutation, useQuery, useQueryClient } = await import('@tanstack/react-query');
   const list =
@@ -50,9 +54,9 @@ vi.mock('../../lib/queries', async () => {
     useUnfollow: remove('followed', (id) => {
       store.followed = store.followed.filter((a) => a.linkId !== id);
     }),
-    useMyProfile: () => ({ data: 'Olena' }),
+    useMyProfile: () => ({ data: store.profile, isSuccess: true }),
     useSaveMyName: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false, isError: false }),
-    useNewPairingCode: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+    useNewPairingCode: () => ({ mutate: store.newCode, isPending: false, isError: false }),
   };
 });
 
@@ -83,6 +87,9 @@ beforeEach(() => {
   store.followed = [{ linkId: 'f1', ownerId: 'o1', ownerName: 'Andrii' }];
   store.hold = null;
   store.failRemove = false;
+  store.profile = 'Olena';
+  store.details = null;
+  store.newCode = vi.fn();
 });
 afterEach(() => localStorage.clear());
 
@@ -179,5 +186,50 @@ describe('Settings', () => {
     fireEvent.click(within(group).getByRole('radio', { name: 'Русский' }));
     await waitFor(() => expect(document.documentElement.lang).toBe('ru'));
     expect(localStorage.getItem('nutricart.locale')).toBe('ru');
+  });
+
+  it('shows the stored pairing code only to the account that made it', async () => {
+    const later = Date.now() + 10 * 60_000;
+    // Made by another account in this browser (before a sign-in, or before Forget this device).
+    localStorage.setItem('nutricart.pairing', JSON.stringify({ owner: 'someone-else', code: 'K7QM2P', expiresAt: later }));
+    const { unmount } = renderSettings();
+    expect(within(section('Share your day')).queryByText('K7QM2P')).toBeNull();
+    unmount();
+
+    // Stored before codes carried their account: not shown either.
+    localStorage.setItem('nutricart.pairing', JSON.stringify({ code: 'K7QM2P', expiresAt: later }));
+    const second = renderSettings();
+    expect(within(section('Share your day')).queryByText('K7QM2P')).toBeNull();
+    second.unmount();
+
+    localStorage.setItem('nutricart.pairing', JSON.stringify({ owner: 'u1', code: 'K7QM2P', expiresAt: later }));
+    renderSettings();
+    expect(within(section('Share your day')).getByText('K7QM2P')).toBeInTheDocument();
+  });
+
+  it('asks for a name before making a code, so the partner does not follow "NutriCart"', () => {
+    store.profile = '';
+    renderSettings();
+    const share = section('Share your day');
+    expect(within(share).getByText('Save your name below first, so they know whose day it is.')).toBeInTheDocument();
+    const button = within(share).getByRole('button', { name: 'New code' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(store.newCode).not.toHaveBeenCalled();
+  });
+
+  it("shows a phone account's name without a field, since the phone would put its own back", () => {
+    store.details = { primary_client: 'phone', sex: 'FEMALE', birth_date: '1990-01-01', height_cm: 170, goal: 'MAINTAIN', custom_kcal_target: null };
+    renderSettings();
+    const name = section('Your name');
+    expect(within(name).getByText('Olena')).toBeInTheDocument();
+    expect(within(name).getByText(/Your name is set in the NutriCart app on your phone/)).toBeInTheDocument();
+    expect(within(name).queryByRole('textbox')).toBeNull();
+    expect(within(name).queryByRole('button', { name: 'Save' })).toBeNull();
+  });
+
+  it('warns an anonymous follower that signing in to another account leaves the follows behind', async () => {
+    renderSettings();
+    expect(await within(section('Account')).findByText(/You follow people from this browser's account/)).toBeInTheDocument();
   });
 });

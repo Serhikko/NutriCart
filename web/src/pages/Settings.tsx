@@ -17,28 +17,9 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { useToast } from '../components/ui/Toast';
 import { Initial } from '../components/FollowingList';
 import { PairingCodeCard } from '../components/PairingCodeCard';
+import { forgetStoredPairing, readStoredPairing, writeStoredPairing, type StoredPairing } from '../lib/pairing';
 
 type AccountNotice = { key: string; email?: string; error?: boolean } | null;
-
-/** The code on screen survives a reload; it is useless to anyone else once redeemed or expired. */
-const PAIRING_KEY = 'nutricart.pairing';
-function readPairing(): { code: string; expiresAt: number } | null {
-  try {
-    const raw = localStorage.getItem(PAIRING_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { code: string; expiresAt: number };
-    return parsed.expiresAt > Date.now() ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-function writePairing(value: { code: string; expiresAt: number }) {
-  try {
-    localStorage.setItem(PAIRING_KEY, JSON.stringify(value));
-  } catch {
-    /* private mode: the code just does not survive a reload */
-  }
-}
 
 /**
  * Age from a stored birth date. "YYYY-MM-DD" is read as a local calendar
@@ -225,7 +206,10 @@ export function Settings() {
   const removePartner = useRemovePartner(userId);
   const newCode = useNewPairingCode(userId);
   const toast = useToast();
-  const [pairing, setPairing] = useState<{ code: string; expiresAt: number } | null>(() => readPairing());
+  const [stored, setStored] = useState<StoredPairing | null>(() => readStoredPairing());
+  // Compared on every render, not when the page opens: the session is still loading then, and a
+  // sign-in swaps the account while the page stays open.
+  const pairing = stored && stored.owner === userId ? stored : null;
   const [freshCode, setFreshCode] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [name, setName] = useState('');
@@ -242,10 +226,12 @@ export function Settings() {
   const makeCode = () =>
     newCode.mutate(undefined, {
       onSuccess: (fresh) => {
-        setPairing(fresh);
+        if (!userId) return;
+        const value = { ...fresh, owner: userId };
+        setStored(value);
         setFreshCode(true);
         setNow(Date.now());
-        writePairing(fresh);
+        writeStoredPairing(value);
       },
     });
   const minutesLeft = pairing ? Math.max(0, Math.ceil((pairing.expiresAt - now) / 60_000)) : 0;
@@ -269,6 +255,7 @@ export function Settings() {
   };
 
   const forget = async () => {
+    forgetStoredPairing();
     await supabase.auth.signOut();
     window.location.href = '/';
   };
@@ -382,6 +369,10 @@ export function Settings() {
   );
 
   const signedIn = !isAnonymous && Boolean(email);
+  // A phone account's name is the app's: the phone publishes it again on every sync.
+  const phoneAccount = details.data?.primary_client === 'phone';
+  // A partner who redeems a code of an account without a name sees "NutriCart's day".
+  const needsName = profile.isSuccess && !profile.data;
 
   const entries: IndexEntry[] = [
     { id: 'set-share', label: t('settings.share') },
@@ -430,6 +421,7 @@ export function Settings() {
                     onNew={makeCode}
                     pending={newCode.isPending}
                     failed={newCode.isError}
+                    blockedHint={needsName ? t('settings.code_needs_name') : undefined}
                     onCopy={canCopy ? copyCode : undefined}
                     copyLabel={t('settings.code_copy')}
                   />
@@ -473,20 +465,29 @@ export function Settings() {
           )}
 
           <Section id="set-name" title={t('settings.name')} index={i++}>
-            <div className="card set-group">
-              <div className="set-inline">
-                <div className="field">
-                  <input id="myname" type="text" maxLength={40} autoComplete="nickname" aria-labelledby="set-name-h" value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-                <Button variant="ink" size="sm" onClick={() => saveName.mutate(name)} disabled={!name.trim() || saveName.isPending}>
-                  {t('settings.save')}
-                </Button>
+            {phoneAccount ? (
+              <div className="card set-group set-list">
+                <p className="set-row set-summary">{profile.data}</p>
+                <p className="set-row footnote">{t('settings.name_phone')}</p>
               </div>
-              {saveName.isError && <Notice tone="error" title={t('welcome.failed')} />}
-            </div>
-            <p className={saveName.isSuccess ? 'set-foot' : 'set-foot is-idle'} role="status">
-              {saveName.isSuccess ? t('settings.saved') : ''}
-            </p>
+            ) : (
+              <>
+                <div className="card set-group">
+                  <div className="set-inline">
+                    <div className="field">
+                      <input id="myname" type="text" maxLength={40} autoComplete="nickname" aria-labelledby="set-name-h" value={name} onChange={(e) => setName(e.target.value)} />
+                    </div>
+                    <Button variant="ink" size="sm" onClick={() => saveName.mutate(name)} disabled={!name.trim() || saveName.isPending}>
+                      {t('settings.save')}
+                    </Button>
+                  </div>
+                  {saveName.isError && <Notice tone="error" title={t('welcome.failed')} />}
+                </div>
+                <p className={saveName.isSuccess ? 'set-foot' : 'set-foot is-idle'} role="status">
+                  {saveName.isSuccess ? t('settings.saved') : ''}
+                </p>
+              </>
+            )}
           </Section>
 
           {details.data && (
@@ -529,6 +530,8 @@ export function Settings() {
               ) : (
                 <>
                   <p className="footnote">{t('settings.account_hint')}</p>
+                  {/* The follows belong to this anonymous account; signing in to another leaves them here. */}
+                  {isAnonymous && Boolean(followed.data?.length) && <p className="footnote">{t('settings.account_follow_warning')}</p>}
                   <div className="set-field">
                     <label htmlFor="email" className="field-label">
                       {t('settings.account_email')}

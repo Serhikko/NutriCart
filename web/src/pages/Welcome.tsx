@@ -1,8 +1,8 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
-import { lastRedeemDetail, useDay, useFollowed, useMyProfile, useRedeemCode, useSaveMyName } from '../lib/queries';
+import { isOfflineError, lastRedeemDetail, useDay, useFollowed, useMyProfile, useRedeemCode, useSaveMyName, type RedeemFailure } from '../lib/queries';
 import { isWellFormedPairingCode, normalizePairingCode } from '../lib/pairing';
 import { useProfileDetails } from '../lib/tracker';
 import { useMyTargets } from '../lib/myTargets';
@@ -74,21 +74,50 @@ export function Welcome() {
   const first = useRouteFirstOpen();
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
+  const [nameMissing, setNameMissing] = useState(false);
+  const nameField = useRef<HTMLInputElement>(null);
+  /** A submit is under way (the name, then the code): a second click waits, even before the button re-renders. */
+  const submitting = useRef(false);
   useCompactTitle(t('app.name'));
 
   const normalized = normalizePairingCode(code);
   const wellFormed = isWellFormedPairingCode(normalized);
+  // A phone account's name comes from the app, which publishes it again on every sync.
+  const phoneAccount = details.data?.primary_client === 'phone';
+  // The owner sees this name in their list; without one the server's placeholder ("Partner") shows.
+  const needsName = !phoneAccount && profile.isSuccess && !profile.data;
+  const busy = saveName.isPending || redeem.isPending;
+  const noSession = !loading && !userId;
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!wellFormed) return;
-    const chosen = name.trim() || profile.data || '';
-    if (chosen && chosen !== profile.data) await saveName.mutateAsync(chosen);
+    if (!wellFormed || !userId || submitting.current) return;
+    const chosen = phoneAccount ? '' : name.trim();
+    if (needsName && !chosen) {
+      setNameMissing(true);
+      nameField.current?.focus();
+      return;
+    }
+    submitting.current = true;
+    saveName.reset();
+    redeem.reset();
+    if (chosen && chosen !== profile.data) {
+      try {
+        await saveName.mutateAsync(chosen);
+      } catch {
+        // Shown below (saveName.error); the code is not spent, so Connect simply tries again.
+        submitting.current = false;
+        return;
+      }
+    }
     redeem.mutate(normalized, {
       onSuccess: (account) => {
         // Following someone is a drill-in: their day slides in from the right.
         setNavDirection('forward');
         navigate(`/a/${account.ownerId}/day`, { viewTransition: true });
+      },
+      onSettled: () => {
+        submitting.current = false;
       },
     });
   };
@@ -118,7 +147,17 @@ export function Welcome() {
 
   const sessionLoading = loading || (Boolean(userId) && details.isLoading);
   const onboarded = Boolean(details.data);
-  const failed = redeem.isError;
+  // The name is saved before the code is sent, so its failure is the submit's too.
+  const saveError = saveName.isError ? (saveName.error as { code?: string; message?: string } | null) : null;
+  const failure: RedeemFailure | null = redeem.isError ? redeem.error : saveError ? (isOfflineError(saveError) ? 'offline' : 'failed') : null;
+  const failed = failure !== null;
+  const failureDetail = redeem.isError
+    ? redeem.error === 'failed'
+      ? lastRedeemDetail
+      : undefined
+    : failure === 'failed'
+      ? `${saveError?.code ?? ''} ${saveError?.message ?? ''}`.trim()
+      : undefined;
 
   return (
     <div className="wl">
@@ -166,42 +205,47 @@ export function Welcome() {
             {t('welcome.title')}
           </h2>
           <p className="footnote wl-follow-intro">{t('welcome.intro')}</p>
+          {/* The anonymous sign-in failed (offline, or Supabase's limit) or the session was lost. */}
+          {noSession && !failed && <Notice tone="error" title={t('welcome.session')} />}
 
           <PairingCodeInput
             label={t('welcome.code')}
             value={code}
             onChange={setCode}
-            invalid={failed && (redeem.error === 'bad_code' || redeem.error === 'own_code') && redeem.variables === normalized}
+            invalid={redeem.isError && (redeem.error === 'bad_code' || redeem.error === 'own_code') && redeem.variables === normalized}
             describedBy={failed ? 'wl-error' : undefined}
           />
-          {failed && (
-            <Notice
-              id="wl-error"
-              tone="error"
-              title={t(`welcome.${redeem.error}`)}
-              detail={redeem.error === 'failed' ? lastRedeemDetail : undefined}
-            />
+          {failure && <Notice id="wl-error" tone="error" title={t(`welcome.${failure}`)} detail={failureDetail} />}
+
+          {!phoneAccount && (
+            <div className="wl-name">
+              <label htmlFor="name" className="field-label">
+                {t('welcome.name')}
+              </label>
+              <div className="field">
+                <input
+                  ref={nameField}
+                  id="name"
+                  type="text"
+                  maxLength={40}
+                  autoComplete="nickname"
+                  value={name}
+                  placeholder={profile.data || ''}
+                  aria-required={needsName || undefined}
+                  aria-invalid={nameMissing || undefined}
+                  aria-describedby={nameMissing ? 'wl-name-error' : undefined}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setNameMissing(false);
+                  }}
+                />
+              </div>
+              {nameMissing && <Notice id="wl-name-error" tone="error" title={t('welcome.name_needed')} />}
+            </div>
           )}
 
-          <div className="wl-name">
-            <label htmlFor="name" className="field-label">
-              {t('welcome.name')}
-            </label>
-            <div className="field">
-              <input
-                id="name"
-                type="text"
-                maxLength={40}
-                autoComplete="nickname"
-                value={name}
-                placeholder={profile.data || ''}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <Button type="submit" variant="ink" size="lg" className="wl-connect" disabled={loading || redeem.isPending || !wellFormed}>
-            {redeem.isPending ? t('welcome.connecting') : t('welcome.connect')}
+          <Button type="submit" variant="ink" size="lg" className="wl-connect" disabled={loading || busy || !wellFormed || noSession}>
+            {busy ? t('welcome.connecting') : t('welcome.connect')}
           </Button>
         </form>
 
