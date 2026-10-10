@@ -246,7 +246,8 @@ export function AmountDialog({
 
       <p className="per100">
         <span>{t('add.per100', { unit: massUnit })}</span>
-        {macros.map((m) => ` · ${m.label.toLocaleLowerCase(tag)} ${tenth.format(m.per100)} ${t('unit.g')}`).join('')}
+        {/* No-break spaces hold each nutrient to its value ("fat 0.2 g"), so a narrow line breaks only between nutrients. */}
+        {macros.map((m) => ` · ${m.label.toLocaleLowerCase(tag)}\u00a0${tenth.format(m.per100)}\u00a0${t('unit.g')}`).join('')}
       </p>
       {/* Values a shop typed in, not Open Food Facts' community: say where they come from, as the phone does. */}
       {isZakazProduct(product) && <p className="source-note">{t('add.source_zakaz')}</p>}

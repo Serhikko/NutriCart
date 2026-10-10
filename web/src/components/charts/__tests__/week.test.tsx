@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { I18nProvider } from '../../../lib/i18n';
+import { I18nProvider, type Locale } from '../../../lib/i18n';
 import {
   axisDate,
   buildWeekRows,
@@ -87,10 +87,12 @@ describe('weekView', () => {
     expect(kcalGridValues(1400, 1050)).toEqual([0]);
   });
 
-  it('names the week with Intl, in both languages', () => {
+  it('names the week with Intl, in every language', () => {
     // ICU versions differ on the spaces round the dash; the words do not.
     expect(weekRange(TODAY - 6, TODAY, 'en-GB')).toMatch(/^3\s?–\s?9 October$/);
     expect(weekRange(TODAY - 6, TODAY, 'uk-UA')).toMatch(/^3\s?–\s?9 жовтня$/);
+    expect(weekRange(TODAY - 6, TODAY, 'be-BY')).toMatch(/^3\s?–\s?9 кастрычніка$/);
+    expect(weekRange(TODAY - 6, TODAY, 'ru-RU')).toMatch(/^3\s?–\s?9 октября$/);
     expect(weekRange(TODAY - 9, TODAY - 3, 'en-GB')).toMatch(/^30 September\s?–\s?6 October$/);
   });
 
@@ -100,6 +102,10 @@ describe('weekView', () => {
     expect(dayLabel(TODAY, 'en-GB')).toBe('Friday 9 Oct');
     expect(dayLabel(TODAY, 'uk-UA')).toBe('Пʼятниця, 9 жовт.');
     expect(dayLabel(TODAY - 5, 'uk-UA')).toBe('Неділя, 4 жовт.');
+    // Belarusian and Russian write the same comma after the weekday ("субота, 10 кастрычніка", "суббота, 10 октября").
+    expect(dayLabel(TODAY, 'ru-RU')).toBe('Пятница, 9 окт.');
+    expect(dayLabel(TODAY - 5, 'ru-RU')).toBe('Воскресенье, 4 окт.');
+    expect(dayLabel(TODAY, 'be-BY')).toMatch(/^Пятніца, 9 кас\.?$/);
     expect(axisDate(TODAY, 'en-GB')).toBe('9 Oct');
     expect(axisDate(TODAY, 'uk-UA')).toBe('9 жовт.');
   });
@@ -109,7 +115,7 @@ function renderWeek(
   rows: WeekDay[] | null,
   weights: WeightEntry[] = [],
   extra: Partial<Parameters<typeof WeekOverview>[0]> = {},
-  locale: 'en' | 'uk' = 'en',
+  locale: Locale = 'en',
 ) {
   localStorage.setItem('nutricart.locale', locale);
   return render(

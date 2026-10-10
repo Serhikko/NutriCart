@@ -5,6 +5,7 @@
  * from the same local date, never from UTC, or a meal logged after 22:00 in
  * Kyiv would show under the wrong day.
  */
+import { dateFormat } from './dateFormat';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -26,11 +27,7 @@ export function todayEpochDay(now: Date = new Date()): number {
 
 /** "Mon 28 Sep" in the given locale. */
 export function formatDay(epochDay: number, locale: string): string {
-  return fromEpochDay(epochDay).toLocaleDateString(locale, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
+  return dateFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).format(fromEpochDay(epochDay));
 }
 
 /** "13:05" in the given locale, from an ISO timestamp. */

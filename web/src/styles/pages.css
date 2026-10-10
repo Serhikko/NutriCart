@@ -161,7 +161,7 @@
 .ob-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ob-field input[type="date"] { min-height: 46px; }
 
-/* Choice rows (activity level, goal): a native radio stretched over the row. */
+/* Choice rows (activity level, goal; Settings' language list): a native radio stretched over the row. */
 .ob-list .ob-group { gap: 0; padding: 6px 0; overflow: clip; }
 .ob-opt { position: relative; display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 10px 18px 10px 16px; transition: background-color var(--dur-press) var(--ease-out); }
 .ob-opt + .ob-opt::before { content: ""; position: absolute; top: 0; right: 0; left: 54px; border-top: .5px solid var(--sep); }
@@ -304,11 +304,12 @@
 .set-signed .icon { flex: none; margin-top: 1px; color: var(--tint); }
 
 
-/* Language: the segmented control in a cell of its own, like every other group. */
-.set-lang { padding: 8px; }
-/* Concentric with the card's corner (24 - 8). */
-.set-lang .seg { border-radius: 16px; }
-.set-lang .seg-thumb, .set-lang .seg-btn { border-radius: 14px; }
+/* Language: one choice row per language (the profile form's .ob-opt rows), a list like any other group.
+   A name is one line, so the rows are a list row's height; the chosen one is set heavier, as a segment was. */
+.set-lang { gap: 0; padding: 4px 0; overflow: clip; }
+.set-lang .ob-opt { min-height: 50px; padding-block: 8px; }
+.set-lang .ob-opt-title { font-weight: 500; }
+.set-lang .ob-opt.is-on .ob-opt-title { font-weight: 600; }
 
 /* The way out: one destructive row and its hint. */
 .set-device { gap: 10px; }

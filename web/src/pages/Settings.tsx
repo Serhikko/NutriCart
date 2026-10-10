@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useI18n, type Locale } from '../lib/i18n';
+import { LOCALES, useI18n, type Locale } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { useFollowed, useMyPartners, useMyProfile, useNewPairingCode, useRemovePartner, useSaveMyName, useUnfollow } from '../lib/queries';
 import { useProfileDetails } from '../lib/tracker';
@@ -13,7 +13,6 @@ import { Button } from '../components/ui/Button';
 import { Icon } from '../components/ui/Icon';
 import { Notice } from '../components/ui/Notice';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
-import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useToast } from '../components/ui/Toast';
 import { Initial } from '../components/FollowingList';
@@ -78,6 +77,44 @@ function Section({ id, title, footer, index, children }: SectionProps) {
       {children}
       {footer != null && footer !== false && <p className="set-foot">{footer}</p>}
     </section>
+  );
+}
+
+/** Each language by its own name, in the picker's order (LOCALES). */
+const LANGUAGE_NAMES: Record<Locale, string> = { en: 'English', uk: 'Українська', be: 'Беларуская', ru: 'Русский' };
+
+/**
+ * The language picker: a radio group of choice rows, the profile form's (a
+ * native radio stretched over the row and the check disc, .ob-opt in
+ * pages.css), since four names do not fit a segmented control on a 360 px
+ * phone. One tab stop; arrow keys move and choose, as the segments did. Each
+ * row carries its language's `lang`, so a screen reader says the name in it.
+ */
+function LanguageList({ labelledBy, value, onChange }: { labelledBy: string; value: Locale; onChange: (locale: Locale) => void }) {
+  return (
+    <div className="card set-group set-lang" role="radiogroup" aria-labelledby={labelledBy}>
+      {LOCALES.map((locale) => {
+        const checked = locale === value;
+        return (
+          <div key={locale} className={checked ? 'ob-opt is-on' : 'ob-opt'} lang={locale}>
+            <input
+              type="radio"
+              name="set-language"
+              className="ob-opt-input"
+              checked={checked}
+              onChange={() => onChange(locale)}
+              aria-label={LANGUAGE_NAMES[locale]}
+            />
+            <span className="ob-opt-mark" aria-hidden="true">
+              <Icon name="check" size="xs" />
+            </span>
+            <span className="ob-opt-title" aria-hidden="true">
+              {LANGUAGE_NAMES[locale]}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -535,17 +572,7 @@ export function Settings() {
           </Section>
 
           <Section id="set-language" title={t('settings.language')} index={i++}>
-            <div className="card set-group set-lang">
-              <SegmentedControl<Locale>
-                labelledBy="set-language-h"
-                options={[
-                  { value: 'en', label: 'English' },
-                  { value: 'uk', label: 'Українська' },
-                ]}
-                value={locale}
-                onChange={setLocale}
-              />
-            </div>
+            <LanguageList labelledBy="set-language-h" value={locale} onChange={setLocale} />
           </Section>
 
           {/* The privacy note describes following, so it is this region's footnote: a screen reader

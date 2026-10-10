@@ -161,4 +161,23 @@ describe('Settings', () => {
     expect(document.activeElement).toBe(section('Your name'));
     expect(within(index).getByRole('link', { name: 'Your name' })).toHaveAttribute('aria-current', 'true');
   });
+
+  it('lists the four languages by their own names, and switches the page to the one picked', async () => {
+    renderSettings();
+    const group = within(section('Language')).getByRole('radiogroup', { name: 'Language' });
+    const radios = within(group).getAllByRole('radio');
+    expect(radios.map((r) => r.getAttribute('aria-label'))).toEqual(['English', 'Українська', 'Беларуская', 'Русский']);
+    expect(radios.map((r) => r.closest('[lang]')?.getAttribute('lang'))).toEqual(['en', 'uk', 'be', 'ru']);
+    expect(within(group).getByRole('radio', { name: 'English' })).toBeChecked();
+
+    fireEvent.click(within(group).getByRole('radio', { name: 'Беларуская' }));
+    await waitFor(() => expect(document.documentElement.lang).toBe('be'));
+    expect(localStorage.getItem('nutricart.locale')).toBe('be');
+    expect(within(group).getByRole('radio', { name: 'Беларуская' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'English' })).not.toBeChecked();
+
+    fireEvent.click(within(group).getByRole('radio', { name: 'Русский' }));
+    await waitFor(() => expect(document.documentElement.lang).toBe('ru'));
+    expect(localStorage.getItem('nutricart.locale')).toBe('ru');
+  });
 });

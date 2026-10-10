@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useI18n } from '../../lib/i18n';
+import { intlTag, useI18n } from '../../lib/i18n';
 import { canAnimate, prefersReducedMotion, spring } from '../../lib/motion';
 
 /**
@@ -68,7 +68,7 @@ function useNumberTag(): string {
   try {
     return useI18n().tag;
   } catch {
-    return typeof document !== 'undefined' && document.documentElement.lang.startsWith('uk') ? 'uk-UA' : 'en-GB';
+    return intlTag(typeof document !== 'undefined' ? document.documentElement.lang : '');
   }
 }
 

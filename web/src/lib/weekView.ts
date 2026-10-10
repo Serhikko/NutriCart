@@ -1,6 +1,8 @@
 import { fromEpochDay } from './dates';
+import { dateFormat } from './dateFormat';
 import { onePerDay, type DaySummary, type WeightEntry } from './diary';
 import { ADHERENCE_TOLERANCE, dayState, streak, type DayState } from '../domain/habits';
+import { weekdaySeparator } from './i18n';
 
 /**
  * The pure arithmetic behind the Week pages (My week and a partner's week):
@@ -180,45 +182,39 @@ export function weightGuides(lo: number, hi: number): number[] {
 
 /* ------------------------------------------------------------------ words */
 
-/** First letter up: Ukrainian weekday and month names are lower case mid-sentence. */
+/** First letter up: Ukrainian, Belarusian and Russian weekday and month names are lower case mid-sentence. */
 export const cap1 = (s: string) => (s ? s[0].toLocaleUpperCase() + s.slice(1) : s);
 
 /** "Sat", "сб": Intl's short weekday alone (never a formatted date split at a space, which keeps the comma). */
 export function shortWeekday(epochDay: number, tag: string): string {
-  return cap1(new Intl.DateTimeFormat(tag, { weekday: 'short' }).format(fromEpochDay(epochDay))).replace(/[.,]$/, '');
+  return cap1(dateFormat(tag, { weekday: 'short' }).format(fromEpochDay(epochDay))).replace(/[.,]$/, '');
 }
 
 /** "Tuesday", "Вівторок": the name a day marker is read by. */
 export function longWeekday(epochDay: number, tag: string): string {
-  return cap1(new Intl.DateTimeFormat(tag, { weekday: 'long' }).format(fromEpochDay(epochDay)));
+  return cap1(dateFormat(tag, { weekday: 'long' }).format(fromEpochDay(epochDay)));
 }
 
 /**
- * "Tuesday 6 Oct", "Вівторок, 6 жовт.": the chart header for a past day and the
- * tables' row names. Two Intl calls, as dayView's longDate: formatted together
- * with a day and month, Chromium declines the Ukrainian weekday ("пʼятницю"),
- * and a heading needs the nominative.
+ * "Tuesday 6 Oct", "Вівторок, 6 жовт.", "Вторник, 6 окт.": the chart header for
+ * a past day and the tables' row names. Two Intl calls, as dayView's longDate:
+ * formatted together with a day and month, Chromium declines the Ukrainian
+ * weekday ("пʼятницю"), and a heading needs the nominative. The comma the
+ * Slavic languages write after the weekday is put back (weekdaySeparator).
  */
 export function dayLabel(epochDay: number, tag: string): string {
   const date = fromEpochDay(epochDay);
-  const weekday = new Intl.DateTimeFormat(tag, { weekday: 'long' }).format(date);
-  const dayMonth = new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short' }).format(date);
-  return cap1(`${weekday}${tag.startsWith('uk') ? ',' : ''} ${dayMonth}`);
+  const weekday = dateFormat(tag, { weekday: 'long' }).format(date);
+  const dayMonth = dateFormat(tag, { day: 'numeric', month: 'short' }).format(date);
+  return cap1(`${weekday}${weekdaySeparator(tag)}${dayMonth}`);
 }
 
 /** "9 Sep", "9 вер.": the weight chart's axis dates (day and month only, no weekday). */
 export function axisDate(epochDay: number, tag: string): string {
-  return new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short' }).format(fromEpochDay(epochDay));
+  return dateFormat(tag, { day: 'numeric', month: 'short' }).format(fromEpochDay(epochDay));
 }
 
 /** "3–9 October", "28 September – 4 October", "3–9 жовтня": the week's eyebrow. */
 export function weekRange(first: number, last: number, tag: string): string {
-  const fmt = new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'long' });
-  const a = fromEpochDay(first);
-  const b = fromEpochDay(last);
-  try {
-    return fmt.formatRange(a, b);
-  } catch {
-    return `${fmt.format(a)} – ${fmt.format(b)}`;
-  }
+  return dateFormat(tag, { day: 'numeric', month: 'long' }).formatRange(fromEpochDay(first), fromEpochDay(last));
 }

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
-import { I18nProvider } from '../../../lib/i18n';
+import { I18nProvider, type Locale } from '../../../lib/i18n';
 import { SegmentedControl } from '../SegmentedControl';
 import { Sheet } from '../Sheet';
 import { AmountStepper } from '../AmountStepper';
@@ -10,7 +10,7 @@ import { Notice } from '../Notice';
 import { EmptyState } from '../EmptyState';
 import { OfflineBanner } from '../OfflineBanner';
 
-function withI18n(ui: ReactNode, locale: 'en' | 'uk' = 'en') {
+function withI18n(ui: ReactNode, locale: Locale = 'en') {
   localStorage.setItem('nutricart.locale', locale);
   return render(<I18nProvider>{ui}</I18nProvider>);
 }

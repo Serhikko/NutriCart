@@ -1,7 +1,9 @@
+import { dateFormat } from './dateFormat';
 import { formatDay, formatTime, fromEpochDay } from './dates';
 import { MEAL_SLOTS, dayLine, onePerDay, type DaySummary, type FoodLogEntry, type MealSlot, type WaterEntry, type WeightEntry } from './diary';
 import { ADHERENCE_TOLERANCE } from '../domain/habits';
 import type { FoodProduct } from '../domain/openFoodFacts';
+import { weekdaySeparator } from './i18n';
 import { cap1 } from './weekView';
 
 /**
@@ -13,19 +15,20 @@ import { cap1 } from './weekView';
  */
 
 /**
- * "Friday 9 October", "Пʼятниця, 9 жовтня": the page eyebrow. Two Intl calls, so
- * Ukrainian keeps the nominative weekday (one call would decline it).
+ * "Friday 9 October", "Пʼятниця, 9 жовтня", "Пятница, 9 октября": the page
+ * eyebrow. Two Intl calls, so Ukrainian keeps the nominative weekday (one call
+ * would decline it), joined with the language's comma (weekdaySeparator).
  */
 export function longDate(epochDay: number, tag: string): string {
   const date = fromEpochDay(epochDay);
-  const weekday = new Intl.DateTimeFormat(tag, { weekday: 'long' }).format(date);
-  const dayMonth = new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'long' }).format(date);
-  return cap1(`${weekday}${tag.startsWith('uk') ? ',' : ''} ${dayMonth}`);
+  const weekday = dateFormat(tag, { weekday: 'long' }).format(date);
+  const dayMonth = dateFormat(tag, { day: 'numeric', month: 'long' }).format(date);
+  return cap1(`${weekday}${weekdaySeparator(tag)}${dayMonth}`);
 }
 
 /** "8 October", "8 жовтня": a day inside a sentence ("Weight on 8 October"). */
 export function dayMonth(epochDay: number, tag: string): string {
-  return new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'long' }).format(fromEpochDay(epochDay));
+  return dateFormat(tag, { day: 'numeric', month: 'long' }).format(fromEpochDay(epochDay));
 }
 
 /** "Thu 8 Oct", "Чт, 8 жовт.": the day navigator's label for a day that is not today (first letter up). */
@@ -41,7 +44,7 @@ export function sentAt(iso: string, tag: string, now: Date = new Date()): string
   const when = new Date(iso);
   const sameDay = when.getFullYear() === now.getFullYear() && when.getMonth() === now.getMonth() && when.getDate() === now.getDate();
   if (sameDay) return formatTime(iso, tag);
-  return new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(when);
+  return dateFormat(tag, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(when);
 }
 
 /* ------------------------------------------------------------ the day line */

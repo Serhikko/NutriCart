@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { I18nProvider } from '../../../lib/i18n';
+import { I18nProvider, type Locale } from '../../../lib/i18n';
 import { Ring } from '../Ring';
 import { Digits } from '../Digits';
 import { Bar } from '../Bar';
@@ -11,7 +11,7 @@ import { Skeleton } from '../Skeleton';
 // jsdom has no Web Animations, matchMedia, ResizeObserver or @property: everything here
 // must render complete and correct without them.
 
-function inLocale(locale: 'en' | 'uk', ui: ReactNode) {
+function inLocale(locale: Locale, ui: ReactNode) {
   localStorage.setItem('nutricart.locale', locale);
   return render(<I18nProvider>{ui}</I18nProvider>);
 }
@@ -100,6 +100,20 @@ describe('Digits', () => {
   it('uses the Ukrainian group separator in Ukrainian', () => {
     const { container } = inLocale('uk', <Digits value={1230} />);
     expect(shown(container.querySelector('.digits')!)).toBe('1 230');
+  });
+
+  it('groups like the page language outside a provider, English for a language the site lacks', () => {
+    const lang = document.documentElement.lang;
+    try {
+      for (const [pageLang, tag] of [['ru', 'ru-RU'], ['be', 'be-BY'], ['uk', 'uk-UA'], ['de', 'en-GB'], ['', 'en-GB']] as const) {
+        document.documentElement.lang = pageLang;
+        const { container, unmount } = render(<Digits value={12300} />);
+        expect(shown(container.querySelector('.digits')!)).toBe(new Intl.NumberFormat(tag).format(12300));
+        unmount();
+      }
+    } finally {
+      document.documentElement.lang = lang;
+    }
   });
 
   it('takes a custom format (one decimal for kilograms)', () => {
